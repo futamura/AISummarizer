@@ -1,12 +1,12 @@
 ![Chrome Web Store Version](https://img.shields.io/chrome-web-store/v/ojofnhnjhhjfpgenkakhpajjeidplidd?style=flat&label=Chrome%20Extension)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Open Source](https://img.shields.io/badge/Open%20Source-Yes-blue.svg)](https://github.com/gumob/AISummarizer)
+[![Open Source](https://img.shields.io/badge/Open%20Source-Yes-blue.svg)](https://github.com/futamura/AISummarizer)
 
-# [Free AI Summarizer](https://github.com/gumob/AISummarizer)
+# [Free AI Summarizer](https://github.com/futamura/AISummarizer)
 
 A free and open-source Chrome Extension that uses AI to summarize web articles. Get instant summaries with just a few clicks.
 
-<img src="https://raw.githubusercontent.com/gumob/AISummarizer/refs/heads/main/screenshot.png" alt="Banner">
+<img src="https://raw.githubusercontent.com/futamura/AISummarizer/refs/heads/main/screenshot.png" alt="Banner">
 
 ## Features
 
@@ -46,7 +46,7 @@ A free and open-source Chrome Extension that uses AI to summarize web articles. 
 
 ### Install locally
 
-4. Download [release version](https://github.com/gumob/AISummarizer/releases) and unzip
+4. Download [release version](https://github.com/futamura/AISummarizer/releases) and unzip
 5. Open `chrome://extensions` in Chrome
 6. Enable "Developer mode" in the top right
 7. Click "Load unpacked"
@@ -65,7 +65,7 @@ A free and open-source Chrome Extension that uses AI to summarize web articles. 
 2. Clone the repository
 
    ```bash
-   git clone https://github.com/gumob/AISummarizer.git
+   git clone https://github.com/futamura/AISummarizer.git
    cd AISummarizer
    ```
 
