@@ -61,6 +61,26 @@ From `.cursor/rules/global.mdc` (binding for this repo):
 - Do not make changes beyond what was explicitly instructed; propose first, implement after approval
 - Follow the layout in DIRECTORYSTRUCTURE.md when adding files
 
-## Branches
+## Repository workflow
 
-`main` = production, `develop` = default working branch. Features: `feature/<name>`, fixes: `fix/<description>`.
+### Branching
+
+- Never commit directly to `main` or `develop`.
+- For any change, create a working branch from `develop` and work there; merge back into `develop` when done.
+- Branch names follow Conventional Commit types: `feat/<name>`, `fix/<name>`, `docs/<name>`, `refactor/<name>`, `chore/<name>`, etc.
+- `main` is the production branch; it is only updated by merging `develop` as part of a release.
+
+### Release
+
+Two stages: local Fastlane, then CI triggered by the version tag.
+
+1. `bundle exec fastlane release` (must run on `develop`; see `fastlane/Fastfile`):
+   - Interactive version bump (patch / minor / major) — updates both `package.json` and `manifest.json`
+   - Runs prettier / eslint / type-check / `pnpm audit --audit-level high`
+   - Production build, then zips `dist/prod` into `free-ai-summarizer-<version>.zip`
+   - Commits `feat: bump version to <version>`, tags `v<version>` (recreating the tag if it already exists), then pushes with tags
+   - Merges `develop` into `main` and pushes
+2. Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`:
+   - Re-runs audit / prettier / eslint / type-check, builds, and creates a GitHub Release with the zip attached (auto-generated release notes)
+   - Uploads to Chrome Web Store via `chrome-webstore-upload-cli` with `--auto-publish` (requires `CHROME_*` repository secrets)
+   - The Store upload step is `continue-on-error` — a green workflow does not guarantee publication; check the "Upload to Chrome Web Store" step log
