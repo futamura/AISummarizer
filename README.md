@@ -105,8 +105,8 @@ For detailed technology stack information, please refer to [TECHNOLOGSTACK.md](.
 1. Code Style
 
    - Use ESLint and Prettier
-   - Run `pnpm lint` before committing
-   - Run `pnpm format` before committing
+   - Run `pnpm eslint-check` before committing
+   - Run `pnpm prettier-fix` before committing
 
 2. Branch Strategy
 
