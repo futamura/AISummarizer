@@ -33,9 +33,9 @@ Please follow the directory structure below for implementation:
 ├── .github/                      # GitHub configuration files
 ├── .vscode/                      # VSCode configuration
 ├── .gitignore                    # Git ignore patterns
-├── .prettierrc                   # Prettier configuration
+├── prettier.config.js            # Prettier configuration
 ├── .prettierignore               # Prettier ignore patterns
-├── .eslintignore                 # ESLint ignore patterns
+├── eslint.config.js              # ESLint configuration
 ├── manifest.json                 # Chrome Extension manifest configuration
 ├── package.json                  # Project settings
 ├── package-script.sh             # Build and development scripts
@@ -77,8 +77,8 @@ Please follow the directory structure below for implementation:
 - `utils/`: General utility functions
 
 #### Configuration Files
-- `.prettierrc`: Prettier formatting rules
-- `.eslintignore`: ESLint ignore patterns
+- `prettier.config.js`: Prettier formatting rules
+- `eslint.config.js`: ESLint configuration
 - `tsconfig.json`: TypeScript compiler configuration
 - `webpack.config.ts`: Webpack build configuration
 - `postcss.config.js`: PostCSS configuration
