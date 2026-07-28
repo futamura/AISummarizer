@@ -27,8 +27,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v2
-        with:
-          version: 8
 
       # @Reference: https://zenn.dev/link/comments/ab5ad0d93dac67
       - name: Get pnpm store directory
