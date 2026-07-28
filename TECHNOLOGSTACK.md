@@ -64,6 +64,8 @@
 - consola: ^3.4.2 (Console logging)
 - idb: ^8.0.3 (IndexedDB wrapper)
 - @mozilla/readability: ^0.6.0 (Article parsing)
+- pdf-lib: ^1.17.1 (PDF manipulation)
+- pdfjs-dist: ^5.3.93 (PDF parsing; worker bundled as pdf.worker.min.mjs)
 - html-dom-parser: ^5.1.1 (HTML parsing)
 - domhandler: ^5.0.3 (DOM manipulation)
 - entities: ^6.0.1 (HTML entities)

@@ -110,10 +110,10 @@ For detailed technology stack information, please refer to [TECHNOLOGSTACK.md](.
 
 2. Branch Strategy
 
-   - `main`: Production branch
+   - `main`: Production branch (updated only by merging `develop` during a release)
    - `develop`: Development branch
-   - Feature development: `feature/feature-name`
-   - Bug fixes: `fix/bug-description`
+   - Do not commit directly to `main` or `develop`
+   - Create working branches from `develop`, named after Conventional Commit types: `feat/<name>`, `fix/<name>`, `docs/<name>`, etc.
 
 3. Pull Requests
    - Clear title and description
