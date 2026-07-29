@@ -53,9 +53,17 @@ export const DEFAULT_SETTINGS: SettingsState = {
   tabBehavior: TabBehavior.NEW_TAB,
   contentExtractionTiming: ContentExtractionTiming.AUTOMATIC,
   extractionDenylist: `/** Search engines */
-(https?)\\:\\/\\/(www\\.)?(google|facebook|bing|yahoo|duckduckgo|baidu|yandex|ask|)\\.(co\\.[a-z]{2}|[a-z]{2,3})
+(https?)\\:\\/\\/((www|m|search|images?|videos?|maps)\\.)?(google|bing|yahoo|duckduckgo|baidu|yandex|ask|ecosia|startpage|naver)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
+/** Google services */
+(https?)\\:\\/\\/(mail|docs|drive|calendar|meet|news|photos|play|accounts|myaccount|translate|keep|chat|contacts)\\.google\\.com(\\/|\\?|#|$)
+/** Social networks */
+(https?)\\:\\/\\/((www|m|mobile)\\.)?(facebook|twitter|x|instagram|tiktok|threads|linkedin|pinterest)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
 /** E-commerce sites */
-(https?)\\:\\/\\/(www\\.)?(amazon|shop|etsy|ebay|walmart|bestbuy|shopify|target|costoco|apple|flipkart|wix|rakuten|mercari|alibaba|aliexpress|shein|taobao|qoo10|)\\.(co\\.[a-z]{2}|[a-z]{2,3})
+(https?)\\:\\/\\/((www|m|shop|store)\\.)?(amazon|shop|etsy|ebay|walmart|bestbuy|shopify|target|costco|apple|flipkart|wix|rakuten|mercari|alibaba|aliexpress|shein|taobao|qoo10)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
+/** Local development */
+(https?)\\:\\/\\/localhost(\\:[0-9]+)?(\\/|\\?|#|$)
+(https?)\\:\\/\\/(\\d{1,3}\\.){3}\\d{1,3}(\\:[0-9]+)?(\\/|\\?|#|$)
+(https?)\\:\\/\\/\\[[0-9a-fA-F\\:]+\\](\\:[0-9]+)?(\\/|\\?|#|$)
 `,
   saveArticleOnClipboard: false,
   isShowMessage: false,
