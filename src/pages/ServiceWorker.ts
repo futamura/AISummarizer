@@ -1,6 +1,7 @@
 import { STORAGE_KEYS } from '@/constants';
 import { ArticleRecord, db } from '@/db';
 import { CleanupDBService, ContextMenuService, ServiceWorkerThemeService } from '@/features/serviceworker/services';
+import { MENU_ITEMS } from '@/models';
 import { useArticleStore, useSettingsStore } from '@/stores';
 import { DEFAULT_SETTINGS } from '@/stores/SettingsStore';
 import {
@@ -170,6 +171,15 @@ class ServiceWorker {
    * @param tab - The tab that the context menu was clicked on
    */
   private async handleContextMenuClicked(info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) {
+    /**
+     * sidePanel.open() must be called before any await in this handler,
+     * otherwise the user gesture context is lost and the call is rejected
+     */
+    if (info.menuItemId === MENU_ITEMS.SETTINGS.id) {
+      if (tab?.windowId) chrome.sidePanel.open({ windowId: tab.windowId });
+      return;
+    }
+
     if (!tab?.id || !tab?.url) {
       logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[handleContextMenuClicked]', 'No active tab found');
       return;
@@ -206,10 +216,6 @@ class ServiceWorker {
 
         /** Notify the current tab state */
         this.notifyCurrentTabState(tab.id, tab.url);
-        break;
-
-      case 'settings':
-        if (tab.windowId) chrome.sidePanel.open({ windowId: tab.windowId });
         break;
     }
   }
