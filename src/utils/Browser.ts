@@ -140,13 +140,16 @@ export const detectTheme = async () => {
 export const updateExtensionIcon = async (isDarkMode: boolean) => {
   logger.debug('🎨', '[ThemeUtils.ts]', '[updateExtensionIcon]', 'Updating extension icon');
 
+  /* Use the DEV-badged icons for development builds */
+  const postfix = process.env.NODE_ENV === 'development' ? '-dev' : '';
+
   try {
     const iconPath = isDarkMode ? '/icons/dark/' : '/icons/light/';
     await chrome.action.setIcon({
       path: {
-        16: `${iconPath}icon16.png`,
-        48: `${iconPath}icon48.png`,
-        128: `${iconPath}icon128.png`,
+        16: `${iconPath}icon16${postfix}.png`,
+        48: `${iconPath}icon48${postfix}.png`,
+        128: `${iconPath}icon128${postfix}.png`,
       },
     });
     logger.debug('🎨', '[ThemeUtils.ts]', '[updateExtensionIcon]', 'Icon updated');

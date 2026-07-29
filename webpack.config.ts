@@ -89,7 +89,22 @@ const config: Configuration = {
             ignore: ['**/*.sketch', '**/*.html'],
           },
         },
-        { from: 'manifest.json', to: '.' },
+        {
+          from: 'manifest.json',
+          to: '.',
+          transform: (content: Buffer) => {
+            if (!isDev) {
+              return content;
+            }
+            /* Point manifest icons at the DEV-badged variants for development builds */
+            const manifest = JSON.parse(content.toString());
+            const toDevIcons = (icons: Record<string, string>) =>
+              Object.fromEntries(Object.entries(icons).map(([size, iconPath]) => [size, (iconPath as string).replace(/\.png$/, '-dev.png')]));
+            manifest.icons = toDevIcons(manifest.icons);
+            manifest.action.default_icon = toDevIcons(manifest.action.default_icon);
+            return JSON.stringify(manifest, null, 2);
+          },
+        },
         // pdfjs worker を public ディレクトリにコピー
         {
           from: pdfWorkerPath,
