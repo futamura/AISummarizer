@@ -53,11 +53,18 @@ export const DEFAULT_SETTINGS: SettingsState = {
   tabBehavior: TabBehavior.NEW_TAB,
   contentExtractionTiming: ContentExtractionTiming.AUTOMATIC,
   extractionDenylist: `/** Search engines */
-(https?)\\:\\/\\/((www|m|search|images?|videos?|maps)\\.)?(google|bing|yahoo|duckduckgo|baidu|yandex|ask|ecosia|startpage|naver)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
+(https?)\\:\\/\\/((www|m|search|images?|videos?|maps|mail|shopping|auctions)\\.)?(google|bing|yahoo|duckduckgo|baidu|yandex|ask|ecosia|startpage|naver)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
 /** Google services */
-(https?)\\:\\/\\/(mail|docs|drive|calendar|meet|news|photos|play|accounts|myaccount|translate|keep|chat|contacts)\\.google\\.com(\\/|\\?|#|$)
+(https?)\\:\\/\\/(mail|docs|drive|calendar|meet|news|photos|play|accounts|myaccount|translate|keep|chat|contacts|notebooklm)\\.google\\.com(\\/|\\?|#|$)
+/** Microsoft services */
+(https?)\\:\\/\\/(outlook|teams|onedrive)\\.(live|office|office365|microsoft)\\.com(\\/|\\?|#|$)
+(https?)\\:\\/\\/(login|account)\\.microsoftonline\\.com(\\/|\\?|#|$)
+/** AI chat services */
+(https?)\\:\\/\\/(copilot\\.microsoft\\.com|(www\\.)?poe\\.com)(\\/|\\?|#|$)
 /** Social networks */
 (https?)\\:\\/\\/((www|m|mobile)\\.)?(facebook|twitter|x|instagram|tiktok|threads|linkedin|pinterest)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
+/** Streaming services */
+(https?)\\:\\/\\/((www|m|open)\\.)?(netflix|primevideo|hulu|disneyplus|twitch|spotify|abema|tver|nicovideo)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
 /** E-commerce sites */
 (https?)\\:\\/\\/((www|m|shop|store)\\.)?(amazon|shop|etsy|ebay|walmart|bestbuy|shopify|target|costco|apple|flipkart|wix|rakuten|mercari|alibaba|aliexpress|shein|taobao|qoo10)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
 /** Local development */
