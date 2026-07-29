@@ -7,48 +7,55 @@ export async function injectAIStudio(prompt: string): Promise<{ success: boolean
     /** Wait for 2 seconds to ensure page is fully loaded */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
 
-    /** Wait for the thinking mode button to be found */
-    const thinkingButton = await waitForElement('#mat-mdc-slide-toggle-1-button');
-    if (!thinkingButton) throw new Error('AIStudio thinking button not found');
-    logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio thinking button found', thinkingButton);
-
-    /** Click the thinking button if it is checked */
-    const isThinkingButtonChecked = thinkingButton.getAttribute('aria-checked') === 'true';
-    if (isThinkingButtonChecked) {
-      if (thinkingButton instanceof HTMLElement) {
-        thinkingButton.click();
+    /**
+     * Set the thinking level to the lowest option if the control is present. The thinking toggle
+     * was replaced by a "Thinking level" mat-select whose options are ordered lowest first.
+     * Missing control is not fatal because availability depends on the selected model.
+     */
+    const thinkingSelect = await waitForElement('ms-thinking-level-setting mat-select', 3);
+    if (thinkingSelect instanceof HTMLElement) {
+      logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio thinking level select found', thinkingSelect);
+      thinkingSelect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
+      const lowestOption = document.querySelector('mat-option');
+      if (lowestOption instanceof HTMLElement) {
+        lowestOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      } else {
+        /** Close the dropdown overlay so it cannot block later clicks */
+        const backdrop = document.querySelector('.cdk-overlay-backdrop');
+        if (backdrop instanceof HTMLElement) {
+          backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }
       }
+      await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
     }
 
-    /** Wait for 0.5 to 1 second before checking button state */
-    await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
-
-    /** Wait for the url context button to be found */
-    const urlContextButton = await waitForElement('#mat-mdc-slide-toggle-7-button');
-    if (!urlContextButton) throw new Error('AIStudio url context button not found');
-    logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio url context button found', urlContextButton);
-
-    /** Click the url context button if it is not checked */
-    const isUrlContextButtonChecked = urlContextButton.getAttribute('aria-checked') === 'true';
-    if (!isUrlContextButtonChecked) {
-      if (urlContextButton instanceof HTMLElement) {
+    /**
+     * Enable the url context tool if present. The auto-numbered mat-mdc-slide-toggle ids shifted,
+     * so locate the toggle via its stable data-test-id wrapper. Missing toggle is not fatal.
+     */
+    const urlContextButton = await waitForElement('div[data-test-id="browseAsAToolTooltip"] button[role="switch"]', 3);
+    if (urlContextButton instanceof HTMLElement) {
+      logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio url context button found', urlContextButton);
+      const isUrlContextButtonChecked = urlContextButton.getAttribute('aria-checked') === 'true';
+      if (!isUrlContextButtonChecked) {
         urlContextButton.click();
+        /** Wait for 0.5 to 1 second after toggling */
+        await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
       }
     }
 
-    /** Wait for 0.5 to 1 second before checking button state */
-    await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
-
-    /** Wait for the editor to be found */
-    const editor = await waitForElement('ms-autosize-textarea textarea');
+    /** Wait for the editor to be found. The ms-autosize-textarea wrapper was replaced by ms-prompt-box */
+    const editor = await waitForElement('ms-prompt-box textarea');
     if (!editor) throw new Error('AIStudio container not found');
     logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio editor found', editor);
 
-    /** Set the value and trigger input event */
+    /** Set the value through the native setter and trigger an input event so Angular picks up the change */
     if (editor instanceof HTMLTextAreaElement) {
-      editor.value = prompt;
+      const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      if (!nativeSetter) throw new Error('AIStudio native value setter not found');
+      nativeSetter.call(editor, prompt);
       editor.dispatchEvent(new Event('input', { bubbles: true }));
-      editor.dispatchEvent(new Event('change', { bubbles: true }));
     } else {
       throw new Error('AIStudio editor is not a textarea element');
     }
@@ -56,8 +63,8 @@ export async function injectAIStudio(prompt: string): Promise<{ success: boolean
     /** Wait for 0.5 to 1 second */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
 
-    /** Wait for the submit button to be found */
-    const submitButton = await waitForElement('button.run-button');
+    /** Wait for the submit button to be found. button.run-button was replaced by ms-run-button */
+    const submitButton = await waitForElement('ms-run-button button');
     if (!submitButton) throw new Error('AIStudio submit button not found');
     logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio submit button found', submitButton);
 
