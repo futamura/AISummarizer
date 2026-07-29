@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Free AI Summarizer - Summarize articles with ChatGPT, Gemini, Claude & more",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A free and open-source Chrome Extension that uses AI to summarize web articles. Get instant summaries with just a few clicks.",
   "permissions": ["storage", "tabs", "activeTab", "offscreen", "contextMenus", "sidePanel", "alarms", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],
