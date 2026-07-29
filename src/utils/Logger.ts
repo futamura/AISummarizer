@@ -9,9 +9,11 @@ export enum LogLevel {
   WARN = 4,
   ERROR = 5,
   FATAL = 6,
+  SILENT = 7,
 }
 
-export const LOG_LEVEL = LogLevel.ERROR;
+/* Suppress all logs in production; show DEBUG and above in development */
+export const LOG_LEVEL = process.env.NODE_ENV === 'development' ? LogLevel.DEBUG : LogLevel.SILENT;
 
 const toConsolaLogLevel = (logLevel: LogLevel) => {
   switch (logLevel) {
@@ -28,6 +30,8 @@ const toConsolaLogLevel = (logLevel: LogLevel) => {
     case LogLevel.ERROR:
     case LogLevel.FATAL:
       return ConsolaLogLevels.error;
+    case LogLevel.SILENT:
+      return ConsolaLogLevels.silent;
   }
 };
 
