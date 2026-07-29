@@ -12,14 +12,10 @@ import { DEFAULT_SETTINGS, useGlobalContext } from '@/stores';
 import {
   AIService,
   ContentExtractionTiming,
-  FloatPanelPosition,
   getAIServiceLabel,
   getContentExtractionTimingFromIndex,
   getContentExtractionTimingIndex,
   getContentExtractionTimingLabel,
-  getFloatPanelPositionFromIndex,
-  getFloatPanelPositionIndex,
-  getFloatPanelPositionLabel,
   getTabBehaviorFromIndex,
   getTabBehaviorIndex,
   getTabBehaviorLabel,
@@ -50,9 +46,6 @@ export const OptionsMain: React.FC = () => {
     /** tabBehavior */
     tabBehavior: storedTabBehavior,
     setTabBehavior: setStoredTabBehavior,
-    /** floatPanelPosition */
-    floatPanelPosition: storedFloatPanelPosition,
-    setFloatPanelPosition: setStoredFloatPanelPosition,
     /** contentExtractionTiming */
     contentExtractionTiming: storedContentExtractionTiming,
     setContentExtractionTiming: setStoredContentExtractionTiming,
@@ -81,7 +74,6 @@ export const OptionsMain: React.FC = () => {
   const [inputServiceStatus, setInputServiceStatus] = useState<{ [key in AIService]: boolean } | undefined>(undefined);
 
   const [inputTabBehavior, setInputTabBehavior] = useState<number | undefined>(undefined);
-  const [inputFloatPanel, setInputFloatPanel] = useState<number | undefined>(undefined);
   const [inputContentExtractionTiming, setInputContentExtractionTiming] = useState<number | undefined>(undefined);
   const [inputIsSaveArticleOnClipboard, setInputIsSaveArticleOnClipboard] = useState<boolean | undefined>(undefined);
   const [inputIsShowMessage, setInputIsShowMessage] = useState<boolean | undefined>(undefined);
@@ -125,10 +117,6 @@ export const OptionsMain: React.FC = () => {
   }, [inputTabBehavior, storedTabBehavior]);
 
   useEffect(() => {
-    if (inputFloatPanel === undefined) setInputFloatPanel(getFloatPanelPositionIndex(storedFloatPanelPosition));
-  }, [inputFloatPanel, storedFloatPanelPosition]);
-
-  useEffect(() => {
     if (inputContentExtractionTiming === undefined) setInputContentExtractionTiming(getContentExtractionTimingIndex(storedContentExtractionTiming));
   }, [inputContentExtractionTiming, storedContentExtractionTiming]);
 
@@ -166,7 +154,6 @@ export const OptionsMain: React.FC = () => {
         [key in AIService]: boolean;
       },
       tabBehavior: getTabBehaviorFromIndex(inputTabBehavior ?? getTabBehaviorIndex(DEFAULT_SETTINGS.tabBehavior)),
-      floatPanelPosition: getFloatPanelPositionFromIndex(inputFloatPanel ?? getFloatPanelPositionIndex(DEFAULT_SETTINGS.floatPanelPosition)),
       contentExtractionTiming: getContentExtractionTimingFromIndex(
         inputContentExtractionTiming ?? getContentExtractionTimingIndex(DEFAULT_SETTINGS.contentExtractionTiming)
       ),
@@ -175,7 +162,7 @@ export const OptionsMain: React.FC = () => {
       isShowMessage: inputIsShowMessage ?? DEFAULT_SETTINGS.isShowMessage,
       isShowBadge: inputIsShowBadge ?? DEFAULT_SETTINGS.isShowBadge,
     });
-  }, [inputPrompts, inputTabBehavior, inputFloatPanel, inputContentExtractionTiming, inputIsSaveArticleOnClipboard]);
+  }, [inputPrompts, inputTabBehavior, inputContentExtractionTiming, inputIsSaveArticleOnClipboard]);
 
   /**
    * Unset Input Settings
@@ -185,7 +172,6 @@ export const OptionsMain: React.FC = () => {
     await setInputPrompts(undefined);
     await setInputServiceStatus(undefined);
     await setInputTabBehavior(undefined);
-    await setInputFloatPanel(undefined);
     await setInputContentExtractionTiming(undefined);
     await setInputExtractionDenylist(undefined);
     await setInputIsSaveArticleOnClipboard(undefined);
@@ -416,32 +402,6 @@ export const OptionsMain: React.FC = () => {
                     onClick={async () => await setStoredTabBehavior(behavior)}
                   >
                     {getTabBehaviorLabel(behavior)}
-                  </Tab>
-                ))}
-              </TabList>
-            </TabGroup>
-          </OptionCard>
-
-          {/* Float Panel */}
-          <OptionCard title="Float Button Position">
-            <TabGroup selectedIndex={inputFloatPanel} onChange={setInputFloatPanel}>
-              <TabList className="flex flex-wrap gap-2">
-                {Object.entries(FloatPanelPosition).map(([name, position]: [string, FloatPanelPosition], index) => (
-                  <Tab
-                    key={name}
-                    className={clsx(
-                      'rounded-full px-3 py-1 font-semibold',
-                      'text-zinc-900 dark:text-zinc-50',
-                      'bg-zinc-300 dark:bg-zinc-700',
-                      'opacity-30 dark:opacity-30',
-                      'hover:opacity-100',
-                      inputFloatPanel === index && '!bg-blue-600 !opacity-100',
-                      'focus:outline-none',
-                      'transition-opacity'
-                    )}
-                    onClick={async () => await setStoredFloatPanelPosition(position)}
-                  >
-                    {getFloatPanelPositionLabel(position)}
                   </Tab>
                 ))}
               </TabList>

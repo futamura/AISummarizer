@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { STORAGE_KEYS } from '@/constants';
-import { AIService, ContentExtractionTiming, FloatPanelPosition, MessageAction, TabBehavior } from '@/types';
+import { AIService, ContentExtractionTiming, MessageAction, TabBehavior } from '@/types';
 import { logger } from '@/utils';
 
 export interface SettingsState {
@@ -13,7 +13,6 @@ export interface SettingsState {
     [key in AIService]: boolean;
   };
   tabBehavior: TabBehavior;
-  floatPanelPosition: FloatPanelPosition;
   contentExtractionTiming: ContentExtractionTiming;
   extractionDenylist: string;
   saveArticleOnClipboard: boolean;
@@ -52,7 +51,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
     [AIService.DEEPSEEK]: true,
   },
   tabBehavior: TabBehavior.NEW_TAB,
-  floatPanelPosition: FloatPanelPosition.BOTTOM_RIGHT,
   contentExtractionTiming: ContentExtractionTiming.AUTOMATIC,
   extractionDenylist: `/** Search engines */
 (https?)\\:\\/\\/(www\\.)?(google|facebook|bing|yahoo|duckduckgo|baidu|yandex|ask|)\\.(co\\.[a-z]{2}|[a-z]{2,3})
@@ -72,8 +70,6 @@ export interface SettingsStore extends SettingsState {
   getServiceOnMenu: (service: AIService) => Promise<boolean>;
   setTabBehavior: (tabBehavior: TabBehavior) => Promise<void>;
   getTabBehavior: () => Promise<TabBehavior>;
-  setFloatPanelPosition: (floatPanelPosition: FloatPanelPosition) => Promise<void>;
-  getFloatPanelPosition: () => Promise<FloatPanelPosition>;
   setContentExtractionTiming: (contentExtractionTiming: ContentExtractionTiming) => Promise<void>;
   getContentExtractionTiming: () => Promise<ContentExtractionTiming>;
   setExtractionDenylist: (extractionDenylist: string) => Promise<void>;
@@ -132,13 +128,6 @@ export const useSettingsStore = create<SettingsStore>()(
         const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
         return settings[STORAGE_KEYS.SETTINGS]?.state?.tabBehavior ?? DEFAULT_SETTINGS.tabBehavior;
       },
-      setFloatPanelPosition: async (floatPanelPosition: FloatPanelPosition) => {
-        await get().updateSettings({ floatPanelPosition });
-      },
-      getFloatPanelPosition: async () => {
-        const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-        return settings[STORAGE_KEYS.SETTINGS]?.state?.floatPanelPosition ?? DEFAULT_SETTINGS.floatPanelPosition;
-      },
       setContentExtractionTiming: async (contentExtractionTiming: ContentExtractionTiming) => {
         await get().updateSettings({ contentExtractionTiming });
       },
@@ -189,7 +178,6 @@ export const useSettingsStore = create<SettingsStore>()(
             settings: {
               prompt: settings.prompts || {},
               tabBehavior: settings.tabBehavior || '',
-              floatPanelPosition: settings.floatPanelPosition || '',
               contentExtractionTiming: settings.contentExtractionTiming || '',
               extractionDenylist: settings.extractionDenylist || [],
               saveArticleOnClipboard: settings.saveArticleOnClipboard || false,
@@ -243,7 +231,6 @@ export const useSettingsStore = create<SettingsStore>()(
           await get().updateSettings({
             prompts: backupData.settings.prompt,
             tabBehavior: backupData.settings.tabBehavior as TabBehavior,
-            floatPanelPosition: backupData.settings.floatPanelPosition as FloatPanelPosition,
             contentExtractionTiming: backupData.settings.contentExtractionTiming as ContentExtractionTiming,
             extractionDenylist: backupData.settings.extractionDenylist,
             saveArticleOnClipboard: backupData.settings.saveArticleOnClipboard,
@@ -263,7 +250,6 @@ export const useSettingsStore = create<SettingsStore>()(
           await get().updateSettings({
             prompts: DEFAULT_SETTINGS.prompts,
             tabBehavior: DEFAULT_SETTINGS.tabBehavior,
-            floatPanelPosition: DEFAULT_SETTINGS.floatPanelPosition,
             contentExtractionTiming: DEFAULT_SETTINGS.contentExtractionTiming,
             extractionDenylist: DEFAULT_SETTINGS.extractionDenylist,
             saveArticleOnClipboard: DEFAULT_SETTINGS.saveArticleOnClipboard,
@@ -322,7 +308,6 @@ const sendSettingsUpdate = async () => {
         prompts: settings.prompts,
         serviceOnMenu: settings.serviceOnMenu,
         tabBehavior: settings.tabBehavior,
-        floatPanelPosition: settings.floatPanelPosition,
         contentExtractionTiming: settings.contentExtractionTiming,
         extractionDenylist: settings.extractionDenylist,
         saveArticleOnClipboard: settings.saveArticleOnClipboard,

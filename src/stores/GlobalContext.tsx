@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { db } from '@/db';
 import { ArticleModel } from '@/models';
 import { SettingsState, useSettingsStore } from '@/stores';
-import { AIService, ContentExtractionTiming, FloatPanelPosition, TabBehavior } from '@/types';
+import { AIService, ContentExtractionTiming, TabBehavior } from '@/types';
 import { logger } from '@/utils';
 
 /**
@@ -31,9 +31,6 @@ interface GlobalContextValue {
   tabBehavior: TabBehavior;
   setTabBehavior: (tabBehavior: TabBehavior) => Promise<void>;
   getTabBehavior: () => Promise<TabBehavior>;
-  floatPanelPosition: FloatPanelPosition;
-  setFloatPanelPosition: (floatPanelPosition: FloatPanelPosition) => Promise<void>;
-  getFloatPanelPosition: () => Promise<FloatPanelPosition>;
   contentExtractionTiming: ContentExtractionTiming;
   setContentExtractionTiming: (contentExtractionTiming: ContentExtractionTiming) => Promise<void>;
   getContentExtractionTiming: () => Promise<ContentExtractionTiming>;

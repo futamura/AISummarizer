@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 
 import { useContentMessage } from '@/features/content/hooks';
 import { SettingsState } from '@/stores';
-import { ArticleExtractionResult, FloatPanelPosition } from '@/types';
-import { isExtractionDenylistUrl, logger } from '@/utils';
+import { ArticleExtractionResult } from '@/types';
 
 /**
  * The context value type for ContentContext.
@@ -11,14 +10,12 @@ import { isExtractionDenylistUrl, logger } from '@/utils';
  * @property tabId - The tab id.
  * @property tabUrl - The tab url.
  * @property article - The article data.
- * @property shouldShowFloatUI - The is float button visible.
  * @property settings - The settings data.
  */
 interface ContentContextValue {
   currentTabId: number | null;
   currentTabUrl: string | null;
   currentArticle: ArticleExtractionResult | null;
-  shouldShowFloatUI: boolean;
   settings: SettingsState;
 }
 
@@ -49,31 +46,6 @@ export const ContentContextProvider: React.FC<ContentContextProviderProps> = ({ 
    *******************************************************/
 
   const { currentTabId, currentTabUrl, currentArticle, settings } = useContentMessage();
-  const [shouldShowFloatUI, setShouldShowFloatUI] = useState(false);
-
-  /*******************************************************
-   * Lifecycle
-   *******************************************************/
-
-  useEffect(() => {
-    const toggleFloatPanelVisibility = async () => {
-      if (!currentTabUrl) {
-        setShouldShowFloatUI(false);
-        return;
-      }
-      const isDenied = await isExtractionDenylistUrl(currentTabUrl);
-      logger.debug('🗣️🎁', '[ContentContext.tsx]', '[toggleFloatPanelVisibility]', 'isDenied', isDenied);
-      if (isDenied) {
-        setShouldShowFloatUI(false);
-        return;
-      }
-      const isArticleExtracted = currentArticle != null && currentArticle.isSuccess;
-      const state = isArticleExtracted && settings.floatPanelPosition !== FloatPanelPosition.HIDE;
-      logger.debug('🗣️🎁', '[ContentContext.tsx]', '[toggleFloatPanelVisibility]', 'state', state);
-      setShouldShowFloatUI(state);
-    };
-    toggleFloatPanelVisibility();
-  }, [currentTabId, currentTabUrl, currentArticle, settings]);
 
   /*******************************************************
    * Exported Value
@@ -84,10 +56,9 @@ export const ContentContextProvider: React.FC<ContentContextProviderProps> = ({ 
       currentTabId,
       currentTabUrl,
       currentArticle,
-      shouldShowFloatUI,
       settings,
     }),
-    [currentTabId, currentTabUrl, currentArticle, shouldShowFloatUI, settings]
+    [currentTabId, currentTabUrl, currentArticle, settings]
   );
 
   return <ContentContext.Provider value={value}>{children}</ContentContext.Provider>;
