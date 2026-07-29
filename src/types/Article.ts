@@ -15,7 +15,9 @@ export interface ArticleInjectionResult {
 
 // Function implementation
 export function formatArticleForClipboard(article: ArticleRecord | ArticleExtractionResult): string {
-  return `# Title
+  return `Extract each theme from the following text without omission and summarize the main points in Japanese.
+
+# Title
 ${article.title}
 
 # URL
