@@ -1,5 +1,6 @@
 import { STORAGE_KEYS } from '@/constants';
 import { DEFAULT_SETTINGS } from '@/stores';
+import { logger } from '@/utils/Logger';
 
 /**
  * Escapes special characters in a string for use in a regular expression.
@@ -46,8 +47,13 @@ export const isExtractionDenylistUrl = async (url?: string): Promise<boolean> =>
       const trimmed = pattern.trim();
       return trimmed && !trimmed.startsWith('//') && !trimmed.startsWith('/*') && !trimmed.endsWith('*/') && !trimmed.startsWith('#');
     });
-  /** Escape the patterns */
-  // .map(escapeRegExp);
-  /** Check if the URL matches any of the patterns */
-  return patterns.some((pattern: string) => new RegExp(pattern).test(url));
+  /** Check if the URL matches any of the patterns; skip patterns that are not valid regular expressions */
+  return patterns.some((pattern: string) => {
+    try {
+      return new RegExp(pattern).test(url);
+    } catch {
+      logger.warn('🧰', '[Regex.ts]', '[isExtractionDenylistUrl]', 'Skipping invalid denylist pattern:', pattern);
+      return false;
+    }
+  });
 };
