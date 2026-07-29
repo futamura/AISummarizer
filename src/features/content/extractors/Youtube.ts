@@ -7,11 +7,18 @@ interface TranscriptSegment {
 }
 
 /**
+ * Matches transcript segment elements of both the legacy transcript panel
+ * (ytd-transcript-segment-renderer) and the new view-model based panel
+ * (transcript-segment-view-model) that YouTube is gradually rolling out.
+ */
+const SEGMENT_SELECTOR = 'ytd-transcript-segment-renderer, transcript-segment-view-model';
+
+/**
  * Parse timestamp string to seconds
  * @param timestamp - The timestamp string in format "MM:SS" or "HH:MM:SS"
  * @returns The number of seconds
  */
-function parseTimestamp(timestamp: string): number {
+export function parseTimestamp(timestamp: string): number {
   const parts = timestamp.split(':').map(Number);
   if (parts.length === 2) {
     // MM:SS format
@@ -30,7 +37,7 @@ function parseTimestamp(timestamp: string): number {
  * @param seconds - The number of seconds
  * @returns The formatted time string in format "MM:SS" or "HH:MM:SS"
  */
-function formatTime(seconds: number): string {
+export function formatTime(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const remainingSeconds = Math.floor(seconds % 60);
@@ -49,7 +56,7 @@ function formatTime(seconds: number): string {
  * @param segments - Array of transcript segments
  * @returns Array of grouped transcript segments
  */
-function groupTranscriptSegments(segments: { start: number; text: string }[]): TranscriptSegment[] {
+export function groupTranscriptSegments(segments: { start: number; text: string }[]): TranscriptSegment[] {
   const groups: TranscriptSegment[] = [];
   let currentGroup: TranscriptSegment | null = null;
 
@@ -65,32 +72,62 @@ function groupTranscriptSegments(segments: { start: number; text: string }[]): T
 }
 
 /**
+ * Extract timestamp and text from a single transcript segment element,
+ * supporting both the legacy and the new view-model based panel structure
+ * @param element - The transcript segment element
+ * @returns The parsed segment, or null if timestamp or text is missing
+ */
+function parseSegmentElement(element: Element): { start: number; text: string } | null {
+  const isLegacy = element.tagName.toLowerCase() === 'ytd-transcript-segment-renderer';
+  const timestampElement = element.querySelector(isLegacy ? '.segment-timestamp' : '.ytwTranscriptSegmentViewModelTimestamp');
+  const textElement = element.querySelector(isLegacy ? '.segment-text' : '.ytAttributedStringHost');
+
+  const timestamp = timestampElement?.textContent?.trim() || '';
+  const text = textElement?.textContent?.trim() || '';
+  if (!timestamp || !text) {
+    return null;
+  }
+
+  return {
+    start: parseTimestamp(timestamp),
+    text,
+  };
+}
+
+/**
  * Extract transcript segments from DOM
- * @param container - The container element containing transcript segments
  * @returns Array of transcript segments
  */
-function extractTranscriptSegments(container: Element): { start: number; text: string }[] {
+function extractTranscriptSegments(): { start: number; text: string }[] {
   const segments: { start: number; text: string }[] = [];
-  const segmentElements = container.querySelectorAll('ytd-transcript-segment-renderer');
 
-  segmentElements.forEach(element => {
-    const timestampElement = element.querySelector('.segment-timestamp');
-    const textElement = element.querySelector('.segment-text');
-
-    if (timestampElement && textElement) {
-      const timestamp = timestampElement.textContent?.trim() || '';
-      const text = textElement.textContent?.trim() || '';
-
-      if (timestamp && text) {
-        segments.push({
-          start: parseTimestamp(timestamp),
-          text,
-        });
-      }
+  document.querySelectorAll(SEGMENT_SELECTOR).forEach(element => {
+    const segment = parseSegmentElement(element);
+    if (segment) {
+      segments.push(segment);
     }
   });
 
   return segments;
+}
+
+/**
+ * Wait until the number of rendered transcript segments becomes stable,
+ * so that all segments are present before extraction
+ * @param maxAttempts - The maximum number of polling attempts
+ * @returns The number of rendered segments (0 if none appeared)
+ */
+async function waitForStableSegmentCount(maxAttempts = 15): Promise<number> {
+  let previousCount = 0;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const count = document.querySelectorAll(SEGMENT_SELECTOR).length;
+    if (count > 0 && count === previousCount) {
+      return count;
+    }
+    previousCount = count;
+  }
+  return previousCount;
 }
 
 /**
@@ -119,16 +156,14 @@ export async function extractYoutube(urls: string): Promise<ArticleExtractionRes
     }
     transcriptButton.click();
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    /** Wait for the transcript container */
-    const transcriptContainer = await waitForElement('#segments-container');
-    if (!transcriptContainer) {
-      throw new Error('Transcript container not found');
+    /** Wait until the transcript segments are rendered and their count is stable */
+    const segmentCount = await waitForStableSegmentCount();
+    if (segmentCount === 0) {
+      throw new Error('Transcript segments not found');
     }
 
     /** Extract the transcript segments */
-    const rawSegments = extractTranscriptSegments(transcriptContainer);
+    const rawSegments = extractTranscriptSegments();
     const segments = groupTranscriptSegments(rawSegments);
 
     /** Convert segments to string format */
@@ -144,8 +179,13 @@ export async function extractYoutube(urls: string): Promise<ArticleExtractionRes
     const titleElement = await waitForElement('#above-the-fold #title');
     const title = titleElement?.textContent?.trim() || null;
 
-    /** Wait for the panel and hide it */
-    const panel = await waitForElement('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]');
+    /**
+     * Hide the transcript panel. The panel is located from a rendered segment
+     * because its target-id differs between the legacy and the new panel
+     * (and is sometimes absent on the new one)
+     */
+    const segmentElement = document.querySelector(SEGMENT_SELECTOR);
+    const panel = segmentElement?.closest('ytd-engagement-panel-section-list-renderer');
     if (panel instanceof HTMLElement) {
       panel.setAttribute('visibility', 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN');
     }
