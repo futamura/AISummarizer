@@ -53,7 +53,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   tabBehavior: TabBehavior.NEW_TAB,
   contentExtractionTiming: ContentExtractionTiming.AUTOMATIC,
   extractionDenylist: `/** Search engines */
-(https?)\\:\\/\\/((www|m|search|images?|videos?|maps|mail|shopping|auctions)\\.)?(google|bing|yahoo|duckduckgo|baidu|yandex|ask|ecosia|startpage|naver)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
+(https?)\\:\\/\\/((www|m|search|images?|videos?|maps|mail|shopping|auctions)\\.)?(google|bing|yahoo|duckduckgo|baidu|yandex|ecosia|startpage|naver)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
 /** Google services */
 (https?)\\:\\/\\/(mail|docs|drive|calendar|meet|news|photos|play|accounts|myaccount|translate|keep|chat|contacts|notebooklm)\\.google\\.com(\\/|\\?|#|$)
 /** Microsoft services */
@@ -66,7 +66,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
 /** Streaming services */
 (https?)\\:\\/\\/((www|m|open)\\.)?(netflix|primevideo|hulu|disneyplus|twitch|spotify|abema|tver|nicovideo)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
 /** E-commerce sites */
-(https?)\\:\\/\\/((www|m|shop|store)\\.)?(amazon|shop|etsy|ebay|walmart|bestbuy|shopify|target|costco|apple|flipkart|wix|rakuten|mercari|alibaba|aliexpress|shein|taobao|qoo10)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
+(https?)\\:\\/\\/((www|m|shop|store)\\.)?(amazon|shop|etsy|ebay|walmart|bestbuy|target|costco|apple|flipkart|rakuten|mercari|alibaba|aliexpress|shein|taobao|qoo10)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
 /** Local development */
 (https?)\\:\\/\\/localhost(\\:[0-9]+)?(\\/|\\?|#|$)
 (https?)\\:\\/\\/(\\d{1,3}\\.){3}\\d{1,3}(\\:[0-9]+)?(\\/|\\?|#|$)
