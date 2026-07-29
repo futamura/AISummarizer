@@ -268,6 +268,14 @@ class ServiceWorker {
 
           /** Copy the article to the clipboard */
           this.readArticleForClipboard(payload.tabId, payload.tabUrl, false);
+
+          /**
+           * Refresh the UI state after the article is saved. Extraction can
+           * take a long time (e.g. YouTube transcripts), so the UI state
+           * updated by the callers before this point does not reflect it
+           */
+          await this.toggleUIState(payload.tabId, payload.tabUrl);
+          await this.notifyCurrentTabState(payload.tabId, payload.tabUrl);
         }
       }
     } catch (error: any) {
