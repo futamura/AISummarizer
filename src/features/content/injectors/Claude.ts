@@ -12,32 +12,35 @@ export async function injectClaude(prompt: string): Promise<{ success: boolean; 
     if (!editor) throw new Error('Claude container not found');
     logger.debug('📕', '[Claude.tsx]', '[injectClaude]', 'Claude editor found', editor);
 
-    /** Format the article for clipboard */
-    const paragraphs = prompt.split(/\r?\n/).map(line => {
-      if (line.trim() === '') {
-        return '<p><br class="ProseMirror-trailingBreak"></p>';
-      }
-      return `<p>${line}</p>`;
-    });
-
-    /** Inject the article into the editor */
-    editor.innerHTML = paragraphs.join('');
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    /**
+     * Inject the article via execCommand so the ProseMirror state stays in sync.
+     * Setting innerHTML fills the DOM but leaves the app state empty, in which
+     * case the message is never sent.
+     */
+    if (!(editor instanceof HTMLElement)) throw new Error('Claude editor is not an HTML element');
+    editor.focus();
+    document.execCommand('selectAll', false);
+    document.execCommand('delete', false);
+    document.execCommand('insertText', false, prompt);
 
     /** Wait for 1.5 to 2 seconds */
-    new Promise(resolve => setTimeout(resolve, getRandomInt(1500, 2000)));
+    await new Promise(resolve => setTimeout(resolve, getRandomInt(1500, 2000)));
 
-    /** Wait for the submit button to be found */
-    const submitButton = await waitForElement('button[aria-label="Send message"]');
-    if (!submitButton) throw new Error('Claude submit button not found');
-    logger.debug('📕', '[Claude.tsx]', '[injectClaude]', 'Claude submit button found', submitButton);
-
-    /** Click the submit button */
-    if (submitButton instanceof HTMLElement) {
-      submitButton.click();
-    } else {
-      throw new Error('Claude submit button not found');
-    }
+    /**
+     * Submit with a synthetic Enter keydown handled by the ProseMirror keymap.
+     * The send button cannot be used: its aria-label is locale-dependent and
+     * it only appears after trusted user input.
+     */
+    editor.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        which: 13,
+        bubbles: true,
+        cancelable: true,
+      } as KeyboardEventInit)
+    );
 
     return {
       success: true,

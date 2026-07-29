@@ -7,8 +7,8 @@ export async function injectGemini(prompt: string): Promise<{ success: boolean; 
     /** Wait for 2 to 3 seconds */
     new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
 
-    /** Wait for the editor to be found */
-    const editor = await waitForElement('div.ql-editor[aria-label="Enter a prompt here"]');
+    /** Wait for the editor to be found. Use a structural selector because the aria-label text changes with UI updates and locale */
+    const editor = await waitForElement('rich-textarea div.ql-editor[contenteditable="true"]');
     if (!editor) throw new Error('Gemini container not found');
     logger.debug('📕', '[Gemini.tsx]', '[injectGemini]', 'Gemini editor found', editor);
 
@@ -24,7 +24,7 @@ export async function injectGemini(prompt: string): Promise<{ success: boolean; 
     new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
 
     /** Wait for the submit button to be found */
-    const submitButton = await waitForElement('button[aria-label="Send message"');
+    const submitButton = await waitForElement('button[aria-label="Send message"]');
     if (!submitButton) throw new Error('Gemini submit button not found');
     logger.debug('📕', '[Gemini.tsx]', '[injectGemini]', 'Gemini submit button found', submitButton);
 

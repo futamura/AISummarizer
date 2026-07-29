@@ -4,23 +4,27 @@ export async function injectPerplexity(prompt: string): Promise<{ success: boole
   try {
     logger.debug('📕', '[Perplexity.tsx]', '[injectPerplexity]', 'Injecting article into Perplexity\n', prompt);
 
-    /** Wait for 2 seconds to ensure page is fully loaded */
-    await new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
+    /** Wait for 1 to 1.5 seconds to ensure the Lexical editor is interactive */
+    await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
 
     /** Wait for the editor to be found */
     const editor = await waitForElement('#ask-input');
     if (!editor) throw new Error('Perplexity container not found');
     logger.debug('📕', '[Perplexity.tsx]', '[injectPerplexity]', 'Perplexity editor found', editor);
 
-    /** Set the value and trigger input event */
-    if (editor instanceof HTMLTextAreaElement) {
-      editor.value = prompt;
-      editor.dispatchEvent(new Event('input', { bubbles: true }));
-      editor.dispatchEvent(new Event('change', { bubbles: true }));
-      editor.dispatchEvent(new Event('blur', { bubbles: true }));
-    } else {
-      throw new Error('Perplexity editor is not a textarea element');
-    }
+    /**
+     * Perplexity replaced its textarea with a Lexical contenteditable.
+     * Inject via a synthetic paste event: Lexical inserts the whole text in a
+     * single transaction (line-by-line execCommand insertText is far slower),
+     * replacing the selected current content and preserving line breaks.
+     */
+    if (!(editor instanceof HTMLElement)) throw new Error('Perplexity editor is not an HTML element');
+    editor.focus();
+    window.getSelection()?.selectAllChildren(editor);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', prompt);
+    editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dataTransfer, bubbles: true, cancelable: true }));
 
     /** Wait for 1 to 1.5 seconds */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
