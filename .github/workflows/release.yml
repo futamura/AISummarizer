@@ -217,8 +217,11 @@ jobs:
 
           # Upload with enhanced error handling
           echo "📤 Starting upload..."
-          UPLOAD_OUTPUT=$(npx chrome-webstore-upload-cli@2 upload --auto-publish --source free-ai-summarizer-${{ env.VERSION }}.zip 2>&1)
-          UPLOAD_EXIT_CODE=$?
+          # Guard against `set -e` (default shell is `bash -e`): without `||`,
+          # a CLI failure kills the step at this assignment and the error
+          # output below is never printed
+          UPLOAD_EXIT_CODE=0
+          UPLOAD_OUTPUT=$(npx chrome-webstore-upload-cli@2 upload --auto-publish --source free-ai-summarizer-${{ env.VERSION }}.zip 2>&1) || UPLOAD_EXIT_CODE=$?
 
           echo "Upload Output:"
           echo "$UPLOAD_OUTPUT"
