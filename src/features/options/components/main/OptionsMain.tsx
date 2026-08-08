@@ -363,9 +363,10 @@ export const OptionsMain: React.FC = () => {
                                   placeholder="custom model id"
                                   className={clsx(
                                     'rounded-full px-3 py-1',
+                                    isCustomModelActive ? 'font-semibold' : 'font-normal',
                                     isCustomModelActive ? 'text-zinc-900 dark:text-zinc-50' : 'text-zinc-700 dark:text-zinc-300',
                                     isCustomModelActive ? '!bg-blue-600' : 'bg-zinc-50 dark:bg-zinc-800',
-                                    'border border-zinc-300 dark:border-none',
+                                    isCustomModelActive ? 'border border-transparent' : 'border border-zinc-300 dark:border-none',
                                     'focus:outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-700'
                                   )}
                                   value={
