@@ -185,7 +185,7 @@ export const OptionsMain: React.FC = () => {
       isShowMessage: inputIsShowMessage ?? DEFAULT_SETTINGS.isShowMessage,
       isShowBadge: inputIsShowBadge ?? DEFAULT_SETTINGS.isShowBadge,
     });
-  }, [inputPrompts, inputTabBehavior, inputContentExtractionTiming, inputIsSaveArticleOnClipboard]);
+  }, [inputPrompts, inputModels, inputTabBehavior, inputContentExtractionTiming, inputIsSaveArticleOnClipboard]);
 
   /**
    * Unset Input Settings
@@ -284,7 +284,7 @@ export const OptionsMain: React.FC = () => {
             </button>
           </div>
 
-          {/* Prompt */}
+          {/* AI Service */}
           <OptionCard title="AI Service">
             <TabGroup selectedIndex={inputPromptsIndex} onChange={setInputPromptsIndex}>
               <TabList className="flex flex-wrap gap-2">
