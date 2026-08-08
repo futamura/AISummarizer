@@ -9,6 +9,10 @@ export interface SettingsState {
   prompts: {
     [key in AIService]: string;
   };
+  /* Model override per service. Empty string means "use the service's own default" */
+  models: {
+    [key in AIService]: string;
+  };
   serviceOnMenu: {
     [key in AIService]: boolean;
   };
@@ -40,6 +44,15 @@ export const DEFAULT_SETTINGS: SettingsState = {
     [AIService.GROK]: DEFAULT_PROMPT,
     [AIService.PERPLEXITY]: DEFAULT_PROMPT,
     [AIService.DEEPSEEK]: DEFAULT_PROMPT,
+  },
+  models: {
+    [AIService.CHATGPT]: '',
+    [AIService.GEMINI]: '',
+    [AIService.AI_STUDIO]: '',
+    [AIService.CLAUDE]: '',
+    [AIService.GROK]: '',
+    [AIService.PERPLEXITY]: '',
+    [AIService.DEEPSEEK]: '',
   },
   serviceOnMenu: {
     [AIService.CHATGPT]: true,
@@ -81,6 +94,8 @@ export interface SettingsStore extends SettingsState {
   updateSettings: (settings: Partial<SettingsState>) => Promise<void>;
   setPromptFor: (service: AIService, prompt: string) => Promise<void>;
   getPromptFor: (service: AIService) => Promise<string>;
+  setModelFor: (service: AIService, model: string) => Promise<void>;
+  getModelFor: (service: AIService) => Promise<string>;
   setServiceOnMenu: (service: AIService, status: boolean) => Promise<void>;
   getServiceOnMenu: (service: AIService) => Promise<boolean>;
   setTabBehavior: (tabBehavior: TabBehavior) => Promise<void>;
@@ -122,6 +137,18 @@ export const useSettingsStore = create<SettingsStore>()(
       getPromptFor: async (service: AIService) => {
         const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
         return settings[STORAGE_KEYS.SETTINGS]?.state?.prompts?.[service] ?? DEFAULT_SETTINGS.prompts[service];
+      },
+      setModelFor: async (service: AIService, model: string) => {
+        await get().updateSettings({
+          models: {
+            ...get().models,
+            [service]: model,
+          },
+        });
+      },
+      getModelFor: async (service: AIService) => {
+        const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
+        return settings[STORAGE_KEYS.SETTINGS]?.state?.models?.[service] ?? DEFAULT_SETTINGS.models[service];
       },
       setServiceOnMenu: async (service: AIService, status: boolean) => {
         await get().updateSettings({
@@ -192,6 +219,7 @@ export const useSettingsStore = create<SettingsStore>()(
             version: extensionVersion,
             settings: {
               prompt: settings.prompts || {},
+              models: settings.models || {},
               tabBehavior: settings.tabBehavior || '',
               contentExtractionTiming: settings.contentExtractionTiming || '',
               extractionDenylist: settings.extractionDenylist || [],
@@ -245,6 +273,7 @@ export const useSettingsStore = create<SettingsStore>()(
           /** Import settings */
           await get().updateSettings({
             prompts: backupData.settings.prompt,
+            models: backupData.settings.models ?? DEFAULT_SETTINGS.models,
             tabBehavior: backupData.settings.tabBehavior as TabBehavior,
             contentExtractionTiming: backupData.settings.contentExtractionTiming as ContentExtractionTiming,
             extractionDenylist: backupData.settings.extractionDenylist,
@@ -264,6 +293,7 @@ export const useSettingsStore = create<SettingsStore>()(
           /** Restore settings */
           await get().updateSettings({
             prompts: DEFAULT_SETTINGS.prompts,
+            models: DEFAULT_SETTINGS.models,
             tabBehavior: DEFAULT_SETTINGS.tabBehavior,
             contentExtractionTiming: DEFAULT_SETTINGS.contentExtractionTiming,
             extractionDenylist: DEFAULT_SETTINGS.extractionDenylist,
@@ -321,6 +351,7 @@ const sendSettingsUpdate = async () => {
       action: MessageAction.SETTINGS_UPDATED,
       payload: {
         prompts: settings.prompts,
+        models: settings.models,
         serviceOnMenu: settings.serviceOnMenu,
         tabBehavior: settings.tabBehavior,
         contentExtractionTiming: settings.contentExtractionTiming,

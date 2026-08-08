@@ -23,6 +23,11 @@ interface GlobalContextValue {
   };
   setPromptFor: (service: AIService, prompt: string) => Promise<void>;
   getPromptFor: (service: AIService) => Promise<string>;
+  models: {
+    [key in AIService]: string;
+  };
+  setModelFor: (service: AIService, model: string) => Promise<void>;
+  getModelFor: (service: AIService) => Promise<string>;
   serviceOnMenu: {
     [key in AIService]: boolean;
   };
