@@ -357,7 +357,7 @@ export const OptionsMain: React.FC = () => {
                               name="custom-model"
                               placeholder="custom model id"
                               className={clsx(
-                                'rounded-lg px-3 py-1 text-base/6',
+                                'rounded-full px-3 py-1',
                                 'text-zinc-700 dark:text-zinc-300',
                                 'bg-zinc-50 dark:bg-zinc-800',
                                 'border border-zinc-300 dark:border-none',
