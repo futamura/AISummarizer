@@ -314,7 +314,8 @@ class ServiceWorker {
       }
       const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
       const tabBehavior = settings[STORAGE_KEYS.SETTINGS]?.state?.tabBehavior ?? DEFAULT_SETTINGS.tabBehavior;
-      const summarizeUrl = getSummarizeUrl(service, article.id.toString());
+      const model = settings[STORAGE_KEYS.SETTINGS]?.state?.models?.[service] ?? DEFAULT_SETTINGS.models[service];
+      const summarizeUrl = getSummarizeUrl(service, article.id.toString(), model);
       switch (tabBehavior) {
         case TabBehavior.CURRENT_TAB:
           await chrome.tabs.update(tabId, { url: summarizeUrl });

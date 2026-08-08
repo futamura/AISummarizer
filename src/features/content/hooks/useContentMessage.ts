@@ -3,7 +3,15 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from '@/features/content/components/main';
 import { ArticleExtractionService, ArticleInjectionService } from '@/features/content/services';
 import { useSettingsStore } from '@/stores';
-import { ArticleExtractionResult, ArticleInjectionResult, getAIServiceForUrl, getSummarizeUrl, Message, MessageAction, MessageResponse } from '@/types';
+import {
+  AI_SERVICE_QUERY_KEY,
+  ArticleExtractionResult,
+  ArticleInjectionResult,
+  getAIServiceForUrl,
+  Message,
+  MessageAction,
+  MessageResponse,
+} from '@/types';
 import { copyToClipboard, createPrompt, logger } from '@/utils';
 
 /**
@@ -118,18 +126,21 @@ export const useContentMessage = () => {
         case MessageAction.INJECT_ARTICLE:
           try {
             const service = getAIServiceForUrl(message.payload.tabUrl);
-            const serviceUrl = getSummarizeUrl(service, message.payload.article.id);
-            logger.debug('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'serviceUrl:', serviceUrl);
-            logger.debug('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'tabUrl:', message.payload.tabUrl);
-            if (message.payload.tabUrl !== serviceUrl) {
+            /*
+             * Compare only the aismid parameter instead of the full URL: the tab URL may
+             * carry a model parameter, and AI Studio rewrites model aliases in the URL,
+             * so strict URL equality can no longer be used.
+             */
+            const tabAismid = new URL(message.payload.tabUrl).searchParams.get(AI_SERVICE_QUERY_KEY);
+            if (tabAismid !== String(message.payload.article.id)) {
               logger.warn(
                 '🫳💬',
                 '[useContentMessage.tsx]',
                 '[handleMessage]',
-                'Skipping injection for invalid service URL:',
-                message.payload.tabUrl,
+                'Skipping injection: aismid mismatch:',
+                tabAismid,
                 '!=',
-                serviceUrl
+                message.payload.article.id
               );
               sendResponse({ success: false, error: new Error('Invalid service URL') });
               return true;
