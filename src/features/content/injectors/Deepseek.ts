@@ -3,13 +3,18 @@ import { getRandomInt, logger, waitForElement } from '@/utils';
 /*
  * Select the model tab (Instant / Expert / Vision) before injecting text.
  * The tab labels are English regardless of locale (verified 2026-08-08); class names
- * are hashed, so the tab is located by exact text match on the deepest element.
+ * are hashed, so the tab is located by role instead.
  * Any failure is logged and swallowed so the injection itself still proceeds.
  */
 async function selectDeepSeekModel(model: string): Promise<void> {
   try {
-    const candidates = [...document.querySelectorAll('div, span, button')].filter(el => el.childElementCount === 0 && el.textContent?.trim() === model);
-    const target = candidates[0];
+    /*
+     * The model switch is a radiogroup above the chat input (verified live 2026-08-08):
+     * div[role="radio"] elements whose text contains the label (Instant / Expert / Vision),
+     * with aria-checked reflecting the current selection. Scoping to role="radio" avoids
+     * clicking unrelated elements that merely contain the same text.
+     */
+    const target = [...document.querySelectorAll('[role="radio"]')].find(el => el.textContent?.includes(model));
     if (!(target instanceof HTMLElement)) throw new Error(`DeepSeek model tab not found: ${model}`);
     target.click();
 
