@@ -376,6 +376,7 @@ export const OptionsMain: React.FC = () => {
                         </div>
                       </div>
                     )}
+                    <span className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Prompt</span>
                     <Field>
                       <Textarea
                         name="prompt"
