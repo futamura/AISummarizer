@@ -1,11 +1,34 @@
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
-export async function injectDeepSeek(prompt: string): Promise<{ success: boolean; error?: Error }> {
+/*
+ * Select the model tab (Instant / Expert / Vision) before injecting text.
+ * The tab labels are English regardless of locale (verified 2026-08-08); class names
+ * are hashed, so the tab is located by exact text match on the deepest element.
+ * Any failure is logged and swallowed so the injection itself still proceeds.
+ */
+async function selectDeepSeekModel(model: string): Promise<void> {
+  try {
+    const candidates = [...document.querySelectorAll('div, span, button')].filter(el => el.childElementCount === 0 && el.textContent?.trim() === model);
+    const target = candidates[0];
+    if (!(target instanceof HTMLElement)) throw new Error(`DeepSeek model tab not found: ${model}`);
+    target.click();
+
+    /* Wait for the tab switch to settle */
+    await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
+  } catch (error: unknown) {
+    logger.warn('📕', '[DeepSeek.tsx]', '[selectDeepSeekModel]', 'Model selection failed, continuing injection:', error);
+  }
+}
+
+export async function injectDeepSeek(prompt: string, model?: string): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[DeepSeek.tsx]', '[injectDeepSeek]', 'Injecting article into DeepSeek\n', prompt);
 
     /** Wait for 2 seconds to ensure page is fully loaded */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
+
+    /* Select the configured model first; failures are non-fatal */
+    if (model) await selectDeepSeekModel(model);
 
     /** Wait for the editor to be found. DeepSeek removed the #chat-input id; the chat box is now the sole textarea on the page */
     const editor = await waitForElement('#chat-input, textarea');

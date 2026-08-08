@@ -148,8 +148,9 @@ export const useContentMessage = () => {
 
             createPrompt(service, settings, message.payload.article)
               .then(prompt => {
-                /** Inject the article into the ChatGPT */
-                injectionService.current.execute(message.payload.tabUrl, prompt).then((result: ArticleInjectionResult) => {
+                /** Inject the article into the AI service, selecting the configured model when one is set */
+                const model = settings.models?.[service] ?? '';
+                injectionService.current.execute(message.payload.tabUrl, prompt, model).then((result: ArticleInjectionResult) => {
                   /** Respond to the content script */
                   sendResponse({ success: result.success, error: result.error });
                 });
