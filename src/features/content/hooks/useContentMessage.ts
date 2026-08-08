@@ -139,9 +139,13 @@ export const useContentMessage = () => {
             }
 
             createPrompt(service, settings, message.payload.article)
-              .then(prompt => {
-                /** Inject the article into the AI service, selecting the configured model when one is set */
-                const model = settings.models?.[service] ?? '';
+              .then(async prompt => {
+                /*
+                 * Read the model via the async getter rather than the settings snapshot:
+                 * settings is captured at first render, before chrome.storage hydration
+                 * completes, so settings.models would always be the empty-string default.
+                 */
+                const model = await settings.getModelFor(service);
                 injectionService.current.execute(message.payload.tabUrl, prompt, model).then((result: ArticleInjectionResult) => {
                   /** Respond to the content script */
                   sendResponse({ success: result.success, error: result.error });
