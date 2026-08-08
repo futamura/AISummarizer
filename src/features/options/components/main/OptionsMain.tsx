@@ -363,6 +363,8 @@ export const OptionsMain: React.FC = () => {
                                   placeholder="custom model id"
                                   className={clsx(
                                     'rounded-full px-3 py-1',
+                                    '[field-sizing:content] min-w-36 max-w-full',
+                                    'overflow-hidden text-ellipsis',
                                     isCustomModelActive ? 'font-semibold' : 'font-normal',
                                     isCustomModelActive ? 'text-zinc-900 dark:text-zinc-50' : 'text-zinc-700 dark:text-zinc-300',
                                     isCustomModelActive ? '!bg-blue-600' : 'bg-zinc-50 dark:bg-zinc-800',
