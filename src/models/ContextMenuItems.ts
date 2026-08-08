@@ -16,13 +16,13 @@ export const MENU_ITEMS = {
       contexts: ['page' as const],
     },
     {
-      id: 'gemini',
-      title: 'Gemini',
+      id: 'claude',
+      title: 'Claude',
       contexts: ['page' as const],
     },
     {
-      id: 'claude',
-      title: 'Claude',
+      id: 'gemini',
+      title: 'Gemini',
       contexts: ['page' as const],
     },
     {

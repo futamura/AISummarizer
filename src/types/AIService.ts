@@ -2,9 +2,9 @@ export const AI_SERVICE_QUERY_KEY = 'aismid';
 
 export enum AIService {
   CHATGPT = 'CHATGPT',
+  CLAUDE = 'CLAUDE',
   GEMINI = 'GEMINI',
   AI_STUDIO = 'AI_STUDIO',
-  CLAUDE = 'CLAUDE',
   GROK = 'GROK',
   PERPLEXITY = 'PERPLEXITY',
   DEEPSEEK = 'DEEPSEEK',
