@@ -4,7 +4,7 @@ import React, { Fragment, useCallback, useEffect, useState } from 'react';
 
 import { IoClose } from 'react-icons/io5';
 
-import { Field, Switch, Tab, TabGroup, TabList, TabPanel, TabPanels, Textarea } from '@headlessui/react';
+import { Field, Input, Switch, Tab, TabGroup, TabList, TabPanel, TabPanels, Textarea } from '@headlessui/react';
 
 import { toast, Toaster } from '@/features/content/components/main/Toaster';
 import { ConfirmDialog, OptionCard } from '@/features/options/components/main';
@@ -16,9 +16,12 @@ import {
   getContentExtractionTimingFromIndex,
   getContentExtractionTimingIndex,
   getContentExtractionTimingLabel,
+  getModelOptionsFor,
   getTabBehaviorFromIndex,
   getTabBehaviorIndex,
   getTabBehaviorLabel,
+  supportsModelParam,
+  supportsModelSelection,
   TabBehavior,
 } from '@/types';
 import { logger } from '@/utils';
@@ -39,6 +42,10 @@ export const OptionsMain: React.FC = () => {
     prompts: storedPrompts,
     getPromptFor: storedPromptFor,
     setPromptFor: setStoredPromptFor,
+    /** models */
+    models: storedModels,
+    setModelFor: setStoredModelFor,
+    getModelFor: getStoredModelFor,
     /** serviceOnMenu */
     serviceOnMenu: storedServiceStatus,
     setServiceOnMenu: setStoredServiceStatus,
@@ -70,6 +77,7 @@ export const OptionsMain: React.FC = () => {
 
   const [inputPromptsIndex, setInputPromptsIndex] = useState<number>(0);
   const [inputPrompts, setInputPrompts] = useState<{ [key in AIService]?: string } | undefined>(undefined);
+  const [inputModels, setInputModels] = useState<{ [key in AIService]?: string } | undefined>(undefined);
 
   const [inputServiceStatus, setInputServiceStatus] = useState<{ [key in AIService]: boolean } | undefined>(undefined);
 
@@ -99,6 +107,18 @@ export const OptionsMain: React.FC = () => {
       loadPrompts();
     }
   }, [inputPrompts, storedPrompts]);
+
+  useEffect(() => {
+    if (inputModels === undefined) {
+      const loadModels = async () => {
+        const values: [AIService, string][] = await Promise.all(
+          Object.values(AIService).map(async (service: AIService) => [service, await getStoredModelFor(service)] as const)
+        );
+        setInputModels(Object.fromEntries(values));
+      };
+      loadModels();
+    }
+  }, [inputModels, storedModels]);
 
   useEffect(() => {
     if (inputServiceStatus === undefined) {
@@ -148,6 +168,9 @@ export const OptionsMain: React.FC = () => {
       prompts: Object.fromEntries(Object.values(AIService).map(service => [service, inputPrompts?.[service] ?? DEFAULT_SETTINGS.prompts[service]])) as {
         [key in AIService]: string;
       },
+      models: Object.fromEntries(Object.values(AIService).map(service => [service, inputModels?.[service] ?? DEFAULT_SETTINGS.models[service]])) as {
+        [key in AIService]: string;
+      },
       serviceOnMenu: Object.fromEntries(
         Object.values(AIService).map(service => [service, inputServiceStatus?.[service] ?? DEFAULT_SETTINGS.serviceOnMenu[service]])
       ) as {
@@ -170,6 +193,7 @@ export const OptionsMain: React.FC = () => {
   const unsetInputValues = useCallback(async () => {
     await setInputPromptsIndex(0);
     await setInputPrompts(undefined);
+    await setInputModels(undefined);
     await setInputServiceStatus(undefined);
     await setInputTabBehavior(undefined);
     await setInputContentExtractionTiming(undefined);
@@ -261,7 +285,7 @@ export const OptionsMain: React.FC = () => {
           </div>
 
           {/* Prompt */}
-          <OptionCard title="Prompt">
+          <OptionCard title="AI Service">
             <TabGroup selectedIndex={inputPromptsIndex} onChange={setInputPromptsIndex}>
               <TabList className="flex flex-wrap gap-2">
                 {Object.entries(AIService).map(([name, service]: [string, AIService], index) => (
@@ -285,6 +309,73 @@ export const OptionsMain: React.FC = () => {
               <TabPanels className="mt-3">
                 {Object.entries(AIService).map(([name, service]: [string, AIService]) => (
                   <TabPanel key={name} className="flex flex-col gap-2">
+                    {supportsModelSelection(service) && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Model</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            className={clsx(
+                              'rounded-full px-3 py-1 font-semibold',
+                              'text-zinc-900 dark:text-zinc-50',
+                              'bg-zinc-300 dark:bg-zinc-700',
+                              'opacity-30 dark:opacity-30',
+                              'hover:opacity-100',
+                              (inputModels?.[service] ?? '') === '' && '!bg-blue-600 !opacity-100',
+                              'focus:outline-none',
+                              'transition-opacity'
+                            )}
+                            onClick={async () => {
+                              setInputModels(prev => ({ ...(prev ?? {}), [service]: '' }));
+                              await setStoredModelFor(service, '');
+                            }}
+                          >
+                            Default
+                          </button>
+                          {getModelOptionsFor(service).map(option => (
+                            <button
+                              key={option.value}
+                              className={clsx(
+                                'rounded-full px-3 py-1 font-semibold',
+                                'text-zinc-900 dark:text-zinc-50',
+                                'bg-zinc-300 dark:bg-zinc-700',
+                                'opacity-30 dark:opacity-30',
+                                'hover:opacity-100',
+                                inputModels?.[service] === option.value && '!bg-blue-600 !opacity-100',
+                                'focus:outline-none',
+                                'transition-opacity'
+                              )}
+                              onClick={async () => {
+                                setInputModels(prev => ({ ...(prev ?? {}), [service]: option.value }));
+                                await setStoredModelFor(service, option.value);
+                              }}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                          {supportsModelParam(service) && (
+                            <Input
+                              name="custom-model"
+                              placeholder="custom model id"
+                              className={clsx(
+                                'rounded-lg px-3 py-1 text-base/6',
+                                'text-zinc-700 dark:text-zinc-300',
+                                'bg-zinc-50 dark:bg-zinc-800',
+                                'border border-zinc-300 dark:border-none',
+                                'focus:outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-700'
+                              )}
+                              value={getModelOptionsFor(service).some(o => o.value === (inputModels?.[service] ?? '')) ? '' : (inputModels?.[service] ?? '')}
+                              onChange={e => {
+                                const newValue = e.target.value;
+                                setInputModels(prev => ({ ...(prev ?? {}), [service]: newValue }));
+                              }}
+                              onBlur={async () => {
+                                await setStoredModelFor(service, inputModels?.[service] ?? '');
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <Field>
                       <Textarea
                         name="prompt"
