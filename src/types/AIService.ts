@@ -50,8 +50,7 @@ export const getModelOptionsFor = (service: AIService): AIServiceModelOption[] =
 
 export const supportsModelParam = (service: AIService): boolean => MODEL_PARAM_SERVICES.includes(service);
 
-export const supportsModelSelection = (service: AIService): boolean =>
-  MODEL_PARAM_SERVICES.includes(service) || MODEL_DOM_SERVICES.includes(service);
+export const supportsModelSelection = (service: AIService): boolean => MODEL_PARAM_SERVICES.includes(service) || MODEL_DOM_SERVICES.includes(service);
 
 export const getSummarizeUrl = (service: AIService, summarizeId: string, model?: string) => {
   /* Model is applied via URL parameter only where the service supports it; DOM-operated services handle it in their injector */

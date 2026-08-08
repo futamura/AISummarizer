@@ -3,15 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from '@/features/content/components/main';
 import { ArticleExtractionService, ArticleInjectionService } from '@/features/content/services';
 import { useSettingsStore } from '@/stores';
-import {
-  AI_SERVICE_QUERY_KEY,
-  ArticleExtractionResult,
-  ArticleInjectionResult,
-  getAIServiceForUrl,
-  Message,
-  MessageAction,
-  MessageResponse,
-} from '@/types';
+import { AI_SERVICE_QUERY_KEY, ArticleExtractionResult, ArticleInjectionResult, getAIServiceForUrl, Message, MessageAction, MessageResponse } from '@/types';
 import { copyToClipboard, createPrompt, logger } from '@/utils';
 
 /**

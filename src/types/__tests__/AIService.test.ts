@@ -1,10 +1,4 @@
-import {
-  AIService,
-  getModelOptionsFor,
-  getSummarizeUrl,
-  supportsModelParam,
-  supportsModelSelection,
-} from '@/types/AIService';
+import { AIService, getModelOptionsFor, getSummarizeUrl, supportsModelParam, supportsModelSelection } from '@/types/AIService';
 
 describe('supportsModelParam', () => {
   it('returns true only for URL-parameter services', () => {
