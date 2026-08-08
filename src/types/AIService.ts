@@ -10,16 +10,61 @@ export enum AIService {
   DEEPSEEK = 'DEEPSEEK',
 }
 
-export const getSummarizeUrl = (service: AIService, summarizeId: string) => {
+export interface AIServiceModelOption {
+  /* Label shown in the options UI */
+  label: string;
+  /* URL parameter slug, or the picker label substring for DOM-operated services */
+  value: string;
+}
+
+const AI_SERVICE_MODEL_OPTIONS: { [key in AIService]: AIServiceModelOption[] } = {
+  [AIService.CHATGPT]: [],
+  [AIService.GEMINI]: [
+    { label: 'Flash-Lite', value: 'Flash-Lite' },
+    { label: 'Flash', value: 'Flash' },
+    { label: 'Pro', value: 'Pro' },
+  ],
+  [AIService.AI_STUDIO]: [
+    { label: 'Gemini 3 Flash Preview', value: 'gemini-3-flash-preview' },
+    { label: 'Gemini 3.1 Pro Preview', value: 'gemini-3.1-pro-preview' },
+  ],
+  [AIService.CLAUDE]: [
+    { label: 'Fable 5', value: 'claude-fable-5' },
+    { label: 'Opus 5', value: 'claude-opus-5' },
+    { label: 'Sonnet 5', value: 'claude-sonnet-5' },
+    { label: 'Haiku 4.5', value: 'claude-haiku-4-5' },
+  ],
+  [AIService.GROK]: [],
+  [AIService.PERPLEXITY]: [],
+  [AIService.DEEPSEEK]: [
+    { label: 'Instant', value: 'Instant' },
+    { label: 'Expert', value: 'Expert' },
+    { label: 'Vision', value: 'Vision' },
+  ],
+};
+
+const MODEL_PARAM_SERVICES: AIService[] = [AIService.CHATGPT, AIService.CLAUDE, AIService.AI_STUDIO];
+const MODEL_DOM_SERVICES: AIService[] = [AIService.GEMINI, AIService.DEEPSEEK];
+
+export const getModelOptionsFor = (service: AIService): AIServiceModelOption[] => AI_SERVICE_MODEL_OPTIONS[service];
+
+export const supportsModelParam = (service: AIService): boolean => MODEL_PARAM_SERVICES.includes(service);
+
+export const supportsModelSelection = (service: AIService): boolean =>
+  MODEL_PARAM_SERVICES.includes(service) || MODEL_DOM_SERVICES.includes(service);
+
+export const getSummarizeUrl = (service: AIService, summarizeId: string, model?: string) => {
+  /* Model is applied via URL parameter only where the service supports it; DOM-operated services handle it in their injector */
+  const modelParam = model && supportsModelParam(service) ? `&model=${encodeURIComponent(model)}` : '';
   switch (service) {
     case AIService.CHATGPT:
-      return `https://chatgpt.com/?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
+      return `https://chatgpt.com/?${AI_SERVICE_QUERY_KEY}=${summarizeId}${modelParam}`;
     case AIService.GEMINI:
       return `https://gemini.google.com/app?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
     case AIService.AI_STUDIO:
-      return `https://aistudio.google.com/prompts/new_chat?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
+      return `https://aistudio.google.com/prompts/new_chat?${AI_SERVICE_QUERY_KEY}=${summarizeId}${modelParam}`;
     case AIService.CLAUDE:
-      return `https://claude.ai/new?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
+      return `https://claude.ai/new?${AI_SERVICE_QUERY_KEY}=${summarizeId}${modelParam}`;
     case AIService.GROK:
       return `https://grok.com/?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
     case AIService.PERPLEXITY:
