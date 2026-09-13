@@ -4,6 +4,8 @@ import { persist } from 'zustand/middleware';
 import { STORAGE_KEYS } from '@/constants';
 import { AIService, ContentExtractionTiming, MessageAction, TabBehavior } from '@/types';
 import { logger } from '@/utils';
+/* Import directly: DEFAULT_PROMPT calls it at module load, when the @/utils barrel may still be loading (utils/Regex imports this store) */
+import { getBrowserLanguage } from '@/utils/i18n';
 
 export interface SettingsState {
   prompts: {
@@ -24,7 +26,7 @@ export interface SettingsState {
   isShowBadge: boolean;
 }
 
-const DEFAULT_PROMPT = `Extract each theme from the following text without omission and summarize the main points in Japanese.
+const DEFAULT_PROMPT = `Extract each theme from the following text without omission and summarize the main points in ${getBrowserLanguage()}.
 
 # Title
 {title}
