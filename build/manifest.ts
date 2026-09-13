@@ -18,6 +18,7 @@ export interface Manifest {
   sidebar_action?: { default_panel: string; default_title: string; default_icon?: Icons; open_at_install: boolean };
   browser_specific_settings?: {
     gecko: { id: string; strict_min_version: string; data_collection_permissions: { required: string[] } };
+    gecko_android?: { strict_min_version: string };
   };
   [key: string]: unknown;
 }
@@ -26,6 +27,12 @@ export const FIREFOX_ADDON_ID = 'free-ai-summarizer@futamura.dev';
 
 /* Minimum version that understands data_collection_permissions (also covers ESR 140) */
 export const FIREFOX_STRICT_MIN_VERSION = '140.0';
+
+/* First Firefox for Android version that understands data_collection_permissions */
+export const FIREFOX_ANDROID_STRICT_MIN_VERSION = '142.0';
+
+/* The page text, title and URL are sent to the AI service the user picks (implicit consent, AMO policy 6.2.2.2) */
+export const FIREFOX_DATA_COLLECTION = ['websiteContent', 'browsingActivity'];
 
 /* Firefox caps the manifest name at 45 characters; the Chrome name in manifest.json is longer */
 export const FIREFOX_NAME = 'Free AI Summarizer - ChatGPT, Claude, Gemini';
@@ -80,8 +87,9 @@ export const toFirefoxManifest = (manifest: Manifest): Manifest => {
       gecko: {
         id: FIREFOX_ADDON_ID,
         strict_min_version: FIREFOX_STRICT_MIN_VERSION,
-        data_collection_permissions: { required: ['none'] },
+        data_collection_permissions: { required: [...FIREFOX_DATA_COLLECTION] },
       },
+      gecko_android: { strict_min_version: FIREFOX_ANDROID_STRICT_MIN_VERSION },
     },
   };
 };

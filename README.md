@@ -169,7 +169,7 @@ The submitted package is built from this repository with webpack. To reproduce i
 
 1. Create a developer account on [addons.mozilla.org](https://addons.mozilla.org/developers/)
 2. On `develop`, run `bundle exec fastlane build_firefox`, `bundle exec fastlane create_firefox_package`, and `bundle exec fastlane create_source_package`
-3. In the AMO Developer Hub, submit `free-ai-summarizer-firefox-<version>.zip` as a new add-on ("On this site"), upload `free-ai-summarizer-source-<version>.zip` as the source code, and fill in the listing (description, screenshots, categories, privacy policy); the description must state that PDF files are not supported in the Firefox version
+3. In the AMO Developer Hub, submit `free-ai-summarizer-firefox-<version>.zip` as a new add-on ("On this site"), upload `free-ai-summarizer-source-<version>.zip` as the source code, and fill in the listing (description, screenshots, categories, privacy policy); the description must state that PDF files are not supported in the Firefox version, and that the page title, URL and text are sent to the AI service the user selects (matching the manifest's data collection declaration and `PRIVACY.md`)
 4. Generate API credentials at <https://addons.mozilla.org/developers/addon/api/key/>
 5. Add them to the GitHub repository secrets as `AMO_JWT_ISSUER` and `AMO_JWT_SECRET`
 

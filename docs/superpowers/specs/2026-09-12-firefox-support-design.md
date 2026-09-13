@@ -83,6 +83,7 @@ export const transformManifest = (manifest: Manifest, options: { isDev: boolean;
   - `id: 'free-ai-summarizer@futamura.dev'`
   - `strict_min_version: '140.0'`。`data_collection_permissions` をサポートする最小バージョンで、ESR 140 もカバーする。実装時に `web-ext lint` の結果で妥当性を確認する
   - `data_collection_permissions: { required: ['none'] }`
+  - **2026-09-13 更新**: AMO の方針調査により `required: ["websiteContent", "browsingActivity"]` に変更 (ページの本文・タイトル・URL をユーザーが選んだ AI サービスへ送るため)。`gecko_android.strict_min_version: "142.0"` も追加
 
 dev ビルドでは `toDevManifest` を適用してから `toFirefoxManifest` を適用する。そのため `sidebar_action.default_icon` にも dev 用アイコンが入る。
 
