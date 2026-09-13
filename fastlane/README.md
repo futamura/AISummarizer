@@ -101,6 +101,30 @@ Bump version number
 
 Create extension package
 
+### build_firefox
+
+```sh
+[bundle exec] fastlane build_firefox
+```
+
+Build extension for Firefox
+
+### create_firefox_package
+
+```sh
+[bundle exec] fastlane create_firefox_package
+```
+
+Create Firefox extension package
+
+### create_source_package
+
+```sh
+[bundle exec] fastlane create_source_package
+```
+
+Create source code package for AMO review
+
 ### merge_to_main
 
 ```sh
