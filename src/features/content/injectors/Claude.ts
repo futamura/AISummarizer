@@ -24,20 +24,27 @@ export async function injectClaude(prompt: string): Promise<{ success: boolean; 
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1500, 2000)));
 
     /**
-     * Submit with a synthetic Enter keydown handled by the ProseMirror keymap.
-     * The send button cannot be used: its aria-label is locale-dependent and
-     * it only appears after trusted user input.
+     * Click the send button, located by its locale-independent data-testid. On touch devices
+     * claude.ai treats Enter as a line break, so the button is preferred. Fall back to a
+     * synthetic Enter keydown handled by the ProseMirror keymap when the button is missing
+     * or still disabled.
      */
-    editor.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'Enter',
-        code: 'Enter',
-        keyCode: 13,
-        which: 13,
-        bubbles: true,
-        cancelable: true,
-      } as KeyboardEventInit)
-    );
+    const sendButton = document.querySelector('button[data-testid="chat-input-send"]');
+    if (sendButton instanceof HTMLButtonElement && !sendButton.disabled) {
+      logger.debug('📕', '[Claude.tsx]', '[injectClaude]', 'Claude send button found', sendButton);
+      sendButton.click();
+    } else {
+      editor.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true,
+        } as KeyboardEventInit)
+      );
+    }
 
     return {
       success: true,
