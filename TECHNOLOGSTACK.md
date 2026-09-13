@@ -27,6 +27,7 @@
 - TypeScript ESLint Parser: ^8.36.0
 - Jest: ^29.7.0 (Testing Framework)
 - ts-jest: ^29.4.0 (TypeScript support for Jest)
+- jest-environment-jsdom: ^29.7.0 (DOM environment for injector tests)
 
 ### Build System
 

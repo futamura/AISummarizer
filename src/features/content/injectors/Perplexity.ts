@@ -1,5 +1,12 @@
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
+/** Lexical renders each line as its own paragraph, so texts are compared without whitespace */
+const stripWhitespace = (text: string): string => text.replace(/\s+/g, '');
+
+/** Whether the editor starts with the prompt. Only the head is compared, which is enough to tell a failed paste */
+const isPromptInserted = (editorText: string | null, prompt: string): boolean =>
+  stripWhitespace(editorText ?? '').startsWith(stripWhitespace(prompt).slice(0, 100));
+
 export async function injectPerplexity(prompt: string): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[Perplexity.tsx]', '[injectPerplexity]', 'Injecting article into Perplexity\n', prompt);
@@ -28,6 +35,21 @@ export async function injectPerplexity(prompt: string): Promise<{ success: boole
 
     /** Wait for 1 to 1.5 seconds */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
+
+    /**
+     * Firefox for Android delivers the synthetic paste with an empty clipboard, so Lexical inserts
+     * nothing. Type the prompt through execCommand instead; a single call keeps the line breaks.
+     */
+    if (!isPromptInserted(editor.textContent, prompt)) {
+      logger.debug('📕', '[Perplexity.tsx]', '[injectPerplexity]', 'Paste was not applied, typing the prompt instead');
+      editor.focus();
+      window.getSelection()?.selectAllChildren(editor);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      document.execCommand('insertText', false, prompt);
+
+      /** Wait for 1 to 1.5 seconds */
+      await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
+    }
 
     /** Wait for the submit button to be found */
     const submitButton = await waitForElement('button[aria-label="Submit"]');
