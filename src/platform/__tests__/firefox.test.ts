@@ -29,6 +29,27 @@ describe('firefoxPlatform', () => {
     return promise;
   });
 
+  /* Firefox for Android has no sidebar: settings open in a tab instead */
+  it('opens the options page when the sidebar API is missing', async () => {
+    const openOptionsPage = jest.fn(() => Promise.resolve());
+    (globalThis as any).browser = {};
+    (globalThis as any).chrome = { runtime: { openOptionsPage } };
+
+    await firefoxPlatform.openSettingsPanel();
+
+    expect(openOptionsPage).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the settings tab when the sidebar API is missing', async () => {
+    const remove = jest.fn(() => Promise.resolve());
+    (globalThis as any).browser = {};
+    (globalThis as any).chrome = { tabs: { getCurrent: jest.fn(() => Promise.resolve({ id: 5 })), remove } };
+
+    await firefoxPlatform.closeSettingsPanel();
+
+    expect(remove).toHaveBeenCalledWith(5);
+  });
+
   it('reports the initial color scheme and later changes', async () => {
     let listener: ((event: { matches: boolean }) => void) | undefined;
     const mediaQuery = {
