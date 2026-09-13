@@ -102,15 +102,6 @@
   "pnpm": {
     "overrides": {
       "serialize-javascript": "^7.0.5"
-    },
-    "auditConfig": {
-      "ignoreGhsas": [
-        "GHSA-mh99-v99m-4gvg",
-        "GHSA-7p8r-x3mc-p8w7",
-        "GHSA-rgw5-rvv9-x895",
-        "GHSA-5p4m-2wfm-xmqj",
-        "GHSA-2v37-7h3g-55p8"
-      ]
     }
   }
 }
