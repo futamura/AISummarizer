@@ -82,7 +82,7 @@ export const getSummarizeUrl = (service: AIService, summarizeId: string, model?:
     case AIService.DEEPSEEK:
       return `https://chat.deepseek.com/?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
     case AIService.KIMI:
-      return `https://www.kimi.com/?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
+      return `https://www.kimi.ai/?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
     case AIService.QWEN:
       return `https://chat.qwen.ai/?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
   }
@@ -103,7 +103,7 @@ export const getAIServiceForUrl = (url: string): AIService => {
     return AIService.PERPLEXITY;
   } else if (/^https?:\/\/(?:www|chat\.)?(deepseek\.com)/.test(url)) {
     return AIService.DEEPSEEK;
-  } else if (/^https?:\/\/(?:www\.)?(kimi\.com)/.test(url)) {
+  } else if (/^https?:\/\/(?:www\.)?(kimi\.(?:com|ai))/.test(url)) {
     return AIService.KIMI;
   } else if (/^https?:\/\/(?:(?:www|chat)\.)?(qwen\.ai)/.test(url)) {
     return AIService.QWEN;

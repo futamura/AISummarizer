@@ -28,6 +28,22 @@ async function selectKimiModel(model: string): Promise<void> {
   }
 }
 
+/*
+ * Decide whether editor text left after a send click is residue that must be cleared.
+ * Both sides are compared with all whitespace stripped, matching how Lexical's
+ * textContent joins paragraph nodes without the original newlines. Empty text and
+ * text not contained in the prompt (user-typed text) are never residue. Text equal
+ * to the whole prompt means the send never went through (e.g. Kimi's login wall
+ * blocked it), so it is left alone; only a strict, shorter fragment is residue.
+ */
+export function isPromptResidue(editorText: string | null | undefined, prompt: string): boolean {
+  const normalizedEditor = editorText?.replace(/\s+/g, '') ?? '';
+  if (!normalizedEditor) return false;
+  const normalizedPrompt = prompt.replace(/\s+/g, '');
+  if (!normalizedPrompt.includes(normalizedEditor)) return false;
+  return normalizedEditor !== normalizedPrompt;
+}
+
 export async function injectKimi(prompt: string, model?: string): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[Kimi.tsx]', '[injectKimi]', 'Injecting article into Kimi\n', prompt);
@@ -74,19 +90,21 @@ export async function injectKimi(prompt: string, model?: string): Promise<{ succ
      * content that is a fragment of the injected prompt; user-typed text never
      * matches and is left untouched. The residue spans multiple Lexical paragraph
      * nodes and textContent joins them without the original newlines, so both
-     * sides are compared with all whitespace stripped. Clearing needs an explicit
-     * DOM selection plus an empty insertText: execCommand('selectAll'/'delete')
-     * is ignored by Lexical, and the selectionchange must settle before
-     * insertText fires.
+     * sides are compared with all whitespace stripped. If the editor still holds
+     * the entire prompt, the send never went through (e.g. it was blocked by
+     * Kimi's login wall), so that poll is skipped rather than clearing it, and
+     * later polls keep running in case a real send still re-applies a tail chunk.
+     * Clearing needs an explicit DOM selection plus an empty insertText:
+     * execCommand('selectAll'/'delete') is ignored by Lexical, and the
+     * selectionchange must settle before insertText fires.
      */
-    const normalizedPrompt = prompt.replace(/\s+/g, '');
     for (let attempt = 0; attempt < 8; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 800));
       const residueEditor = document.querySelector('div[contenteditable="true"][data-lexical-editor="true"]');
       if (!(residueEditor instanceof HTMLElement)) continue;
+      if (!isPromptResidue(residueEditor.textContent, prompt)) continue;
       const residue = residueEditor.textContent?.replace(/\s+/g, '');
-      if (!residue || !normalizedPrompt.includes(residue)) continue;
-      logger.debug('📕', '[Kimi.tsx]', '[injectKimi]', 'Clearing prompt residue re-applied after send:', residue.length);
+      logger.debug('📕', '[Kimi.tsx]', '[injectKimi]', 'Clearing prompt residue re-applied after send:', residue?.length);
       residueEditor.focus();
       window.getSelection()?.selectAllChildren(residueEditor);
       await new Promise(resolve => setTimeout(resolve, 200));

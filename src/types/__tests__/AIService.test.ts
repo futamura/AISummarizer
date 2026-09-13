@@ -1,4 +1,4 @@
-import { AIService, getModelOptionsFor, getSummarizeUrl, supportsModelParam, supportsModelSelection } from '@/types/AIService';
+import { AIService, getAIServiceForUrl, getModelOptionsFor, getSummarizeUrl, supportsModelParam, supportsModelSelection } from '@/types/AIService';
 
 describe('supportsModelParam', () => {
   it('returns true only for URL-parameter services', () => {
@@ -73,5 +73,35 @@ describe('getSummarizeUrl', () => {
 
   it('URL-encodes the model value', () => {
     expect(getSummarizeUrl(AIService.CHATGPT, '42', 'a b&c')).toBe('https://chatgpt.com/?aismid=42&model=a%20b%26c');
+  });
+
+  it('opens Kimi on kimi.ai', () => {
+    expect(getSummarizeUrl(AIService.KIMI, '42')).toBe('https://www.kimi.ai/?aismid=42');
+  });
+
+  it('ignores model for Kimi (DOM-operated)', () => {
+    expect(getSummarizeUrl(AIService.KIMI, '42', 'K3')).toBe('https://www.kimi.ai/?aismid=42');
+  });
+});
+
+describe('getAIServiceForUrl', () => {
+  it('returns KIMI for kimi.ai with query parameter', () => {
+    expect(getAIServiceForUrl('https://www.kimi.ai/?aismid=42')).toBe(AIService.KIMI);
+  });
+
+  it('returns KIMI for kimi.ai without path', () => {
+    expect(getAIServiceForUrl('https://kimi.ai/')).toBe(AIService.KIMI);
+  });
+
+  it('returns KIMI for kimi.com with query parameter', () => {
+    expect(getAIServiceForUrl('https://www.kimi.com/?aismid=42')).toBe(AIService.KIMI);
+  });
+
+  it('returns KIMI for kimi.com with path', () => {
+    expect(getAIServiceForUrl('https://kimi.com/chat/abc')).toBe(AIService.KIMI);
+  });
+
+  it('throws for non-AI service URLs', () => {
+    expect(() => getAIServiceForUrl('https://example.com/')).toThrow('Invalid AI service URL: https://example.com/');
   });
 });

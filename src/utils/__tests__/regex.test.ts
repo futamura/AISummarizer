@@ -1,6 +1,6 @@
 import { STORAGE_KEYS } from '@/constants';
 import { DEFAULT_SETTINGS } from '@/stores';
-import { escapeRegExp, escapeRegExpArray, isExtractionDenylistUrl } from '@/utils';
+import { escapeRegExp, escapeRegExpArray, isAIServiceUrl, isExtractionDenylistUrl } from '@/utils';
 
 const storageGetMock = jest.fn();
 
@@ -42,6 +42,28 @@ describe('regex utils', () => {
 
     it('should handle empty array', () => {
       expect(escapeRegExpArray([])).toEqual([]);
+    });
+  });
+
+  describe('isAIServiceUrl', () => {
+    it('returns true for kimi.ai with query parameter', () => {
+      expect(isAIServiceUrl('https://www.kimi.ai/?aismid=42')).toBe(true);
+    });
+
+    it('returns true for kimi.ai without path', () => {
+      expect(isAIServiceUrl('https://kimi.ai/')).toBe(true);
+    });
+
+    it('returns true for kimi.com with query parameter', () => {
+      expect(isAIServiceUrl('https://www.kimi.com/?aismid=42')).toBe(true);
+    });
+
+    it('returns true for kimi.com with path', () => {
+      expect(isAIServiceUrl('https://kimi.com/chat/abc')).toBe(true);
+    });
+
+    it('returns false for non-AI service URLs', () => {
+      expect(isAIServiceUrl('https://example.com/article')).toBe(false);
     });
   });
 

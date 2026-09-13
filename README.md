@@ -34,7 +34,9 @@ A free and open-source Chrome Extension that uses AI to summarize web articles. 
 - Claude
 - Grok
 - Perplexity
-- Deekseek
+- DeepSeek
+- Kimi (kimi.ai)
+- Qwen
 
 ## Installation
 
