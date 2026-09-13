@@ -225,7 +225,11 @@ const getPrimaryLanguageCode = (languageCode: string): string => {
 };
 
 export const getBrowserLanguage = (): string => {
-  const language = navigator.language;
+  /* Fall back to English where navigator or its language is unavailable (e.g. Node-based tests) */
+  const language = typeof navigator === 'undefined' ? undefined : navigator?.language;
+  if (!language) {
+    return 'English';
+  }
   const primaryCode = getPrimaryLanguageCode(language);
   return LANGUAGE_MAP[primaryCode] || 'English';
 };
