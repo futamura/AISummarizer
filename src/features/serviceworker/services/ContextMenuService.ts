@@ -3,8 +3,15 @@ import { useSettingsStore } from '@/stores';
 import { getAIServiceFromString } from '@/types';
 import { isInvalidUrl, logger } from '@/utils';
 
+/* Firefox for Android ignores the contextMenus permission and leaves chrome.contextMenus undefined */
+const isContextMenuSupported = (): boolean => chrome.contextMenus !== undefined;
+
 export class ContextMenuService {
   constructor(onClick: (info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) => void) {
+    if (!isContextMenuSupported()) {
+      logger.debug('🧑‍🍳📃', '[ContextMenuService.tsx]', '[constructor]', 'Context menus are not supported on this browser');
+      return;
+    }
     chrome.contextMenus.onClicked.addListener(onClick.bind(this));
   }
 
@@ -48,6 +55,8 @@ export class ContextMenuService {
   }
 
   async createMenu(isExtracted: boolean, tabUrl?: string) {
+    if (!isContextMenuSupported()) return;
+
     const { result, error } = await this._removeMenu();
 
     if (error) {

@@ -1,4 +1,5 @@
 import { ContextMenuService } from '@/features/serviceworker/services/ContextMenuService';
+import { logger } from '@/utils';
 
 /*
  * Mock @/stores so importing ContextMenuService does not pull in the real
@@ -62,5 +63,29 @@ describe('ContextMenuService', () => {
 
     expect(() => capturedCallback?.()).not.toThrow();
     await expect(promise).resolves.toEqual({ result: true, error: null });
+  });
+
+  /* Firefox for Android ignores the contextMenus permission, so chrome.contextMenus is undefined */
+  describe('when the contextMenus API is missing', () => {
+    beforeEach(() => {
+      delete chromeMock.contextMenus;
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('can be constructed', () => {
+      expect(() => new ContextMenuService(jest.fn())).not.toThrow();
+    });
+
+    it('skips creating the menu without logging errors', async () => {
+      const errorSpy = jest.spyOn(logger, 'error');
+      const service = new ContextMenuService(jest.fn());
+
+      await expect(service.createMenu(true, 'https://example.com/article')).resolves.toBeUndefined();
+
+      expect(errorSpy).not.toHaveBeenCalled();
+    });
   });
 });
