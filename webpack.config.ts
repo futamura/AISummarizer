@@ -78,6 +78,12 @@ const config: Configuration = {
   plugins: [
     new webpack.DefinePlugin({
       __TARGET__: JSON.stringify(target),
+      /*
+       * webpack otherwise inlines import.meta.url as the absolute path of the build directory
+       * (pdfjs-dist uses it in a Node.js-only code path). A constant keeps the bundle free of
+       * local paths and byte-identical when AMO reviewers rebuild it from source
+       */
+      'import.meta.url': JSON.stringify('file:///'),
     }),
     new MiniCssExtractPlugin({
       filename: 'globals.css',
