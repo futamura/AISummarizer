@@ -1,4 +1,6 @@
 import { ArticleRecord } from '@/db';
+/* Import directly: the @/utils barrel imports @/stores, which imports @/types */
+import { getBrowserLanguage } from '@/utils/i18n';
 
 export interface ArticleExtractionResult {
   title: string | null;
@@ -15,7 +17,7 @@ export interface ArticleInjectionResult {
 
 // Function implementation
 export function formatArticleForClipboard(article: ArticleRecord | ArticleExtractionResult): string {
-  return `Extract each theme from the following text without omission and summarize the main points in Japanese.
+  return `Extract each theme from the following text without omission and summarize the main points in ${getBrowserLanguage()}.
 
 # Title
 ${article.title}
