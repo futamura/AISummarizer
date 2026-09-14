@@ -4,7 +4,7 @@
 
 # [Free AI Summarizer](https://github.com/futamura/AISummarizer)
 
-A free and open-source Chrome Extension that uses AI to summarize web articles. Get instant summaries with just a few clicks.
+A free and open-source browser extension for Chrome and Firefox (desktop and Android) that uses AI to summarize web articles. Get instant summaries with just a few clicks.
 
 <img src="https://raw.githubusercontent.com/futamura/AISummarizer/refs/heads/main/screenshot.png" alt="Banner">
 
@@ -15,8 +15,7 @@ A free and open-source Chrome Extension that uses AI to summarize web articles. 
 - No charge, no API key, no login required
 - Extract articles automatically from webpages
 - Summarize articles with multiple AI services
-- Floating panel for quick access
-- Context menu support
+- Context menu support (desktop browsers)
 - Dark/Light mode support
 - Modern and polished design
 
@@ -24,7 +23,7 @@ A free and open-source Chrome Extension that uses AI to summarize web articles. 
 
 - Web Content - News articles, blog posts, and general web pages
 - YouTube - Video transcripts
-- PDF Documents - PDF files
+- PDF Documents - PDF files (Chrome only)
 
 ### Supported AI services
 
@@ -48,11 +47,11 @@ A free and open-source Chrome Extension that uses AI to summarize web articles. 
 
 ### Install locally
 
-4. Download [release version](https://github.com/futamura/AISummarizer/releases) and unzip
-5. Open `chrome://extensions` in Chrome
-6. Enable "Developer mode" in the top right
-7. Click "Load unpacked"
-8. Select the unzipped folder
+1. Download [release version](https://github.com/futamura/AISummarizer/releases) and unzip
+2. Open `chrome://extensions` in Chrome
+3. Enable "Developer mode" in the top right
+4. Click "Load unpacked"
+5. Select the unzipped folder
 
 ## For Developers
 
@@ -134,7 +133,7 @@ pnpm dev
 
 ### Firefox
 
-The same codebase also builds a Firefox (desktop) version. Browser-specific code lives in `src/platform/`.
+The same codebase also builds a Firefox version for desktop and Android. Browser-specific code lives in `src/platform/`.
 
 ```bash
 # Development build for Firefox (watch mode, output: dist/firefox-dev)
@@ -153,6 +152,8 @@ To load the development build:
 > **Private tabs:** the "New private tab" option only works after allowing the extension in private windows: `about:addons` → Free AI Summarizer → "Run in Private Windows" → Allow.
 
 > **Limitation:** PDF summarization is not supported in the Firefox version. Firefox opens PDFs in its built-in viewer, where extensions cannot inject content scripts.
+
+> **Android:** Firefox for Android has no context menu or sidebar. Summarize pages from the extension's popup; the settings open in a tab instead of the sidebar.
 
 #### Building for Firefox (AMO reviewers)
 
