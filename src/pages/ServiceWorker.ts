@@ -17,7 +17,7 @@ import {
   MessageAction,
   TabBehavior,
 } from '@/types';
-import { isAIServiceUrl, isInvalidUrl, logger, waitForContentScriptReady } from '@/utils';
+import { isAIServiceUrl, isInvalidUrl, logger } from '@/utils';
 
 class ServiceWorker {
   themeService = new ServiceWorkerThemeService();
@@ -25,7 +25,6 @@ class ServiceWorker {
   cleanupService = new CleanupDBService();
 
   isInitialized = false;
-  abortController: AbortController | null = null;
 
   constructor() {
     this.initialize();
@@ -34,9 +33,6 @@ class ServiceWorker {
   async initialize() {
     if (this.isInitialized) return;
     logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[initialize]', '▶️', 'ServiceWorker: Initializing');
-
-    /** Abort the previous abort controller */
-    this.abortController?.abort();
 
     /** Remove the event listeners */
     chrome.tabs.onActivated.removeListener(this.handleTabActivated.bind(this));
@@ -48,12 +44,6 @@ class ServiceWorker {
     /** Add the event listeners */
     chrome.runtime.onMessage.removeListener(this.handleServiceWorkerMessage.bind(this));
     chrome.runtime.onMessage.addListener(this.handleServiceWorkerMessage.bind(this));
-
-    /** Wait for the content script to be ready */
-    this.abortController = new AbortController();
-    const isContentScriptReady = await waitForContentScriptReady(1000, this.abortController.signal);
-    if (!isContentScriptReady) logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[initialize]', '❌️', 'Content script is not ready');
-    else logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[initialize]', '🔵', 'Content script is ready');
 
     this.themeService.initialize();
     this.cleanupService.startCleanup();

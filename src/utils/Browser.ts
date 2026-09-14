@@ -64,50 +64,6 @@ export const sendMessageToServiceWorker = async (message: any, maxRetries = 3): 
 };
 
 /**
- * Check if content script is ready
- * @returns Whether the content script is ready
- */
-const isContentScriptReady = async (): Promise<boolean> => {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab.id) {
-      return false;
-    }
-
-    /** Check if the tab exists before sending message */
-    if (!(await chrome.tabs.get(tab.id).catch(() => null))) {
-      logger.warn('🎨', '[Browser.ts]', '[isContentScriptReady]', 'Tab not found:', tab.id);
-      return false;
-    }
-
-    await chrome.tabs.sendMessage(tab.id, { action: MessageAction.PING_CONTENT_SCRIPT });
-    return true;
-  } catch (error) {
-    return false;
-  }
-};
-
-/**
- * Wait for the content script to be ready
- * @param maxAttempts - The maximum number of attempts
- * @param signal - Optional AbortSignal to cancel the operation
- * @returns Whether the content script is ready
- */
-export const waitForContentScriptReady = async (maxAttempts = 10, signal?: AbortSignal): Promise<boolean> => {
-  for (let i = 0; i < maxAttempts; i++) {
-    if (signal?.aborted) {
-      return false;
-    }
-    const isReady = await isContentScriptReady();
-    if (isReady) {
-      return true;
-    }
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
-  return false;
-};
-
-/**
  * Theme detection for offscreen document
  */
 export const detectTheme = async () => {
