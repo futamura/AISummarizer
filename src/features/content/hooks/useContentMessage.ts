@@ -62,11 +62,6 @@ export const useContentMessage = () => {
       }
 
       switch (message.action) {
-        case MessageAction.PING_CONTENT_SCRIPT:
-          logger.debug('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Received PING_CONTENT_SCRIPT');
-          sendResponse({ success: true });
-          break;
-
         case MessageAction.TAB_UPDATED:
           try {
             /** Update the current tab state */
