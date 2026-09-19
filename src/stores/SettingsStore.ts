@@ -319,6 +319,19 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: STORAGE_KEYS.SETTINGS,
+      /* Persist the state only: Firefox stores extension data with the structured clone algorithm, which throws
+         DataCloneError on the store actions, so an unpartitioned write silently saves nothing */
+      partialize: (state): SettingsState => ({
+        prompts: state.prompts,
+        models: state.models,
+        serviceOnMenu: state.serviceOnMenu,
+        tabBehavior: state.tabBehavior,
+        contentExtractionTiming: state.contentExtractionTiming,
+        extractionDenylist: state.extractionDenylist,
+        saveArticleOnClipboard: state.saveArticleOnClipboard,
+        isShowMessage: state.isShowMessage,
+        isShowBadge: state.isShowBadge,
+      }),
       storage: {
         getItem: async (name: string) => {
           const result = await chrome.storage.local.get(name);
