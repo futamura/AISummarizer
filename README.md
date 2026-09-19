@@ -1,4 +1,5 @@
 ![Chrome Web Store Version](https://img.shields.io/chrome-web-store/v/ojofnhnjhhjfpgenkakhpajjeidplidd?style=flat&label=Chrome%20Extension)
+![Firefox Add-on Version](https://img.shields.io/amo/v/free-ai-summarizer?style=flat&label=Firefox%20Add-on)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Open Source](https://img.shields.io/badge/Open%20Source-Yes-blue.svg)](https://github.com/futamura/AISummarizer)
 
@@ -45,13 +46,23 @@ A free and open-source browser extension for Chrome and Firefox (desktop and And
 2. Click "Add to Chrome"
 3. Click "Add Extension" in the confirmation dialog
 
-### Install locally
+### From Firefox Add-ons
+
+1. Visit [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/free-ai-summarizer/)
+2. Click "Add to Firefox"
+3. Click "Add" in the confirmation dialog
+
+The same page installs the extension on Firefox for Android (142 or later). Desktop requires Firefox 140 or later.
+
+### Install locally (Chrome)
 
 1. Download [release version](https://github.com/futamura/AISummarizer/releases) and unzip
 2. Open `chrome://extensions` in Chrome
 3. Enable "Developer mode" in the top right
 4. Click "Load unpacked"
 5. Select the unzipped folder
+
+Firefox only accepts signed add-ons, so install it from Firefox Add-ons instead. An unsigned build can be loaded from `about:debugging#/runtime/this-firefox` as a temporary add-on, but it is removed when Firefox restarts.
 
 ## For Developers
 
