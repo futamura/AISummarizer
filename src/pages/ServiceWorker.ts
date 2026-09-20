@@ -13,6 +13,7 @@ import {
   formatArticleForClipboard,
   getAIServiceFromString,
   getSummarizeUrl,
+  isPrivateTabSupported,
   Message,
   MessageAction,
   TabBehavior,
@@ -327,6 +328,13 @@ class ServiceWorker {
           break;
 
         case TabBehavior.NEW_PRIVATE_TAB:
+          /* Firefox for Android has no windows API, so the summary opens in an ordinary tab there */
+          if (!isPrivateTabSupported()) {
+            logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[openAIService]', 'Private tabs are unavailable; opening an ordinary tab instead');
+            await chrome.tabs.create({ url: summarizeUrl });
+            break;
+          }
+
           const windows = await chrome.windows.getAll({ populate: true });
           const incognitoWindow = windows.find(w => w.incognito);
           if (incognitoWindow) {

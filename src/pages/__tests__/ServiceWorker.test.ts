@@ -9,7 +9,14 @@ jest.mock('@/stores', () => ({
   /* Regex.ts falls back to this when the stored settings hold no denylist */
   DEFAULT_SETTINGS: { extractionDenylist: '' },
 }));
-jest.mock('@/stores/SettingsStore', () => ({ DEFAULT_SETTINGS: {} }));
+jest.mock('@/stores/SettingsStore', () => ({ DEFAULT_SETTINGS: { models: {} } }));
+/* The service worker reaches the database through this wrapper, which opens IndexedDB on import */
+jest.mock('@/db', () => ({
+  db: {
+    getArticleByUrl: jest.fn(() => Promise.resolve({ id: 'article-id', is_success: true })),
+    addArticle: jest.fn(() => Promise.resolve()),
+  },
+}));
 /* A recent last-cleanup date makes the initial cleanup skip the database */
 jest.mock('@/stores/ArticleStore', () => ({
   useArticleStore: { getState: () => ({ getLastCleanupDate: jest.fn(() => Promise.resolve(new Date())) }) },
@@ -31,6 +38,8 @@ const createChromeMock = () => ({
   tabs: {
     query: jest.fn(() => Promise.resolve([NEW_TAB])),
     get: jest.fn(() => Promise.resolve(NEW_TAB)),
+    create: jest.fn(() => Promise.resolve(NEW_TAB)),
+    update: jest.fn(() => Promise.resolve(NEW_TAB)),
     sendMessage: jest.fn(() => Promise.reject(new Error('Could not establish connection. Receiving end does not exist.'))),
     onActivated: listenerStub(),
     onUpdated: listenerStub(),
@@ -143,5 +152,54 @@ describe('ServiceWorker tab updates', () => {
   it('asks the content script to extract on an ordinary page', async () => {
     await loadTab(ARTICLE_TAB);
     expect(extractionRequests()).toHaveLength(1);
+  });
+});
+
+describe('ServiceWorker opening an AI service in a private tab', () => {
+  let chromeMock: ReturnType<typeof createChromeMock> & { windows?: unknown };
+
+  /* The private tab is the stored behavior in every test here */
+  const SETTINGS = { 'free-ai-summarizer-settings': { state: { tabBehavior: 'NEW_PRIVATE_TAB', extractionDenylist: '' } } };
+
+  const openAIService = async () => {
+    /* The theme service registers its own listener from a class field, so the service worker's is the last one */
+    const handleMessage = chromeMock.runtime.onMessage.addListener.mock.calls.at(-1)![0] as (
+      message: unknown,
+      sender: unknown,
+      sendResponse: unknown
+    ) => Promise<void>;
+    await handleMessage({ action: 'OPEN_AI_SERVICE', payload: { service: 'CHATGPT', tabId: ARTICLE_TAB.id, tabUrl: ARTICLE_TAB.url } }, {}, jest.fn());
+    await flushPromises();
+  };
+
+  const startServiceWorker = async (windows?: unknown) => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    chromeMock = createChromeMock();
+    chromeMock.storage.local.get.mockImplementation(() => Promise.resolve(SETTINGS) as any);
+    if (windows) chromeMock.windows = windows;
+    (globalThis as any).chrome = chromeMock;
+    jest.resetModules();
+
+    await import('@/pages/ServiceWorker');
+    await flushPromises();
+  };
+
+  afterEach(() => {
+    jest.useRealTimers();
+    delete (globalThis as any).chrome;
+  });
+
+  it('opens an ordinary tab where the windows API is missing', async () => {
+    await startServiceWorker();
+    await openAIService();
+    expect(chromeMock.tabs.create).toHaveBeenCalledWith({ url: expect.stringContaining('chatgpt.com') });
+  });
+
+  it('opens a private window where the windows API exists', async () => {
+    const windows = { getAll: jest.fn(() => Promise.resolve([])), create: jest.fn(() => Promise.resolve({})) };
+    await startServiceWorker(windows);
+    await openAIService();
+    expect(windows.create).toHaveBeenCalledWith({ url: expect.stringContaining('chatgpt.com'), incognito: true });
+    expect(chromeMock.tabs.create).not.toHaveBeenCalled();
   });
 });
