@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-}
-
 :root {
   --foreground-color: oklch(27.4% 0.006 286.033);
   --background-color: #fff;
@@ -30,14 +27,6 @@ body {
   /* Chromium injects these defaults into extension pages; Firefox does not, so declare them for both */
   font-family: system-ui, sans-serif;
   font-size: 0.75rem;
-}
-
-body.popup-full-menu {
-  min-height: 350px;
-}
-
-body.popup-minimal-menu {
-  min-height: 76px;
 }
 
 /* Scrollbar */
