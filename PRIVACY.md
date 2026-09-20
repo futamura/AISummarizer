@@ -1,10 +1,10 @@
 # Privacy Policy
 
-Last updated: Sunday, September 13, 2026
+Last updated: Saturday, September 20, 2026
 
 ## Overview
 
-Free AI Summarizer ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we handle information when you use our browser extension for Chrome and Firefox.
+Free AI Summarizer ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we handle information when you use our browser extension for Chrome and for Firefox (desktop and Android).
 
 ## Information We Collect
 
@@ -12,7 +12,7 @@ We do not collect any personal information. The extension has no server of its o
 
 ## Data Storage
 
-The extension uses Chrome's local storage to save your preferences, settings and cache data, including:
+The extension uses your browser's local extension storage to save your preferences, settings and cache data, including:
 
 - Article extraction settings and preferences
 - AI service configurations
@@ -29,21 +29,21 @@ When you choose an AI service (such as ChatGPT, Claude, or Gemini) from the popu
 
 - The page title
 - The page URL
-- The extracted page content (article text, YouTube transcript, or PDF text)
+- The extracted page content (article text, YouTube transcript, or PDF text; PDF extraction is available in Chrome only)
 
 This content is sent directly to the AI service you selected, under your own account on that service, and is handled according to that service's privacy policy. Nothing is sent until you choose an AI service.
 
 ## Permissions Used
 
-The extension requires the following permissions to function:
+The extension requires the following permissions to function. Some of them apply to one browser only, as noted:
 
 - `storage`: To save your preferences, settings, and extracted articles locally on the device. No data is transmitted to external servers.
 - `tabs`: To access tab information, create new tabs for AI services, and communicate with content scripts for article extraction and injection.
 <!-- - `scripting`: To inject content scripts into web pages for article extraction and to communicate between different parts of the extension. -->
 - `activeTab`: To access the current active tab for article extraction, clipboard operations, and UI state management.
-- `offscreen`: To detect system color scheme changes for theme synchronization, ensuring the extension's appearance matches the user's system preferences.
-- `contextMenus`: To create right-click context menus that allow users to extract articles, copy to clipboard, and access AI services directly from web pages.
-- `sidePanel`: To display the settings panel in Chrome's side panel interface, providing easy access to extension configuration.
+- `offscreen` (Chrome only): To detect system color scheme changes for theme synchronization, ensuring the extension's appearance matches the user's system preferences. Firefox detects the color scheme in its background page instead and does not use this permission.
+- `contextMenus` (desktop browsers only): To create right-click context menus that allow users to extract articles, copy to clipboard, and access AI services directly from web pages. Firefox for Android has no context menu API, so the extension skips it there.
+- `sidePanel` (Chrome only): To display the settings panel in Chrome's side panel interface, providing easy access to extension configuration. Firefox uses its sidebar instead on desktop, and opens the settings in a normal tab on Android.
 - `alarms`: To schedule periodic database cleanup tasks that remove old articles to maintain optimal performance.
 - `clipboardWrite`: To copy extracted articles to the user's clipboard when requested, enabling easy sharing and note-taking.
 - `host_permissions`: To allow the extension to access and extract content from any website you visit. This is necessary for article extraction, content script injection, and providing AI summarization features on a wide range of web pages. Page content leaves your device only when you send it to an AI service you choose.

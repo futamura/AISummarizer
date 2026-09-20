@@ -31,16 +31,17 @@ async function selectKimiModel(model: string): Promise<void> {
 /*
  * Decide whether editor text left after a send click is residue that must be cleared.
  * Both sides are compared with all whitespace stripped, matching how Lexical's
- * textContent joins paragraph nodes without the original newlines. Empty text and
- * text not contained in the prompt (user-typed text) are never residue. Text equal
- * to the whole prompt means the send never went through (e.g. Kimi's login wall
- * blocked it), so it is left alone; only a strict, shorter fragment is residue.
+ * textContent joins paragraph nodes without the original newlines. The residue Kimi
+ * re-applies is the tail of the injected prompt, so only a strict suffix of it counts;
+ * matching a fragment anywhere in the prompt would also wipe text the user typed that
+ * happens to appear in the article. Text equal to the whole prompt means the send never
+ * went through (e.g. Kimi's login wall blocked it), so it is left alone.
  */
 export function isPromptResidue(editorText: string | null | undefined, prompt: string): boolean {
   const normalizedEditor = editorText?.replace(/\s+/g, '') ?? '';
   if (!normalizedEditor) return false;
   const normalizedPrompt = prompt.replace(/\s+/g, '');
-  if (!normalizedPrompt.includes(normalizedEditor)) return false;
+  if (!normalizedPrompt.endsWith(normalizedEditor)) return false;
   return normalizedEditor !== normalizedPrompt;
 }
 
