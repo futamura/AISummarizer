@@ -36,4 +36,13 @@ describe('isPromptResidue', () => {
   it('returns false for unrelated text not contained in the prompt', () => {
     expect(isPromptResidue('Please log in to continue.', PROMPT)).toBe(false);
   });
+
+  it('returns false for a leading fragment of the prompt', () => {
+    expect(isPromptResidue('First paragraph text.', PROMPT)).toBe(false);
+  });
+
+  it('returns false for a fragment taken from the middle of the prompt', () => {
+    /* Text the user typed can repeat a phrase of the article, so only a suffix counts as residue */
+    expect(isPromptResidue('Second paragraph text.', PROMPT)).toBe(false);
+  });
 });
