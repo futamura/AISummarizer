@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Free AI Summarizer — a Chrome Extension (Manifest V3) that summarizes web articles, YouTube transcripts, and PDFs by opening an AI service (ChatGPT, Gemini, Google AI Studio, Claude, Grok, Perplexity, Deepseek) in a tab and injecting the extracted article text into its chat UI. No API keys, no backend — all data stays local. The same codebase also builds a Firefox (desktop) version, distributed on addons.mozilla.org (AMO).
+Free AI Summarizer — a browser extension (Manifest V3) that summarizes web articles, YouTube transcripts, and PDFs by opening an AI service (ChatGPT, Gemini, Google AI Studio, Claude, Grok, Perplexity, Deepseek, Kimi, Qwen) in a tab and injecting the extracted article text into its chat UI. No API keys, no backend — all data stays local. The same codebase builds the Chrome version (Chrome Web Store) and the Firefox version for both desktop and Android, distributed on addons.mozilla.org (AMO). PDF summarization is Chrome-only: Firefox opens PDFs in its built-in viewer, where content scripts cannot be injected.
 
 ## Commands
 
@@ -57,6 +57,7 @@ Adding a new AI service = new injector file there + entry in `src/types/AIServic
 - `manifest.json` is the single source of truth; `build/manifest.ts` derives the dev and Firefox manifests at build time (Firefox: `background.scripts`, `sidebar_action`, gecko settings, shorter `name` and browser-neutral `description`)
 - Browser-specific APIs live only in `src/platform/` (`openSettingsPanel` / `closeSettingsPanel` / `initThemeDetection`): Chrome uses `sidePanel` + the offscreen document, Firefox uses `sidebarAction` + `matchMedia` in the background page. Everything else uses `chrome.*`, which Firefox also provides
 - Firefox's `sidebarAction.open()` must run synchronously inside a user gesture — call `openSettingsPanel()` before any `await` in click and context-menu handlers
+- Firefox for Android is the same `TARGET=firefox` build; the difference is detected at runtime, not at build time, because several APIs are simply missing there: `sidebarAction` is undefined (`src/platform/firefox.ts` falls back to the options tab) and `contextMenus` is undefined (`ContextMenuService` skips menu creation). Guard any new API the same way instead of branching on `__TARGET__`
 
 ## Project rules
 
