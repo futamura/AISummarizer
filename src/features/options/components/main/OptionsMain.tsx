@@ -14,6 +14,7 @@ import {
   AIService,
   ContentExtractionTiming,
   getAIServiceLabel,
+  getAvailableTabBehaviors,
   getContentExtractionTimingFromIndex,
   getContentExtractionTimingIndex,
   getContentExtractionTimingLabel,
@@ -495,9 +496,9 @@ export const OptionsMain: React.FC = () => {
           <OptionCard title="Open AI Service in">
             <TabGroup selectedIndex={inputTabBehavior} onChange={setInputTabBehavior}>
               <TabList className="flex flex-wrap gap-2">
-                {Object.entries(TabBehavior).map(([name, behavior]: [string, TabBehavior], index) => (
+                {getAvailableTabBehaviors().map((behavior: TabBehavior, index) => (
                   <Tab
-                    key={name}
+                    key={behavior}
                     className={clsx(
                       'rounded-full px-3 py-1 font-semibold',
                       'text-zinc-900 dark:text-zinc-50',
