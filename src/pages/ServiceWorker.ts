@@ -235,6 +235,12 @@ class ServiceWorker {
         return;
       }
 
+      /** Skip the tabs that carry no content script, such as the extension and the browser pages */
+      if (await isInvalidUrl(tabUrl)) {
+        logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[executeExtraction]', 'Ignoring extraction: tabUrl is invalid', tabUrl);
+        return;
+      }
+
       /** Get the article from the database */
       const doesArticleExist: boolean = (await useArticleStore.getState().getArticleByUrl(tabUrl))?.is_success ?? false;
 
