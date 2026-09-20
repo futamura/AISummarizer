@@ -62,8 +62,39 @@ describe('regex utils', () => {
       expect(isAIServiceUrl('https://kimi.com/chat/abc')).toBe(true);
     });
 
+    it('returns true for the other service hosts', () => {
+      expect(isAIServiceUrl('https://chatgpt.com/?aismid=42')).toBe(true);
+      expect(isAIServiceUrl('https://gemini.google.com/app')).toBe(true);
+      expect(isAIServiceUrl('https://aistudio.google.com/prompts/new_chat')).toBe(true);
+      expect(isAIServiceUrl('https://claude.ai/new')).toBe(true);
+      expect(isAIServiceUrl('https://grok.com/')).toBe(true);
+      expect(isAIServiceUrl('https://www.perplexity.ai/')).toBe(true);
+      expect(isAIServiceUrl('https://chat.deepseek.com/')).toBe(true);
+      expect(isAIServiceUrl('https://chat.qwen.ai/')).toBe(true);
+    });
+
     it('returns false for non-AI service URLs', () => {
       expect(isAIServiceUrl('https://example.com/article')).toBe(false);
+    });
+
+    it('returns false when a service name only appears in the path or the query', () => {
+      expect(isAIServiceUrl('https://example.com/claude.ai')).toBe(false);
+      expect(isAIServiceUrl('https://example.com/?ref=perplexity.ai')).toBe(false);
+    });
+
+    it('returns false for hosts that merely start or end with a service host', () => {
+      expect(isAIServiceUrl('https://chatgpt.com.example.com/')).toBe(false);
+      expect(isAIServiceUrl('https://notchatgpt.com/')).toBe(false);
+    });
+
+    it('returns false for subdomains that are not service hosts', () => {
+      expect(isAIServiceUrl('https://docs.claude.ai/')).toBe(false);
+      expect(isAIServiceUrl('https://mail.google.com/')).toBe(false);
+    });
+
+    it('returns false for non-http schemes and malformed URLs', () => {
+      expect(isAIServiceUrl('file:///Users/me/chatgpt.com')).toBe(false);
+      expect(isAIServiceUrl('not a url')).toBe(false);
     });
   });
 

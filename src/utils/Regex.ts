@@ -25,9 +25,37 @@ export const isInvalidUrl = async (url?: string): Promise<boolean> => {
   return isAIServiceUrl(url) || isBrowserSpecificUrl(url) || (await isExtractionDenylistUrl(url)) || !url.startsWith('http');
 };
 
+/*
+ * Hosts of the supported AI services, listed explicitly instead of matching subdomains,
+ * so that only the pages the injectors actually run on are treated as AI service tabs.
+ * A leading "www." is stripped before the comparison; every other subdomain is listed here.
+ */
+const AI_SERVICE_HOSTNAMES = new Set([
+  'chatgpt.com',
+  'gemini.google.com',
+  'aistudio.google.com',
+  'claude.ai',
+  'claude.com',
+  'grok.com',
+  'perplexity.ai',
+  'deepseek.com',
+  'chat.deepseek.com',
+  'kimi.ai',
+  'kimi.com',
+  'qwen.ai',
+  'chat.qwen.ai',
+]);
+
 export const isAIServiceUrl = (url?: string): boolean => {
   if (!url) return true;
-  return /^(https?)\:\/\/((www|chat)\.)?((chatgpt|gemini\.google|aistudio\.google|grok|deepseek|kimi)\.com)|((perplexity|claude|qwen|kimi)\.ai)/.test(url);
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+  return AI_SERVICE_HOSTNAMES.has(parsed.hostname.toLowerCase().replace(/^www\./, ''));
 };
 
 export const isBrowserSpecificUrl = (url?: string): boolean => {
