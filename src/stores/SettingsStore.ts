@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { STORAGE_KEYS } from '@/constants';
-import { AIService, ContentExtractionTiming, MessageAction, TabBehavior } from '@/types';
+import { AIService, ContentExtractionTiming, TabBehavior } from '@/types';
 import { logger } from '@/utils';
 /* Import directly: DEFAULT_PROMPT calls it at module load, when the @/utils barrel may still be loading (utils/Regex imports this store) */
 import { getBrowserLanguage } from '@/utils/i18n';
@@ -132,7 +132,6 @@ export const useSettingsStore = create<SettingsStore>()(
           ...state,
           ...settings,
         }));
-        await sendSettingsUpdate();
       },
       setPromptFor: async (service: AIService, prompt: string) => {
         await get().updateSettings({
@@ -165,7 +164,6 @@ export const useSettingsStore = create<SettingsStore>()(
             [service]: status,
           },
         });
-        await sendSettingsUpdate();
       },
       getServiceOnMenu: async (service: AIService) => {
         const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
@@ -360,29 +358,3 @@ export const useSettingsStore = create<SettingsStore>()(
     }
   )
 );
-
-/**
- * Send settings update to content script
- */
-const sendSettingsUpdate = async () => {
-  try {
-    // logger.debug('🏪⚙️', '[SettingsStore.ts]', '[sendSettingsUpdate]', 'Sending settings update message to content script');
-    const settings = useSettingsStore.getState();
-    await chrome.runtime.sendMessage({
-      action: MessageAction.SETTINGS_UPDATED,
-      payload: {
-        prompts: settings.prompts,
-        models: settings.models,
-        serviceOnMenu: settings.serviceOnMenu,
-        tabBehavior: settings.tabBehavior,
-        contentExtractionTiming: settings.contentExtractionTiming,
-        extractionDenylist: settings.extractionDenylist,
-        saveArticleOnClipboard: settings.saveArticleOnClipboard,
-        isShowMessage: settings.isShowMessage,
-        isShowBadge: settings.isShowBadge,
-      },
-    });
-  } catch (error) {
-    logger.error('🏪⚙️', '[SettingsStore.ts]', '[sendSettingsUpdate]', 'Failed to send settings update message:', error);
-  }
-};

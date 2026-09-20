@@ -32,7 +32,6 @@ export const useContentMessage = () => {
   const [currentTabId, setCurrentTabId] = useState<number | null>(null);
   const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
   const [currentArticle, setCurrentArticle] = useState<ArticleExtractionResult | null>(null);
-  const [settings, setSettings] = useState(useSettingsStore.getState());
 
   /*******************************************************
    * Lifecycle
@@ -91,7 +90,7 @@ export const useContentMessage = () => {
 
         case MessageAction.EXTRACT_ARTICLE:
           try {
-            extractionService.current.execute(message.payload.tabUrl).then((article: ArticleExtractionResult) => {
+            extractionService.current.execute(message.payload.tabUrl).then(async (article: ArticleExtractionResult) => {
               /** Update the current tab state */
               setCurrentTabId(message.payload.tabId);
               setCurrentTabUrl(message.payload.tabUrl);
@@ -106,7 +105,14 @@ export const useContentMessage = () => {
                   result: article,
                 },
               });
-              if (article?.isSuccess && settings.isShowMessage) {
+              /*
+               * Read the toast preference via the async getter rather than a snapshot of
+               * the store: the content script never receives settings updates, and its
+               * snapshot is taken before chrome.storage hydration completes, so it would
+               * stay at the default forever.
+               */
+              const isShowMessage = await useSettingsStore.getState().getIsShowMessage();
+              if (article?.isSuccess && isShowMessage) {
                 toast.success('Article extracted successfully');
               }
             });
@@ -152,14 +158,10 @@ export const useContentMessage = () => {
             }
             handledInjectionArticleIds.add(String(message.payload.article.id));
 
-            createPrompt(service, settings, message.payload.article)
+            createPrompt(service, useSettingsStore.getState(), message.payload.article)
               .then(async prompt => {
-                /*
-                 * Read the model via the async getter rather than the settings snapshot:
-                 * settings is captured at first render, before chrome.storage hydration
-                 * completes, so settings.models would always be the empty-string default.
-                 */
-                const model = await settings.getModelFor(service);
+                /* Read the model via the async getter, which goes to chrome.storage (see EXTRACT_ARTICLE above) */
+                const model = await useSettingsStore.getState().getModelFor(service);
                 injectionService.current.execute(message.payload.tabUrl, prompt, model).then((result: ArticleInjectionResult) => {
                   /** Respond to the content script */
                   sendResponse({ success: result.success, error: result.error });
@@ -198,13 +200,6 @@ export const useContentMessage = () => {
           }
           break;
 
-        case MessageAction.SETTINGS_UPDATED:
-          setSettings(message.payload);
-
-          /** Respond to the content script */
-          sendResponse({ success: true });
-          break;
-
         default:
           logger.debug('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Unknown message action:', message.action);
 
@@ -225,5 +220,5 @@ export const useContentMessage = () => {
     };
   }, []);
 
-  return { currentArticle, currentTabId, currentTabUrl, settings };
+  return { currentArticle, currentTabId, currentTabUrl };
 };
