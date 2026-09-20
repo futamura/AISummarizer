@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 
 import { useContentMessage } from '@/features/content/hooks';
-import { SettingsState } from '@/stores';
+import { SettingsState, useSettingsStore } from '@/stores';
 import { ArticleExtractionResult } from '@/types';
 
 /**
@@ -45,7 +45,14 @@ export const ContentContextProvider: React.FC<ContentContextProviderProps> = ({ 
    * State Management
    *******************************************************/
 
-  const { currentTabId, currentTabUrl, currentArticle, settings } = useContentMessage();
+  const { currentTabId, currentTabUrl, currentArticle } = useContentMessage();
+  /*
+   * Expose the live store rather than a snapshot copy kept in React state: the content
+   * script receives no settings updates, so a copy would freeze at the pre-hydration
+   * defaults. Consumers must read values through the async getters, which go to
+   * chrome.storage.
+   */
+  const settings = useSettingsStore.getState();
 
   /*******************************************************
    * Exported Value
