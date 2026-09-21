@@ -1,4 +1,4 @@
-import { extractPDF, extractReadability, extractYoutube } from '@/features/content/extractors';
+import { extractPDF, extractReadability, extractX, extractYoutube, isXStatusUrl } from '@/features/content/extractors';
 import { ArticleExtractionResult } from '@/types';
 import { isInvalidUrl, logger } from '@/utils';
 
@@ -55,6 +55,21 @@ export class ArticleExtractionService {
           content: null,
           error: error instanceof Error ? error : new Error('Failed to extract pdf'),
         };
+      }
+    }
+
+    /**
+     * X (single post page)
+     */
+    if (isXStatusUrl(url)) {
+      logger.debug('🧑‍🍳📖', '[ArticleExtractionService.tsx]', '[execute]', 'Extracting X post');
+      try {
+        const result = await extractX(document);
+        if (result.isSuccess) return result;
+        /* Fall through to Readability so that a markup change on X degrades instead of failing */
+        logger.warn('🧑‍🍳📖', '[ArticleExtractionService.tsx]', '[execute]', 'Falling back to Readability for X post');
+      } catch (error: any) {
+        logger.error('🧑‍🍳📖', '[ArticleExtractionService.tsx]', '[execute]', 'Failed to extract X post:', error);
       }
     }
 
