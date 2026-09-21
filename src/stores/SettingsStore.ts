@@ -83,7 +83,9 @@ export const DEFAULT_SETTINGS: SettingsState = {
 /** AI chat services */
 (https?)\\:\\/\\/(copilot\\.microsoft\\.com|(www\\.)?poe\\.com)(\\/|\\?|#|$)
 /** Social networks */
-(https?)\\:\\/\\/((www|m|mobile)\\.)?(facebook|twitter|x|instagram|tiktok|threads|linkedin|pinterest)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
+(https?)\\:\\/\\/((www|m|mobile)\\.)?(facebook|instagram|tiktok|threads|linkedin|pinterest)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
+/** X (single post pages stay extractable; timelines and everything else do not) */
+(https?)\\:\\/\\/((www|m|mobile)\\.)?(x|twitter)\\.com(?!\\/[^\\/]+\\/status\\/[0-9]+)(\\/|\\?|#|$)
 /** Streaming services */
 (https?)\\:\\/\\/((www|m|open)\\.)?(netflix|primevideo|hulu|disneyplus|twitch|spotify|abema|tver|nicovideo)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
 /** E-commerce sites */
