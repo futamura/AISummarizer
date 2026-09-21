@@ -123,7 +123,11 @@ describe('regex utils', () => {
         'https://mail.google.com/mail/u/0/',
         'https://docs.google.com/document/d/abc/edit',
         'https://www.costco.com/',
-        'https://x.com/user/status/1',
+        'https://x.com/',
+        'https://x.com/home',
+        'https://x.com/user',
+        'https://x.com/i/bookmarks',
+        'https://twitter.com/user',
         'https://m.facebook.com/story.php',
         'https://www.amazon.co.jp/dp/B000000000',
         'https://duckduckgo.com/?q=foo',
@@ -162,6 +166,10 @@ describe('regex utils', () => {
         'https://news.microsoft.com/ja-jp/some-article',
         'https://support.microsoft.com/ja-jp/windows',
         'https://newsroom.spotify.com/2026-01-01/some-article',
+        'https://x.com/user/status/1',
+        'https://x.com/user/status/1?s=20',
+        'https://www.x.com/user/status/1',
+        'https://twitter.com/user/status/1',
       ])('should not block %s', async url => {
         expect(await isExtractionDenylistUrl(url)).toBe(false);
       });
