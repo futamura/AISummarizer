@@ -45,4 +45,14 @@ describe('SettingsStore persistence on Firefox', () => {
 
     expect(geckoStorage[STORAGE_KEYS.SETTINGS]?.state?.isShowBadge).toBe(false);
   });
+
+  it('persists the clipboard prompt and reads it back', async () => {
+    await flushStorage();
+
+    await useSettingsStore.getState().setClipboardPrompt('Summarize in Japanese.\n{content}');
+    await flushStorage();
+
+    expect(geckoStorage[STORAGE_KEYS.SETTINGS]?.state?.clipboardPrompt).toBe('Summarize in Japanese.\n{content}');
+    await expect(useSettingsStore.getState().getClipboardPrompt()).resolves.toBe('Summarize in Japanese.\n{content}');
+  });
 });
