@@ -1,6 +1,6 @@
 {
   "name": "free-ai-summarizer",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A free and open-source Chrome Extension that uses AI to summarize web articles. Get instant summaries with just a few clicks.",
   "type": "module",
   "scripts": {
