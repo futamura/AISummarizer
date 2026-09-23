@@ -33,6 +33,9 @@ interface GlobalContextValue {
   };
   setServiceOnMenu: (service: AIService, status: boolean) => Promise<void>;
   getServiceOnMenu: (service: AIService) => Promise<boolean>;
+  clipboardPrompt: string;
+  setClipboardPrompt: (clipboardPrompt: string) => Promise<void>;
+  getClipboardPrompt: () => Promise<string>;
   tabBehavior: TabBehavior;
   setTabBehavior: (tabBehavior: TabBehavior) => Promise<void>;
   getTabBehavior: () => Promise<TabBehavior>;
