@@ -18,6 +18,8 @@ export interface SettingsState {
   serviceOnMenu: {
     [key in AIService]: boolean;
   };
+  /* Prompt for "Copy to clipboard", which has no AI service to take a prompt from */
+  clipboardPrompt: string;
   tabBehavior: TabBehavior;
   contentExtractionTiming: ContentExtractionTiming;
   extractionDenylist: string;
@@ -71,6 +73,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     [AIService.KIMI]: true,
     [AIService.QWEN]: true,
   },
+  clipboardPrompt: DEFAULT_PROMPT,
   tabBehavior: TabBehavior.NEW_TAB,
   contentExtractionTiming: ContentExtractionTiming.AUTOMATIC,
   extractionDenylist: `/** Search engines */
@@ -108,6 +111,8 @@ export interface SettingsStore extends SettingsState {
   getModelFor: (service: AIService) => Promise<string>;
   setServiceOnMenu: (service: AIService, status: boolean) => Promise<void>;
   getServiceOnMenu: (service: AIService) => Promise<boolean>;
+  setClipboardPrompt: (clipboardPrompt: string) => Promise<void>;
+  getClipboardPrompt: () => Promise<string>;
   setTabBehavior: (tabBehavior: TabBehavior) => Promise<void>;
   getTabBehavior: () => Promise<TabBehavior>;
   setContentExtractionTiming: (contentExtractionTiming: ContentExtractionTiming) => Promise<void>;
@@ -171,6 +176,13 @@ export const useSettingsStore = create<SettingsStore>()(
         const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
         return settings[STORAGE_KEYS.SETTINGS]?.state?.serviceOnMenu?.[service] ?? DEFAULT_SETTINGS.serviceOnMenu[service];
       },
+      setClipboardPrompt: async (clipboardPrompt: string) => {
+        await get().updateSettings({ clipboardPrompt });
+      },
+      getClipboardPrompt: async () => {
+        const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
+        return settings[STORAGE_KEYS.SETTINGS]?.state?.clipboardPrompt ?? DEFAULT_SETTINGS.clipboardPrompt;
+      },
       setTabBehavior: async (tabBehavior: TabBehavior) => {
         await get().updateSettings({ tabBehavior });
       },
@@ -228,6 +240,7 @@ export const useSettingsStore = create<SettingsStore>()(
             settings: {
               prompt: settings.prompts || {},
               models: settings.models || {},
+              clipboardPrompt: settings.clipboardPrompt || DEFAULT_SETTINGS.clipboardPrompt,
               tabBehavior: settings.tabBehavior || '',
               contentExtractionTiming: settings.contentExtractionTiming || '',
               extractionDenylist: settings.extractionDenylist || [],
@@ -282,6 +295,7 @@ export const useSettingsStore = create<SettingsStore>()(
           await get().updateSettings({
             prompts: backupData.settings.prompt,
             models: backupData.settings.models ?? DEFAULT_SETTINGS.models,
+            clipboardPrompt: backupData.settings.clipboardPrompt ?? DEFAULT_SETTINGS.clipboardPrompt,
             tabBehavior: backupData.settings.tabBehavior as TabBehavior,
             contentExtractionTiming: backupData.settings.contentExtractionTiming as ContentExtractionTiming,
             extractionDenylist: backupData.settings.extractionDenylist,
@@ -302,6 +316,7 @@ export const useSettingsStore = create<SettingsStore>()(
           await get().updateSettings({
             prompts: DEFAULT_SETTINGS.prompts,
             models: DEFAULT_SETTINGS.models,
+            clipboardPrompt: DEFAULT_SETTINGS.clipboardPrompt,
             tabBehavior: DEFAULT_SETTINGS.tabBehavior,
             contentExtractionTiming: DEFAULT_SETTINGS.contentExtractionTiming,
             extractionDenylist: DEFAULT_SETTINGS.extractionDenylist,
@@ -325,6 +340,7 @@ export const useSettingsStore = create<SettingsStore>()(
         prompts: state.prompts,
         models: state.models,
         serviceOnMenu: state.serviceOnMenu,
+        clipboardPrompt: state.clipboardPrompt,
         tabBehavior: state.tabBehavior,
         contentExtractionTiming: state.contentExtractionTiming,
         extractionDenylist: state.extractionDenylist,

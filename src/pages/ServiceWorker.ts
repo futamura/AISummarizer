@@ -516,7 +516,8 @@ class ServiceWorker {
 
       /** Copy the article to the clipboard */
       if (shouldCopy && article && article.is_success) {
-        const text = formatArticleForClipboard(article);
+        const prompt = await useSettingsStore.getState().getClipboardPrompt();
+        const text = formatArticleForClipboard(article, prompt);
         await chrome.tabs
           .sendMessage(tabId, {
             action: MessageAction.WRITE_ARTICLE_TO_CLIPBOARD,

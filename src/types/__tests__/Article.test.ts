@@ -1,30 +1,22 @@
 import { formatArticleForClipboard } from '@/types';
 
-const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
-
-afterEach(() => {
-  if (originalNavigator) {
-    Object.defineProperty(globalThis, 'navigator', originalNavigator);
-  } else {
-    delete (globalThis as { navigator?: unknown }).navigator;
-  }
-});
+const article = {
+  title: 'Example title',
+  url: 'https://example.com/article',
+  content: 'Example content',
+  isSuccess: true,
+};
 
 describe('formatArticleForClipboard', () => {
-  it('asks for the summary in the browser language', () => {
-    Object.defineProperty(globalThis, 'navigator', { value: { language: 'fr-FR' }, configurable: true, writable: true });
+  it('fills the configured prompt instead of a fixed one', () => {
+    const prompt = 'Summarize in Japanese.\n\n# Title\n{title}\n\n# URL\n{url}\n\n# Content\n{content}';
 
-    const text = formatArticleForClipboard({
-      title: 'Example title',
-      url: 'https://example.com/article',
-      content: 'Example content',
-      isSuccess: true,
-    });
+    const text = formatArticleForClipboard(article, prompt);
 
-    expect(text).toContain('summarize the main points in French.');
-    expect(text).not.toContain('Japanese');
-    expect(text).toContain('# Title\nExample title');
-    expect(text).toContain('# URL\nhttps://example.com/article');
-    expect(text).toContain('# Content\nExample content');
+    expect(text).toBe('Summarize in Japanese.\n\n# Title\nExample title\n\n# URL\nhttps://example.com/article\n\n# Content\nExample content');
+  });
+
+  it('keeps a prompt without placeholders as is', () => {
+    expect(formatArticleForClipboard(article, 'No placeholders')).toBe('No placeholders');
   });
 });
