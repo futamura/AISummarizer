@@ -1,6 +1,4 @@
 import { ArticleRecord } from '@/db';
-/* Import directly: the @/utils barrel imports @/stores, which imports @/types */
-import { getBrowserLanguage } from '@/utils/i18n';
 
 export interface ArticleExtractionResult {
   title: string | null;
@@ -16,16 +14,10 @@ export interface ArticleInjectionResult {
 }
 
 // Function implementation
-export function formatArticleForClipboard(article: ArticleRecord | ArticleExtractionResult): string {
-  return `Extract each theme from the following text without omission and summarize the main points in ${getBrowserLanguage()}.
-
-# Title
-${article.title}
-
-# URL
-${article.url}
-
-# Content
-${article.content}
-`;
+export function formatArticleForClipboard(article: ArticleRecord | ArticleExtractionResult, prompt: string): string {
+  /* Fill the placeholders the same way createPrompt does for the AI services */
+  return prompt
+    .replace('{title}', article.title ?? '')
+    .replace('{url}', article.url ?? '')
+    .replace('{content}', article.content ?? '');
 }

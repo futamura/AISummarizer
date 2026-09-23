@@ -52,6 +52,10 @@ export const OptionsMain: React.FC = () => {
     serviceOnMenu: storedServiceStatus,
     setServiceOnMenu: setStoredServiceStatus,
     getServiceOnMenu: getStoredServiceStatus,
+    /** clipboardPrompt */
+    clipboardPrompt: storedClipboardPrompt,
+    setClipboardPrompt: setStoredClipboardPrompt,
+    getClipboardPrompt: getStoredClipboardPrompt,
     /** tabBehavior */
     tabBehavior: storedTabBehavior,
     setTabBehavior: setStoredTabBehavior,
@@ -79,6 +83,7 @@ export const OptionsMain: React.FC = () => {
 
   const [inputPromptsIndex, setInputPromptsIndex] = useState<number>(0);
   const [inputPrompts, setInputPrompts] = useState<{ [key in AIService]?: string } | undefined>(undefined);
+  const [inputClipboardPrompt, setInputClipboardPrompt] = useState<string | undefined>(undefined);
   const [inputModels, setInputModels] = useState<{ [key in AIService]?: string } | undefined>(undefined);
   const [focusedCustomInput, setFocusedCustomInput] = useState<AIService | null>(null);
 
@@ -110,6 +115,15 @@ export const OptionsMain: React.FC = () => {
       loadPrompts();
     }
   }, [inputPrompts, storedPrompts]);
+
+  useEffect(() => {
+    if (inputClipboardPrompt === undefined) {
+      const loadClipboardPrompt = async () => {
+        setInputClipboardPrompt(await getStoredClipboardPrompt());
+      };
+      loadClipboardPrompt();
+    }
+  }, [inputClipboardPrompt, storedClipboardPrompt]);
 
   useEffect(() => {
     if (inputModels === undefined) {
@@ -179,6 +193,7 @@ export const OptionsMain: React.FC = () => {
       ) as {
         [key in AIService]: boolean;
       },
+      clipboardPrompt: inputClipboardPrompt ?? DEFAULT_SETTINGS.clipboardPrompt,
       tabBehavior: getTabBehaviorFromIndex(inputTabBehavior ?? getTabBehaviorIndex(DEFAULT_SETTINGS.tabBehavior)),
       contentExtractionTiming: getContentExtractionTimingFromIndex(
         inputContentExtractionTiming ?? getContentExtractionTimingIndex(DEFAULT_SETTINGS.contentExtractionTiming)
@@ -188,7 +203,7 @@ export const OptionsMain: React.FC = () => {
       isShowMessage: inputIsShowMessage ?? DEFAULT_SETTINGS.isShowMessage,
       isShowBadge: inputIsShowBadge ?? DEFAULT_SETTINGS.isShowBadge,
     });
-  }, [inputPrompts, inputModels, inputTabBehavior, inputContentExtractionTiming, inputIsSaveArticleOnClipboard]);
+  }, [inputPrompts, inputModels, inputClipboardPrompt, inputTabBehavior, inputContentExtractionTiming, inputIsSaveArticleOnClipboard]);
 
   /**
    * Unset Input Settings
@@ -196,6 +211,7 @@ export const OptionsMain: React.FC = () => {
   const unsetInputValues = useCallback(async () => {
     await setInputPromptsIndex(0);
     await setInputPrompts(undefined);
+    await setInputClipboardPrompt(undefined);
     await setInputModels(undefined);
     await setInputServiceStatus(undefined);
     await setInputTabBehavior(undefined);
@@ -308,6 +324,21 @@ export const OptionsMain: React.FC = () => {
                     {getAIServiceLabel(service)}
                   </Tab>
                 ))}
+                {/* Prompt for "Copy to clipboard", placed after the AI services */}
+                <Tab
+                  className={clsx(
+                    'rounded-full px-3 py-1 font-semibold',
+                    'text-zinc-900 dark:text-zinc-50',
+                    'bg-zinc-300 dark:bg-zinc-700',
+                    'opacity-30 dark:opacity-30',
+                    'hover:opacity-100',
+                    inputPromptsIndex === Object.keys(AIService).length && '!bg-blue-600 !opacity-100',
+                    'focus:outline-none',
+                    'transition-opacity'
+                  )}
+                >
+                  Clipboard
+                </Tab>
               </TabList>
               <TabPanels className="mt-3">
                 {Object.entries(AIService).map(([name, service]: [string, AIService]) => (
@@ -456,6 +487,30 @@ export const OptionsMain: React.FC = () => {
                     </div> */}
                   </TabPanel>
                 ))}
+                <TabPanel className="flex flex-col gap-2">
+                  <span className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Prompt</span>
+                  <Field>
+                    <Textarea
+                      name="clipboard-prompt"
+                      className={clsx(
+                        'block w-full rounded-lg',
+                        'px-3 py-1.5 text-base/6',
+                        'text-zinc-700 dark:text-zinc-300',
+                        'bg-zinc-50 dark:bg-zinc-800',
+                        'border border-zinc-300 dark:border-none',
+                        'focus:outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-700',
+                        'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700'
+                      )}
+                      rows={12}
+                      value={inputClipboardPrompt ?? ''}
+                      onChange={e => setInputClipboardPrompt(e.target.value)}
+                      onBlur={async () => {
+                        logger.debug('📦⌥', '[OptionsMain.tsx]', '[render]', 'onBlur', inputClipboardPrompt);
+                        await setStoredClipboardPrompt(inputClipboardPrompt ?? '');
+                      }}
+                    />
+                  </Field>
+                </TabPanel>
               </TabPanels>
             </TabGroup>
           </OptionCard>
