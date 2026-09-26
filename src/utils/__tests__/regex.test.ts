@@ -1,6 +1,6 @@
 import { STORAGE_KEYS } from '@/constants';
 import { DEFAULT_SETTINGS } from '@/stores';
-import { escapeRegExp, escapeRegExpArray, isAIServiceUrl, isExtractionDenylistUrl } from '@/utils';
+import { escapeRegExp, escapeRegExpArray, getDesktopYoutubeUrl, isAIServiceUrl, isExtractionDenylistUrl } from '@/utils';
 
 const storageGetMock = jest.fn();
 
@@ -95,6 +95,32 @@ describe('regex utils', () => {
     it('returns false for non-http schemes and malformed URLs', () => {
       expect(isAIServiceUrl('file:///Users/me/chatgpt.com')).toBe(false);
       expect(isAIServiceUrl('not a url')).toBe(false);
+    });
+  });
+
+  describe('getDesktopYoutubeUrl', () => {
+    it.each([
+      ['https://m.youtube.com/watch?v=arj7oStGLkU', 'https://www.youtube.com/watch?v=arj7oStGLkU&app=desktop'],
+      ['https://m.youtube.com/watch?feature=share&v=arj7oStGLkU&t=42s', 'https://www.youtube.com/watch?v=arj7oStGLkU&app=desktop'],
+      ['https://m.youtube.com/shorts/arj7oStGLkU', 'https://www.youtube.com/watch?v=arj7oStGLkU&app=desktop'],
+      ['http://m.youtube.com/watch?v=arj7oStGLkU', 'https://www.youtube.com/watch?v=arj7oStGLkU&app=desktop'],
+    ])('converts the mobile video page %s', (url, expected) => {
+      expect(getDesktopYoutubeUrl(url)).toBe(expected);
+    });
+
+    it.each([
+      'https://www.youtube.com/watch?v=arj7oStGLkU',
+      'https://www.youtube.com/watch?v=arj7oStGLkU&app=desktop',
+      'https://youtu.be/arj7oStGLkU',
+      'https://m.youtube.com/',
+      'https://m.youtube.com/results?search_query=ted',
+      'https://m.youtube.com/watch?v=short',
+      'https://m.youtube.com.example.com/watch?v=arj7oStGLkU',
+      'https://example.com/watch?v=arj7oStGLkU',
+      'not a url',
+      undefined,
+    ])('returns null for %s', url => {
+      expect(getDesktopYoutubeUrl(url)).toBeNull();
     });
   });
 

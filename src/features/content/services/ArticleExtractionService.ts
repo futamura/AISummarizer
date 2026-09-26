@@ -1,6 +1,6 @@
 import { extractPDF, extractReadability, extractX, extractYoutube, isXStatusUrl } from '@/features/content/extractors';
 import { ArticleExtractionResult } from '@/types';
-import { isInvalidUrl, logger } from '@/utils';
+import { getDesktopYoutubeUrl, isInvalidUrl, logger } from '@/utils';
 
 export class ArticleExtractionService {
   async execute(url: string): Promise<ArticleExtractionResult> {
@@ -17,6 +17,21 @@ export class ArticleExtractionService {
         url: url,
         content: null,
         error: new Error('Skipping extraction for invalid URLs'),
+      };
+    }
+
+    /**
+     * Mobile YouTube: the page has no transcript, and Readability would pick up the video description
+     * instead. The service worker reloads the video in the desktop layout when an AI service is chosen
+     */
+    if (getDesktopYoutubeUrl(url)) {
+      logger.debug('🧑‍🍳📖', '[ArticleExtractionService.tsx]', '[execute]', 'Skipping extraction on the mobile YouTube layout', url);
+      return {
+        isSuccess: false,
+        title: null,
+        url: url,
+        content: null,
+        error: new Error('The mobile YouTube layout has no transcript'),
       };
     }
 
