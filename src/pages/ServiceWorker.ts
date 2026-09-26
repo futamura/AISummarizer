@@ -18,7 +18,15 @@ import {
   MessageAction,
   TabBehavior,
 } from '@/types';
-import { isAIServiceUrl, isInvalidUrl, logger } from '@/utils';
+import { getDesktopYoutubeUrl, isAIServiceUrl, isInvalidUrl, logger } from '@/utils';
+
+/** The AI service to open once the transcript of a mobile YouTube video is extracted in the desktop layout */
+interface PendingAIService {
+  service: AIService;
+  url: string;
+}
+
+const getPendingAIServiceKey = (tabId: number): string => `pending-ai-service-${tabId}`;
 
 class ServiceWorker {
   themeService = new ServiceWorkerThemeService();
@@ -285,9 +293,40 @@ class ServiceWorker {
           await this.toggleUIState(payload.tabId, payload.tabUrl);
           await this.notifyCurrentTabState(payload.tabId, payload.tabUrl);
         }
+
+        /** Open the AI service chosen on the mobile YouTube page, now that its transcript is extracted */
+        await this.openPendingAIService(tabId, tabUrl, response.success === true && payload?.result?.isSuccess === true);
       }
     } catch (error: any) {
       logger.error('🧑‍🍳📃', '[ServiceWorker.ts]', '[executeExtraction]', 'Failed to execute extraction:', error);
+      await this.openPendingAIService(tabId, tabUrl, false);
+    }
+  }
+
+  /**
+   * Open the AI service that openAIService put on hold while the tab reloads a mobile YouTube video
+   * in the desktop layout. The hold is kept in storage.session because the background page of
+   * Firefox is an event page, which may be unloaded during the reload
+   * @param tabId - The ID of the tab
+   * @param tabUrl - The URL of the extracted page
+   * @param isExtracted - Whether the extraction succeeded
+   */
+  async openPendingAIService(tabId: number, tabUrl: string, isExtracted: boolean) {
+    try {
+      const key = getPendingAIServiceKey(tabId);
+      const pending: PendingAIService | undefined = (await chrome.storage.session.get(key))[key];
+
+      /** Leave the hold for the extraction of the desktop layout page, which may still be on its way */
+      if (!pending || pending.url !== tabUrl) return;
+      await chrome.storage.session.remove(key);
+
+      if (!isExtracted) {
+        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[openPendingAIService]', 'Transcript extraction failed; not opening', pending.service);
+        return;
+      }
+      await this.openAIService(pending.service, tabId, tabUrl);
+    } catch (error: any) {
+      logger.error('🧑‍🍳📃', '[ServiceWorker.ts]', '[openPendingAIService]', 'Failed to open the pending AI service:', error);
     }
   }
 
@@ -306,6 +345,18 @@ class ServiceWorker {
       if (!(await chrome.tabs.get(tabId).catch(() => null))) {
         logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[openAIService]', 'Tab not found:', tabId);
         return false;
+      }
+
+      /**
+       * The mobile YouTube layout has no transcript panel: reload the video in the desktop layout
+       * and open the AI service once the transcript is extracted there (see openPendingAIService)
+       */
+      const desktopYoutubeUrl = getDesktopYoutubeUrl(tabUrl);
+      if (desktopYoutubeUrl) {
+        const pending: PendingAIService = { service, url: desktopYoutubeUrl };
+        await chrome.storage.session.set({ [getPendingAIServiceKey(tabId)]: pending });
+        await chrome.tabs.update(tabId, { url: desktopYoutubeUrl });
+        return true;
       }
 
       /** Get the article from the database */
