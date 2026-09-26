@@ -155,6 +155,109 @@ describe('ServiceWorker tab updates', () => {
   });
 });
 
+describe('ServiceWorker summarizing a mobile YouTube video', () => {
+  let chromeMock: Omit<ReturnType<typeof createChromeMock>, 'contextMenus'> & { contextMenus?: unknown; storage: { session?: unknown } };
+
+  const MOBILE_URL = 'https://m.youtube.com/watch?v=arj7oStGLkU';
+  const DESKTOP_URL = 'https://www.youtube.com/watch?v=arj7oStGLkU&app=desktop';
+  const YOUTUBE_TAB_ID = 5;
+  const SETTINGS = { 'free-ai-summarizer-settings': { state: { tabBehavior: 'NEW_TAB', extractionDenylist: '' } } };
+
+  const handleMessage = (message: unknown) => {
+    /* The theme service registers its own listener from a class field, so the service worker's is the last one */
+    const listener = chromeMock.runtime.onMessage.addListener.mock.calls.at(-1)![0] as (
+      message: unknown,
+      sender: unknown,
+      sendResponse: unknown
+    ) => Promise<void>;
+    return listener(message, {}, jest.fn());
+  };
+
+  const openAIService = async () => {
+    await handleMessage({ action: 'OPEN_AI_SERVICE', payload: { service: 'CHATGPT', tabId: YOUTUBE_TAB_ID, tabUrl: MOBILE_URL } });
+    await flushPromises();
+  };
+
+  /* Replay a finished page load whose extraction ends with the given result */
+  const loadTab = async (url: string, isSuccess: boolean) => {
+    const tab = { id: YOUTUBE_TAB_ID, windowId: 1, url };
+    chromeMock.tabs.get.mockImplementation(() => Promise.resolve(tab) as any);
+    chromeMock.tabs.query.mockImplementation(() => Promise.resolve([tab]) as any);
+    chromeMock.tabs.sendMessage.mockImplementation(((_: number, message: { action: string }) =>
+      Promise.resolve(
+        message.action === 'EXTRACT_ARTICLE'
+          ? { success: true, payload: { tabId: tab.id, tabUrl: url, result: { isSuccess, url, title: 'title', content: 'content', error: null } } }
+          : undefined
+      )) as any);
+    const handleTabUpdated = chromeMock.tabs.onUpdated.addListener.mock.calls[0][0] as (
+      tabId: number,
+      changeInfo: { status: string },
+      tab: unknown
+    ) => Promise<void>;
+    await handleTabUpdated(tab.id, { status: 'complete' }, tab);
+    for (let i = 0; i < 5; i++) await flushPromises();
+  };
+
+  const aiServiceTabs = () => chromeMock.tabs.create.mock.calls.filter(([options]: any[]) => String(options?.url).includes('chatgpt.com'));
+
+  beforeEach(async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    chromeMock = createChromeMock();
+    chromeMock.storage.local.get.mockImplementation(() => Promise.resolve(SETTINGS) as any);
+    /* Firefox for Android has no contextMenus API, which also keeps the menu rebuild from waiting on the fake timers */
+    delete chromeMock.contextMenus;
+    /* An in-memory storage.session, which keeps the pending summary across the page load */
+    const session: Record<string, unknown> = {};
+    chromeMock.storage.session = {
+      get: jest.fn((key: string) => Promise.resolve(key in session ? { [key]: session[key] } : {})),
+      set: jest.fn((items: Record<string, unknown>) => Promise.resolve(void Object.assign(session, items))),
+      remove: jest.fn((key: string) => Promise.resolve(void delete session[key])),
+    };
+    (globalThis as any).chrome = chromeMock;
+    jest.resetModules();
+
+    await import('@/pages/ServiceWorker');
+    await flushPromises();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    delete (globalThis as any).chrome;
+  });
+
+  it('reloads the video in the desktop layout instead of opening the AI service', async () => {
+    await openAIService();
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(YOUTUBE_TAB_ID, { url: DESKTOP_URL });
+    expect(aiServiceTabs()).toHaveLength(0);
+  });
+
+  it('opens the AI service once the transcript is extracted in the desktop layout', async () => {
+    await openAIService();
+    await loadTab(DESKTOP_URL, true);
+    expect(aiServiceTabs()).toHaveLength(1);
+  });
+
+  it('opens the AI service only once', async () => {
+    await openAIService();
+    await loadTab(DESKTOP_URL, true);
+    await loadTab(DESKTOP_URL, true);
+    expect(aiServiceTabs()).toHaveLength(1);
+  });
+
+  it('does not open the AI service when the extraction fails', async () => {
+    await openAIService();
+    await loadTab(DESKTOP_URL, false);
+    await loadTab(DESKTOP_URL, true);
+    expect(aiServiceTabs()).toHaveLength(0);
+  });
+
+  it('does not open the AI service for another page loaded in the tab', async () => {
+    await openAIService();
+    await loadTab('https://www.youtube.com/watch?v=dQw4w9WgXcQ', true);
+    expect(aiServiceTabs()).toHaveLength(0);
+  });
+});
+
 describe('ServiceWorker opening an AI service in a private tab', () => {
   let chromeMock: ReturnType<typeof createChromeMock> & { windows?: unknown };
 
