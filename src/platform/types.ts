@@ -20,4 +20,11 @@ export interface Platform {
    * Rejects when the platform setup fails (e.g. the offscreen document cannot be checked or closed); callers must catch.
    */
   initThemeDetection(onColorSchemeChange: (isDarkMode: boolean) => void): Promise<void>;
+
+  /**
+   * Type text into the focused rich text editor (ProseMirror) at the selection, keeping its line breaks.
+   * Goes through execCommand so the editor state follows the DOM.
+   * @param text - The text to type in
+   */
+  insertEditorText(text: string): void;
 }
