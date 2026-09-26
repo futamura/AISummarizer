@@ -68,4 +68,15 @@ describe('chromePlatform', () => {
     expect(chromeMock.offscreen.closeDocument).not.toHaveBeenCalled();
     expect(chromeMock.offscreen.createDocument).toHaveBeenCalledTimes(1);
   });
+
+  /* Blink turns each line feed into a paragraph break itself, and insertHTML takes far longer on long articles */
+  it('types the text through insertText', () => {
+    const execCommand = jest.fn(() => true);
+    (globalThis as any).document = { execCommand };
+
+    chromePlatform.insertEditorText('First\nSecond');
+
+    expect(execCommand).toHaveBeenCalledWith('insertText', false, 'First\nSecond');
+    delete (globalThis as any).document;
+  });
 });
