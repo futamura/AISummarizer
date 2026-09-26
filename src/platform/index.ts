@@ -9,5 +9,6 @@ const platform: Platform = __TARGET__ === 'firefox' ? firefoxPlatform : chromePl
 export const openSettingsPanel = (windowId?: number): Promise<void> => platform.openSettingsPanel(windowId);
 export const closeSettingsPanel = (): Promise<void> => platform.closeSettingsPanel();
 export const initThemeDetection = (onColorSchemeChange: (isDarkMode: boolean) => void): Promise<void> => platform.initThemeDetection(onColorSchemeChange);
+export const insertEditorText = (text: string): void => platform.insertEditorText(text);
 
 export type { Platform };

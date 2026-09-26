@@ -1,3 +1,4 @@
+import { insertEditorText } from '@/platform';
 import { logger, waitForElement } from '@/utils';
 
 /*
@@ -87,7 +88,7 @@ export async function injectChatGPT(promptText: string): Promise<{ success: bool
       editor.focus();
       document.execCommand('selectAll', false);
       document.execCommand('delete', false);
-      document.execCommand('insertText', false, prompt);
+      insertEditorText(prompt);
     }
 
     /** Wait for the submit button to accept a click */
