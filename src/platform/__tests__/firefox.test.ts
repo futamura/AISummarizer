@@ -1,4 +1,4 @@
-import { firefoxPlatform } from '@/platform/firefox';
+import { firefoxPlatform, toParagraphsHTML } from '@/platform/firefox';
 
 describe('firefoxPlatform', () => {
   const open = jest.fn(() => Promise.resolve());
@@ -78,5 +78,35 @@ describe('firefoxPlatform', () => {
     await firefoxPlatform.initThemeDetection(jest.fn());
 
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  /* Gecko types a line feed into a contenteditable as text, and ProseMirror then reads it back as a space */
+  it('types multiline text as one paragraph per line', () => {
+    const execCommand = jest.fn(() => true);
+    (globalThis as any).document = { execCommand };
+
+    firefoxPlatform.insertEditorText('First\nSecond');
+
+    expect(execCommand).toHaveBeenCalledTimes(1);
+    expect(execCommand).toHaveBeenCalledWith('insertHTML', false, '<p>First</p><p>Second</p>');
+    delete (globalThis as any).document;
+  });
+});
+
+describe('toParagraphsHTML', () => {
+  it('escapes markup so the article is inserted as text', () => {
+    expect(toParagraphsHTML('<b>bold</b> & "quoted"')).toBe('<p>&lt;b&gt;bold&lt;/b&gt; &amp; "quoted"</p>');
+  });
+
+  it('keeps empty lines as empty paragraphs', () => {
+    expect(toParagraphsHTML('First\n\nThird')).toBe('<p>First</p><p><br></p><p>Third</p>');
+  });
+
+  it('splits CRLF line endings', () => {
+    expect(toParagraphsHTML('First\r\nSecond')).toBe('<p>First</p><p>Second</p>');
+  });
+
+  it('keeps runs of spaces', () => {
+    expect(toParagraphsHTML('  two  spaces')).toBe('<p>  two  spaces</p>');
   });
 });

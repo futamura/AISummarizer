@@ -1,3 +1,4 @@
+import { insertEditorText } from '@/platform';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 export async function injectClaude(prompt: string): Promise<{ success: boolean; error?: Error }> {
@@ -18,7 +19,7 @@ export async function injectClaude(prompt: string): Promise<{ success: boolean; 
     editor.focus();
     document.execCommand('selectAll', false);
     document.execCommand('delete', false);
-    document.execCommand('insertText', false, prompt);
+    insertEditorText(prompt);
 
     /** Wait for 1.5 to 2 seconds */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1500, 2000)));

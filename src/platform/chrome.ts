@@ -38,4 +38,12 @@ export const chromePlatform: Platform = {
       logger.error('🧑‍🍳🎨', '[platform/chrome.ts]', '[initThemeDetection]', 'Failed to create offscreen document', createError);
     }
   },
+
+  /*
+   * Blink turns each line feed into a paragraph break itself. insertHTML is no option here:
+   * on chatgpt.com it took over 45 seconds for a 118,025-character article and lost characters
+   */
+  insertEditorText: text => {
+    document.execCommand('insertText', false, text);
+  },
 };
