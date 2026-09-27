@@ -2,20 +2,13 @@ import React, { createContext, useContext, useMemo } from 'react';
 
 import { useContentMessage } from '@/features/content/hooks';
 import { SettingsState, useSettingsStore } from '@/stores';
-import { ArticleExtractionResult } from '@/types';
 
 /**
  * The context value type for ContentContext.
  *
- * @property tabId - The tab id.
- * @property tabUrl - The tab url.
- * @property article - The article data.
  * @property settings - The settings data.
  */
 interface ContentContextValue {
-  currentTabId: number | null;
-  currentTabUrl: string | null;
-  currentArticle: ArticleExtractionResult | null;
   settings: SettingsState;
 }
 
@@ -45,7 +38,8 @@ export const ContentContextProvider: React.FC<ContentContextProviderProps> = ({ 
    * State Management
    *******************************************************/
 
-  const { currentTabId, currentTabUrl, currentArticle } = useContentMessage();
+  /* Registers the message listener of the content script */
+  useContentMessage();
   /*
    * Expose the live store rather than a snapshot copy kept in React state: the content
    * script receives no settings updates, so a copy would freeze at the pre-hydration
@@ -58,15 +52,7 @@ export const ContentContextProvider: React.FC<ContentContextProviderProps> = ({ 
    * Exported Value
    *******************************************************/
 
-  const value = useMemo(
-    () => ({
-      currentTabId,
-      currentTabUrl,
-      currentArticle,
-      settings,
-    }),
-    [currentTabId, currentTabUrl, currentArticle, settings]
-  );
+  const value = useMemo(() => ({ settings }), [settings]);
 
   return <ContentContext.Provider value={value}>{children}</ContentContext.Provider>;
 };
