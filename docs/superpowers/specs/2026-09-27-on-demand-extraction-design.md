@@ -26,7 +26,7 @@ Extracting at action time also stops storing every visited page, and removes the
 | Copy on extraction (`saveArticleOnClipboard`) | Removed | Extraction now only happens on an action; the explicit "Copy to clipboard" stays |
 | Extraction toast setting (`isShowMessage`) | Removed; replaced by always-on progress and failure toasts | Failure is currently silent |
 | "Extract article again" | Removed from the popup and the context menu | Every action extracts again |
-| Stored values of removed settings | Left in `chrome.storage` untouched, no migration | Project policy: stored settings belong to the user and are not rewritten |
+| Stored values of removed settings | No migration and no explicit deletion; they drop out of `chrome.storage` on the next settings save, because `partialize` writes only the remaining keys. Backup files that still hold them import without error | Project policy: no zustand migrate; the remaining settings are never rewritten |
 
 ## Design
 
@@ -69,7 +69,7 @@ Options page cards:
 - Show Message When Extraction Completes
 - Show Badge When Extraction Completes
 
-Settings: `contentExtractionTiming`, `extractionDenylist`, `saveArticleOnClipboard`, `isShowMessage`, `isShowBadge` — from `SettingsState`, `DEFAULT_SETTINGS`, the store getters and setters, `GlobalContext`, and the options page save and reset handlers.
+Settings: `contentExtractionTiming`, `extractionDenylist`, `saveArticleOnClipboard`, `isShowMessage`, `isShowBadge` — from `SettingsState`, `DEFAULT_SETTINGS`, the store getters and setters, `partialize`, settings export / import / restore, `GlobalContext`, and the options page save and reset handlers.
 
 Code:
 
@@ -103,6 +103,7 @@ Toaster changes (no visual change; shape, colors, position and animation stay):
 
 - `toast.info(message, { persistent: true })` shows a toast that does not auto-dismiss and returns its id
 - `toast.dismiss(id)` fades that toast out and removes it
+- Toast ids come from a counter instead of `crypto.randomUUID()`, which is missing on non-secure (http) pages; the failure toast must work there too
 
 ### Documentation
 
