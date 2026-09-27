@@ -3,19 +3,19 @@ import { ArticleRecord, db } from '@/db';
 import { CleanupDBService, ContextMenuService, ServiceWorkerThemeService } from '@/features/serviceworker/services';
 import { MENU_ITEMS } from '@/models';
 import { openSettingsPanel } from '@/platform';
-import { useArticleStore, useSettingsStore } from '@/stores';
+import { useSettingsStore } from '@/stores';
 import { DEFAULT_SETTINGS } from '@/stores/SettingsStore';
 import {
   AI_SERVICE_QUERY_KEY,
   AIService,
   ArticleExtractionResult,
-  ContentExtractionTiming,
   formatArticleForClipboard,
   getAIServiceFromString,
   getSummarizeUrl,
   isPrivateTabSupported,
   Message,
   MessageAction,
+  MessageResponse,
   TabBehavior,
 } from '@/types';
 import { getDesktopYoutubeUrl, isAIServiceUrl, isInvalidUrl, logger } from '@/utils';
@@ -88,9 +88,6 @@ class ServiceWorker {
 
     /** Update the UI state */
     this.toggleUIState(activeInfo.tabId, tab.url);
-
-    /** Notify the current tab state to the content script */
-    this.notifyCurrentTabState(activeInfo.tabId, tab.url);
   }
 
   /**
@@ -110,18 +107,15 @@ class ServiceWorker {
       return;
     }
 
-    /** Execute the extraction */
-    if (isAIServiceUrl(tab.url)) {
-      this.executeInjection(tabId, tab.url);
-    } else {
-      this.executeExtraction(tabId, tab.url, true);
-    }
-
     /** Update the UI state */
     this.toggleUIState(tabId, tab.url);
 
-    /** Notify the current tab state */
-    this.notifyCurrentTabState(tabId, tab.url);
+    /** Inject the article into an AI service tab, or resume a mobile YouTube summary held for this page */
+    if (isAIServiceUrl(tab.url)) {
+      this.executeInjection(tabId, tab.url);
+    } else {
+      this.openPendingAIService(tabId, tab.url);
+    }
   }
 
   /**
@@ -133,16 +127,13 @@ class ServiceWorker {
   async handleServiceWorkerMessage(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) {
     logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[handleServiceWorkerMessage]', message.action);
     switch (message.action) {
-      case MessageAction.EXTRACT_ARTICLE:
-        this.executeExtraction(message.payload.tabId, message.payload.tabUrl, true);
-        break;
-
       case MessageAction.OPEN_AI_SERVICE:
         this.openAIService(message.payload.service, message.payload.tabId, message.payload.tabUrl);
         break;
 
       case MessageAction.READ_ARTICLE_FOR_CLIPBOARD:
-        await this.readArticleForClipboard(message.payload.tabId, message.payload.tabUrl, true);
+        /* Not awaited: Firefox answers the popup only when this listener settles, and the popup waits for that answer before closing */
+        this.readArticleForClipboard(message.payload.tabId, message.payload.tabUrl);
         break;
 
       case MessageAction.OPEN_SETTINGS:
@@ -208,18 +199,7 @@ class ServiceWorker {
         break;
 
       case 'copy':
-        this.readArticleForClipboard(tab.id, tab.url, true);
-        break;
-
-      case 'extract':
-        /** Execute the extraction */
-        this.executeExtraction(tab.id, tab.url, true);
-
-        /** Update the UI state */
-        this.toggleUIState(tab.id, tab.url);
-
-        /** Notify the current tab state */
-        this.notifyCurrentTabState(tab.id, tab.url);
+        this.readArticleForClipboard(tab.id, tab.url);
         break;
     }
   }
@@ -229,77 +209,35 @@ class ServiceWorker {
    **************************************************/
 
   /**
-   * Execute the extraction
+   * Ask the content script to extract the page, and store the result
    * @param tabId - The ID of the tab
    * @param tabUrl - The URL of the tab
-   * @param forcibly - Whether to forcibly extract the article
-   * @returns The article record
+   * @returns The ID of the stored article, or null when the extraction failed
    */
-  async executeExtraction(tabId: number, tabUrl: string, forcibly: boolean = false) {
-    logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[executeExtraction]', 'tabId:', tabId, 'tabUrl:', tabUrl);
+  async extractAndStore(tabId: number, tabUrl: string): Promise<string | null> {
+    logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[extractAndStore]', 'tabId:', tabId, 'tabUrl:', tabUrl);
     try {
-      /** Check if the tab exists before proceeding */
-      if (!(await chrome.tabs.get(tabId).catch(() => null))) {
-        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[executeExtraction]', 'Tab not found:', tabId);
-        return;
+      const response: MessageResponse | undefined = await chrome.tabs.sendMessage(tabId, {
+        action: MessageAction.EXTRACT_ARTICLE,
+        payload: { tabId: tabId, tabUrl: tabUrl },
+      });
+      const result: ArticleExtractionResult | undefined = response?.payload?.result;
+      if (!response?.success || !result?.isSuccess) {
+        /* The content script has already shown the failure toast */
+        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[extractAndStore]', 'Extraction failed:', tabUrl, result?.error);
+        return null;
       }
-
-      /** Skip the tabs that carry no content script, such as the extension and the browser pages */
-      if (await isInvalidUrl(tabUrl)) {
-        logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[executeExtraction]', 'Ignoring extraction: tabUrl is invalid', tabUrl);
-        return;
-      }
-
-      /** Get the article from the database */
-      const doesArticleExist: boolean = (await useArticleStore.getState().getArticleByUrl(tabUrl))?.is_success ?? false;
-
-      /** Check if the article should be extracted */
-      let shouldExtract = await (async (doesArticleExist: boolean): Promise<boolean> => {
-        if (forcibly) return true;
-        if (doesArticleExist) return false;
-        const contentExtractionTiming = await useSettingsStore.getState().getContentExtractionTiming();
-        if (contentExtractionTiming === ContentExtractionTiming.AUTOMATIC) return true;
-        return false;
-      })(doesArticleExist);
-
-      /** Extract the article */
-      if (shouldExtract) {
-        /** Send the message to the content script */
-        const response = await chrome.tabs.sendMessage(tabId, {
-          action: MessageAction.EXTRACT_ARTICLE,
-          payload: { tabId: tabId, tabUrl: tabUrl },
-        });
-
-        /** Handle the response from the content script */
-        const payload = response.payload as { tabId: number; tabUrl: string; result: ArticleExtractionResult };
-        if (response.success && payload && payload.result.isSuccess) {
-          /** Save the article to the database */
-          await db.addArticle({
-            url: payload.result.url ?? payload.tabUrl,
-            title: payload.result.title,
-            content: payload.result.content,
-            date: new Date(),
-            is_success: true,
-          });
-
-          /** Copy the article to the clipboard */
-          this.readArticleForClipboard(payload.tabId, payload.tabUrl, false);
-
-          /**
-           * Refresh the UI state after the article is saved. Extraction can
-           * take a long time (e.g. YouTube transcripts), so the UI state
-           * updated by the callers before this point does not reflect it
-           */
-          await this.toggleUIState(payload.tabId, payload.tabUrl);
-          await this.notifyCurrentTabState(payload.tabId, payload.tabUrl);
-        }
-
-        /** Open the AI service chosen on the mobile YouTube page, now that its transcript is extracted */
-        await this.openPendingAIService(tabId, tabUrl, response.success === true && payload?.result?.isSuccess === true);
-      }
-    } catch (error: any) {
-      logger.error('🧑‍🍳📃', '[ServiceWorker.ts]', '[executeExtraction]', 'Failed to execute extraction:', error);
-      await this.openPendingAIService(tabId, tabUrl, false);
+      return await db.addArticle({
+        url: result.url ?? tabUrl,
+        title: result.title,
+        content: result.content,
+        date: new Date(),
+        is_success: true,
+      });
+    } catch (error: unknown) {
+      /* No content script in the tab, e.g. a page open before the extension was installed or updated: nothing can show a toast there */
+      logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[extractAndStore]', 'Failed to extract the page:', tabUrl, error);
+      return null;
     }
   }
 
@@ -308,22 +246,16 @@ class ServiceWorker {
    * in the desktop layout. The hold is kept in storage.session because the background page of
    * Firefox is an event page, which may be unloaded during the reload
    * @param tabId - The ID of the tab
-   * @param tabUrl - The URL of the extracted page
-   * @param isExtracted - Whether the extraction succeeded
+   * @param tabUrl - The URL of the loaded page
    */
-  async openPendingAIService(tabId: number, tabUrl: string, isExtracted: boolean) {
+  async openPendingAIService(tabId: number, tabUrl: string) {
     try {
       const key = getPendingAIServiceKey(tabId);
       const pending: PendingAIService | undefined = (await chrome.storage.session.get(key))[key];
-
-      /** Leave the hold for the extraction of the desktop layout page, which may still be on its way */
       if (!pending || pending.url !== tabUrl) return;
-      await chrome.storage.session.remove(key);
 
-      if (!isExtracted) {
-        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[openPendingAIService]', 'Transcript extraction failed; not opening', pending.service);
-        return;
-      }
+      /** Release the hold before extracting, so that a failed extraction is not retried on the next load */
+      await chrome.storage.session.remove(key);
       await this.openAIService(pending.service, tabId, tabUrl);
     } catch (error: any) {
       logger.error('🧑‍🍳📃', '[ServiceWorker.ts]', '[openPendingAIService]', 'Failed to open the pending AI service:', error);
@@ -359,16 +291,13 @@ class ServiceWorker {
         return true;
       }
 
-      /** Get the article from the database */
-      const article = await db.getArticleByUrl(tabUrl);
-      if (!article?.is_success) {
-        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[openAIService]', 'Article not found', tabUrl);
-        return false;
-      }
+      /** Extract the page now, so that content rendered after the load event is included */
+      const articleId = await this.extractAndStore(tabId, tabUrl);
+      if (!articleId) return false;
       const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
       const tabBehavior = settings[STORAGE_KEYS.SETTINGS]?.state?.tabBehavior ?? DEFAULT_SETTINGS.tabBehavior;
       const model = settings[STORAGE_KEYS.SETTINGS]?.state?.models?.[service] ?? DEFAULT_SETTINGS.models[service];
-      const summarizeUrl = getSummarizeUrl(service, article.id.toString(), model);
+      const summarizeUrl = getSummarizeUrl(service, articleId, model);
       switch (tabBehavior) {
         case TabBehavior.CURRENT_TAB:
           await chrome.tabs.update(tabId, { url: summarizeUrl });
@@ -452,7 +381,7 @@ class ServiceWorker {
   }
 
   /**
-   * Reload the article extraction state
+   * Update the context menu for the tab
    * @param tabId - The ID of the tab
    * @param tabUrl - The URL of the tab
    */
@@ -466,87 +395,21 @@ class ServiceWorker {
         return;
       }
 
-      /** Get the article from the database */
-      const doesArticleExist = (await useArticleStore.getState().getArticleByUrl(tabUrl))?.is_success ?? false;
-
-      /** Toggle the context menu */
-      // await this.contextMenuService.createMenu(doesArticleExist, tabUrl);
-      try {
-        await this.contextMenuService.createMenu(doesArticleExist, tabUrl);
-      } catch (error) {
-        logger.error('🧑‍🍳📃', '[ServiceWorker.tsx]', '[toggleUIState]', 'Failed to create context menu:', error);
-      }
-
-      /** Toggle the badge */
-      const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-      const isShowBadge = settings[STORAGE_KEYS.SETTINGS]?.state?.isShowBadge ?? DEFAULT_SETTINGS.isShowBadge;
-      if (isShowBadge && doesArticleExist) {
-        chrome.action.setBadgeText({ text: '✓', tabId: tabId });
-        chrome.action.setBadgeBackgroundColor({ color: '#999999', tabId: tabId });
-      } else {
-        chrome.action.setBadgeText({ text: '', tabId: tabId });
-      }
+      /** Rebuild the context menu, whose items depend on the URL */
+      await this.contextMenuService.createMenu(tabUrl);
     } catch (error: any) {
-      logger.error('🧑‍🍳📃', '[ServiceWorker.ts]', '[toggleUIState]', 'Failed to update article extraction state', error);
+      logger.error('🧑‍🍳📃', '[ServiceWorker.ts]', '[toggleUIState]', 'Failed to create context menu:', error);
     }
   }
 
   /**
-   * Notify the current tab state
+   * Extract the page and write it to the clipboard with the clipboard prompt
    * @param tabId - The ID of the tab
    * @param tabUrl - The URL of the tab
+   * @returns Whether the article was sent to the content script for writing
    */
-  async notifyCurrentTabState(tabId: number, tabUrl?: string) {
-    logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'tabId:', tabId, 'tabUrl:', tabUrl);
-    try {
-      /** Check if the tab exists before proceeding */
-      if (!(await chrome.tabs.get(tabId).catch(() => null))) {
-        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'Tab not found:', tabId);
-        return;
-      }
-
-      if (tabUrl && (await isInvalidUrl(tabUrl))) {
-        logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'Ignoring content script message: tabUrl is invalid', tabUrl);
-        return;
-      }
-
-      /** Get the article from the database */
-      const article = await db.getArticleByUrl(tabUrl);
-
-      /** Send the message to the content script */
-      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      // logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'activeTab.id:', activeTab.id);
-      // logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'tabId:', tabId);
-      // logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'activeTab:', activeTab);
-      if (activeTab.id !== tabId) {
-        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'No active tab found', activeTab.id, tabId);
-        return;
-      }
-      await chrome.tabs
-        .sendMessage(tabId, {
-          action: MessageAction.TAB_UPDATED,
-          payload: { tabId: tabId, tabUrl: tabUrl, article: article },
-        })
-        .then(response => {
-          logger.debug('🧑‍🍳📃🔵', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'response:', response);
-        })
-        .catch(error => {
-          logger.warn('🧑‍🍳📃🔴', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'Failed to send message to content script:', error);
-        });
-    } catch (error) {
-      logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[notifyCurrentTabState]', 'Failed to notify current tab state', error);
-    }
-  }
-
-  /**
-   * Read the article for clipboard
-   * @param tabId - The ID of the tab
-   * @param tabUrl - The URL of the tab
-   * @param forcibly - Whether to forcibly copy the article
-   * @returns Whether the article was copied successfully
-   */
-  async readArticleForClipboard(tabId: number, tabUrl: string, forcibly: boolean = false): Promise<boolean> {
-    logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'tabId:', tabId, 'tabUrl:', tabUrl, 'forcibly:', forcibly);
+  async readArticleForClipboard(tabId: number, tabUrl: string): Promise<boolean> {
+    logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'tabId:', tabId, 'tabUrl:', tabUrl);
     try {
       /** Check if the tab exists before proceeding */
       if (!(await chrome.tabs.get(tabId).catch(() => null))) {
@@ -554,37 +417,29 @@ class ServiceWorker {
         return false;
       }
 
-      /** Check if the article should be copied to the clipboard */
-      const shouldCopy = await (async (): Promise<boolean> => {
-        const saveArticleOnClipboard = await useSettingsStore.getState().getSaveArticleOnClipboard();
-        if (forcibly) return true;
-        if (saveArticleOnClipboard) return true;
-        return false;
-      })();
-
-      /** Get the article from the database */
-      const article: ArticleRecord | undefined = await db.getArticleByUrl(tabUrl);
-
-      /** Copy the article to the clipboard */
-      if (shouldCopy && article && article.is_success) {
-        const prompt = await useSettingsStore.getState().getClipboardPrompt();
-        const text = formatArticleForClipboard(article, prompt);
-        await chrome.tabs
-          .sendMessage(tabId, {
-            action: MessageAction.WRITE_ARTICLE_TO_CLIPBOARD,
-            payload: { tabId: tabId, tabUrl: tabUrl, text: text },
-          })
-          .then(response => {
-            logger.debug('🧑‍🍳📃🔵', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'response:', response);
-          })
-          .catch(error => {
-            logger.warn('🧑‍🍳📃🔴', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'Failed to send message to content script:', error);
-          });
-        return true;
-      } else {
-        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'Ignoring message: article is not found or not successful', article);
+      const articleId = await this.extractAndStore(tabId, tabUrl);
+      if (!articleId) return false;
+      const article: ArticleRecord | undefined = await db.getArticleById(articleId);
+      if (!article) {
+        logger.warn('🧑‍🍳📃', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'Stored article not found:', articleId);
         return false;
       }
+
+      /** Copy the article to the clipboard */
+      const prompt = await useSettingsStore.getState().getClipboardPrompt();
+      const text = formatArticleForClipboard(article, prompt);
+      await chrome.tabs
+        .sendMessage(tabId, {
+          action: MessageAction.WRITE_ARTICLE_TO_CLIPBOARD,
+          payload: { tabId: tabId, tabUrl: tabUrl, text: text },
+        })
+        .then(response => {
+          logger.debug('🧑‍🍳📃🔵', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'response:', response);
+        })
+        .catch(error => {
+          logger.warn('🧑‍🍳📃🔴', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'Failed to send message to content script:', error);
+        });
+      return true;
     } catch (error: any) {
       logger.error('🧑‍🍳📃', '[ServiceWorker.ts]', '[readArticleForClipboard]', 'Failed to read article for clipboard:', error);
       return false;

@@ -3,7 +3,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { db } from '@/db';
 import { ArticleModel } from '@/models';
 import { SettingsState, useSettingsStore } from '@/stores';
-import { AIService, ContentExtractionTiming, TabBehavior } from '@/types';
+import { AIService, TabBehavior } from '@/types';
 import { logger } from '@/utils';
 
 /**
@@ -39,21 +39,6 @@ interface GlobalContextValue {
   tabBehavior: TabBehavior;
   setTabBehavior: (tabBehavior: TabBehavior) => Promise<void>;
   getTabBehavior: () => Promise<TabBehavior>;
-  contentExtractionTiming: ContentExtractionTiming;
-  setContentExtractionTiming: (contentExtractionTiming: ContentExtractionTiming) => Promise<void>;
-  getContentExtractionTiming: () => Promise<ContentExtractionTiming>;
-  extractionDenylist: string;
-  setExtractionDenylist: (extractionDenylist: string) => Promise<void>;
-  getExtractionDenylist: () => Promise<string>;
-  saveArticleOnClipboard: boolean;
-  setSaveArticleOnClipboard: (saveArticleOnClipboard: boolean) => Promise<void>;
-  getSaveArticleOnClipboard: () => Promise<boolean>;
-  isShowMessage: boolean;
-  setIsShowMessage: (isShowMessage: boolean) => Promise<void>;
-  getIsShowMessage: () => Promise<boolean>;
-  isShowBadge: boolean;
-  setIsShowBadge: (isShowBadge: boolean) => Promise<void>;
-  getIsShowBadge: () => Promise<boolean>;
   exportSettings: () => Promise<{ success: boolean; error?: Error }>;
   importSettings: (file: File) => Promise<{ success: boolean; error?: Error }>;
   restoreSettings: () => Promise<{ success: boolean; error?: Error }>;
