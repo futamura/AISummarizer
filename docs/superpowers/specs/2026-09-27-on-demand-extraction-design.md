@@ -1,7 +1,7 @@
 # On-demand Extraction Design
 
 Date: 2026-09-27
-Status: Awaiting review
+Status: Approved (2026-09-27)
 
 ## Purpose
 
