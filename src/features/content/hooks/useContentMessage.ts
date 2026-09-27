@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { toast } from '@/features/content/components/main';
 import { ArticleExtractionService, ArticleInjectionService, extractWithProgress } from '@/features/content/services';
@@ -18,7 +18,7 @@ import { copyToClipboard, createPrompt, logger } from '@/utils';
 const handledInjectionArticleIds = new Set<string>();
 
 /**
- * Hook for handling Chrome extension messages
+ * Hook for handling Chrome extension messages; registers the listener for the lifetime of the component
  */
 export const useContentMessage = () => {
   /*******************************************************
@@ -28,10 +28,6 @@ export const useContentMessage = () => {
   const extractionService = useRef(new ArticleExtractionService());
   const injectionService = useRef(new ArticleInjectionService());
   const isListenerRegistered = useRef(false);
-
-  const [currentTabId, setCurrentTabId] = useState<number | null>(null);
-  const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
-  const [currentArticle, setCurrentArticle] = useState<ArticleExtractionResult | null>(null);
 
   /*******************************************************
    * Lifecycle
@@ -61,33 +57,6 @@ export const useContentMessage = () => {
       }
 
       switch (message.action) {
-        case MessageAction.TAB_UPDATED:
-          try {
-            /** Update the current tab state */
-            setCurrentTabId(message.payload.tabId);
-            setCurrentTabUrl(message.payload.tabUrl);
-            if (message.payload.article) {
-              setCurrentArticle({
-                isSuccess: message.payload.article.is_success,
-                title: message.payload.article.title ?? null,
-                url: message.payload.article.url,
-                content: message.payload.article.content ?? null,
-                error: message.payload.article.error ?? null,
-              });
-            } else {
-              setCurrentArticle(null);
-            }
-
-            /** Respond to the content script */
-            sendResponse({ success: true });
-          } catch (error) {
-            logger.error('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Failed to update tab:', error);
-
-            /** Respond to the content script */
-            sendResponse({ success: false, error: new Error('Failed to update tab') });
-          }
-          break;
-
         case MessageAction.EXTRACT_ARTICLE:
           /* extractWithProgress never rejects: a failure comes back as isSuccess: false after its toast */
           extractWithProgress(() => extractionService.current.execute(message.payload.tabUrl), {
@@ -95,11 +64,6 @@ export const useContentMessage = () => {
             dismissProgress: (id: string) => toast.dismiss(id),
             showFailure: () => toast.error("Couldn't extract the content of this page"),
           }).then((article: ArticleExtractionResult) => {
-            /** Update the current tab state */
-            setCurrentTabId(message.payload.tabId);
-            setCurrentTabUrl(message.payload.tabUrl);
-            setCurrentArticle(article);
-
             /** Respond to the service worker */
             sendResponse({
               success: true,
@@ -204,6 +168,4 @@ export const useContentMessage = () => {
       logger.debug('🫳💬', '[useContentMessage.tsx]', '[useEffect]', 'useContentMessage unmounted');
     };
   }, []);
-
-  return { currentArticle, currentTabId, currentTabUrl };
 };
