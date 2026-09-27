@@ -60,11 +60,6 @@ export const MENU_ITEMS = {
     title: 'Copy article to clipboard',
     contexts: ['page' as const],
   },
-  EXTRACT: {
-    id: 'extract',
-    title: 'Extract article again',
-    contexts: ['page' as const],
-  },
   SETTINGS: {
     id: 'settings',
     title: 'Settings',

@@ -65,6 +65,31 @@ describe('ContextMenuService', () => {
     await expect(promise).resolves.toEqual({ result: true, error: null });
   });
 
+  describe('on an ordinary page', () => {
+    beforeEach(() => {
+      /* isInvalidUrl still reads the extraction denylist from the stored settings */
+      chromeMock.storage = { local: { get: jest.fn(async () => ({ 'free-ai-summarizer-settings': { state: { extractionDenylist: '' } } })) } };
+      chromeMock.contextMenus.removeAll.mockImplementation((callback: () => void) => callback());
+      chromeMock.contextMenus.create.mockImplementation((props: { id?: string }, callback?: () => void) => {
+        callback?.();
+        return props.id;
+      });
+    });
+
+    const createdIds = () => chromeMock.contextMenus.create.mock.calls.map(([props]: [{ id?: string }]) => props.id);
+
+    it('always offers copying, since the copy extracts the page itself', async () => {
+      await new ContextMenuService(jest.fn()).createMenu('https://example.com/article');
+      expect(createdIds()).toContain('copy');
+    });
+
+    it('no longer offers extracting the page again', async () => {
+      await new ContextMenuService(jest.fn()).createMenu('https://example.com/article');
+      expect(createdIds()).toContain('chatgpt');
+      expect(createdIds()).not.toContain('extract');
+    });
+  });
+
   /* Firefox for Android ignores the contextMenus permission, so chrome.contextMenus is undefined */
   describe('when the contextMenus API is missing', () => {
     beforeEach(() => {
@@ -83,7 +108,7 @@ describe('ContextMenuService', () => {
       const errorSpy = jest.spyOn(logger, 'error');
       const service = new ContextMenuService(jest.fn());
 
-      await expect(service.createMenu(true, 'https://example.com/article')).resolves.toBeUndefined();
+      await expect(service.createMenu('https://example.com/article')).resolves.toBeUndefined();
 
       expect(errorSpy).not.toHaveBeenCalled();
     });
