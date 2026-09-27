@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { toast } from '@/features/content/components/main';
-import { ArticleExtractionService, ArticleInjectionService } from '@/features/content/services';
+import { ArticleExtractionService, ArticleInjectionService, extractWithProgress } from '@/features/content/services';
 import { useSettingsStore } from '@/stores';
 import { AI_SERVICE_QUERY_KEY, ArticleExtractionResult, ArticleInjectionResult, getAIServiceForUrl, Message, MessageAction, MessageResponse } from '@/types';
 import { copyToClipboard, createPrompt, logger } from '@/utils';
@@ -89,42 +89,27 @@ export const useContentMessage = () => {
           break;
 
         case MessageAction.EXTRACT_ARTICLE:
-          try {
-            extractionService.current.execute(message.payload.tabUrl).then(async (article: ArticleExtractionResult) => {
-              /** Update the current tab state */
-              setCurrentTabId(message.payload.tabId);
-              setCurrentTabUrl(message.payload.tabUrl);
-              setCurrentArticle(article);
-
-              /** Respond to the content script */
-              sendResponse({
-                success: true,
-                payload: {
-                  tabId: message.payload.tabId,
-                  tabUrl: message.payload.tabUrl,
-                  result: article,
-                },
-              });
-              /*
-               * Read the toast preference via the async getter rather than a snapshot of
-               * the store: the content script never receives settings updates, and its
-               * snapshot is taken before chrome.storage hydration completes, so it would
-               * stay at the default forever.
-               */
-              const isShowMessage = await useSettingsStore.getState().getIsShowMessage();
-              if (article?.isSuccess && isShowMessage) {
-                toast.success('Article extracted successfully');
-              }
-            });
-          } catch (error: any) {
-            logger.error('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Failed to extract article:', error);
-
+          /* extractWithProgress never rejects: a failure comes back as isSuccess: false after its toast */
+          extractWithProgress(() => extractionService.current.execute(message.payload.tabUrl), {
+            showProgress: () => toast.info('Extracting…', { persistent: true }),
+            dismissProgress: (id: string) => toast.dismiss(id),
+            showFailure: () => toast.error("Couldn't extract the content of this page"),
+          }).then((article: ArticleExtractionResult) => {
             /** Update the current tab state */
-            setCurrentArticle(null);
+            setCurrentTabId(message.payload.tabId);
+            setCurrentTabUrl(message.payload.tabUrl);
+            setCurrentArticle(article);
 
-            /** Respond to the content script */
-            sendResponse({ success: false, error: new Error(error.message) });
-          }
+            /** Respond to the service worker */
+            sendResponse({
+              success: true,
+              payload: {
+                tabId: message.payload.tabId,
+                tabUrl: message.payload.tabUrl,
+                result: article,
+              },
+            });
+          });
           break;
 
         case MessageAction.INJECT_ARTICLE:
@@ -160,7 +145,7 @@ export const useContentMessage = () => {
 
             createPrompt(service, useSettingsStore.getState(), message.payload.article)
               .then(async prompt => {
-                /* Read the model via the async getter, which goes to chrome.storage (see EXTRACT_ARTICLE above) */
+                /* Read the model via the async getter, which goes to chrome.storage: the store snapshot of the content script is taken before hydration */
                 const model = await useSettingsStore.getState().getModelFor(service);
                 injectionService.current.execute(message.payload.tabUrl, prompt, model).then((result: ArticleInjectionResult) => {
                   /** Respond to the content script */
