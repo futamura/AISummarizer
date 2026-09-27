@@ -18,37 +18,52 @@ interface ToasterProps {
   duration?: number;
 }
 
+export interface ToastOptions {
+  /* Keep the toast until toast.dismiss() is called with the id it returned */
+  persistent?: boolean;
+}
+
+interface ToastEventDetail {
+  id: string;
+  type: ToastType;
+  message: string;
+  persistent: boolean;
+}
+
+/* A counter rather than crypto.randomUUID(), which is missing on non-secure (http) pages */
+let lastToastId = 0;
+
 export const Toaster: React.FC<ToasterProps> = ({ position = 'top-center', duration = 2000 }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
-    const handleToast = (event: CustomEvent<Omit<Toast, 'id' | 'visible'>>) => {
-      const id = crypto.randomUUID();
-      const newToast: Toast = {
-        id,
-        ...event.detail,
-        visible: false,
-      };
+    const hideToast = (id: string) => {
+      setToasts(prev => prev.map(toast => (toast.id === id ? { ...toast, visible: false } : toast)));
+      setTimeout(() => {
+        setToasts(prev => prev.filter(toast => toast.id !== id));
+      }, 300);
+    };
 
-      setToasts(prev => [...prev, newToast]);
+    const handleToast = (event: CustomEvent<ToastEventDetail>) => {
+      const { id, type, message, persistent } = event.detail;
+      setToasts(prev => [...prev, { id, type, message, visible: false }]);
 
-      // フェードインのための遅延
+      /* Delay for the fade-in */
       requestAnimationFrame(() => {
         setToasts(prev => prev.map(toast => (toast.id === id ? { ...toast, visible: true } : toast)));
       });
 
-      // フェードアウトのための遅延
-      setTimeout(() => {
-        setToasts(prev => prev.map(toast => (toast.id === id ? { ...toast, visible: false } : toast)));
-        setTimeout(() => {
-          setToasts(prev => prev.filter(toast => toast.id !== id));
-        }, 300);
-      }, duration);
+      /* A persistent toast stays until toast.dismiss() */
+      if (!persistent) setTimeout(() => hideToast(id), duration);
     };
 
+    const handleDismiss = (event: CustomEvent<{ id: string }>) => hideToast(event.detail.id);
+
     window.addEventListener('toast' as any, handleToast as EventListener);
+    window.addEventListener('toast-dismiss' as any, handleDismiss as EventListener);
     return () => {
       window.removeEventListener('toast' as any, handleToast as EventListener);
+      window.removeEventListener('toast-dismiss' as any, handleDismiss as EventListener);
     };
   }, [duration]);
 
@@ -106,45 +121,18 @@ export const Toaster: React.FC<ToasterProps> = ({ position = 'top-center', durat
   );
 };
 
+const showToast = (type: ToastType, message: string, options: ToastOptions = {}): string => {
+  const id = String(++lastToastId);
+  window.dispatchEvent(new CustomEvent<ToastEventDetail>('toast', { detail: { id, type, message, persistent: options.persistent ?? false } }));
+  return id;
+};
+
 export const toast = {
-  success: (message: string) => {
-    window.dispatchEvent(
-      new CustomEvent('toast', {
-        detail: {
-          type: 'success' as ToastType,
-          message,
-        },
-      })
-    );
-  },
-  error: (message: string) => {
-    window.dispatchEvent(
-      new CustomEvent('toast', {
-        detail: {
-          type: 'error' as ToastType,
-          message,
-        },
-      })
-    );
-  },
-  info: (message: string) => {
-    window.dispatchEvent(
-      new CustomEvent('toast', {
-        detail: {
-          type: 'info' as ToastType,
-          message,
-        },
-      })
-    );
-  },
-  warning: (message: string) => {
-    window.dispatchEvent(
-      new CustomEvent('toast', {
-        detail: {
-          type: 'warning' as ToastType,
-          message,
-        },
-      })
-    );
+  success: (message: string, options?: ToastOptions) => showToast('success', message, options),
+  error: (message: string, options?: ToastOptions) => showToast('error', message, options),
+  info: (message: string, options?: ToastOptions) => showToast('info', message, options),
+  warning: (message: string, options?: ToastOptions) => showToast('warning', message, options),
+  dismiss: (id: string) => {
+    window.dispatchEvent(new CustomEvent('toast-dismiss', { detail: { id } }));
   },
 };
