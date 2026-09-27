@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { toast } from '@/features/content/components/main';
-import { ArticleExtractionService, ArticleInjectionService } from '@/features/content/services';
+import { ArticleExtractionService, ArticleInjectionService, extractWithProgress } from '@/features/content/services';
 import { useSettingsStore } from '@/stores';
 import { AI_SERVICE_QUERY_KEY, ArticleExtractionResult, ArticleInjectionResult, getAIServiceForUrl, Message, MessageAction, MessageResponse } from '@/types';
 import { copyToClipboard, createPrompt, logger } from '@/utils';
@@ -18,7 +18,7 @@ import { copyToClipboard, createPrompt, logger } from '@/utils';
 const handledInjectionArticleIds = new Set<string>();
 
 /**
- * Hook for handling Chrome extension messages
+ * Hook for handling Chrome extension messages; registers the listener for the lifetime of the component
  */
 export const useContentMessage = () => {
   /*******************************************************
@@ -28,10 +28,6 @@ export const useContentMessage = () => {
   const extractionService = useRef(new ArticleExtractionService());
   const injectionService = useRef(new ArticleInjectionService());
   const isListenerRegistered = useRef(false);
-
-  const [currentTabId, setCurrentTabId] = useState<number | null>(null);
-  const [currentTabUrl, setCurrentTabUrl] = useState<string | null>(null);
-  const [currentArticle, setCurrentArticle] = useState<ArticleExtractionResult | null>(null);
 
   /*******************************************************
    * Lifecycle
@@ -61,70 +57,23 @@ export const useContentMessage = () => {
       }
 
       switch (message.action) {
-        case MessageAction.TAB_UPDATED:
-          try {
-            /** Update the current tab state */
-            setCurrentTabId(message.payload.tabId);
-            setCurrentTabUrl(message.payload.tabUrl);
-            if (message.payload.article) {
-              setCurrentArticle({
-                isSuccess: message.payload.article.is_success,
-                title: message.payload.article.title ?? null,
-                url: message.payload.article.url,
-                content: message.payload.article.content ?? null,
-                error: message.payload.article.error ?? null,
-              });
-            } else {
-              setCurrentArticle(null);
-            }
-
-            /** Respond to the content script */
-            sendResponse({ success: true });
-          } catch (error) {
-            logger.error('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Failed to update tab:', error);
-
-            /** Respond to the content script */
-            sendResponse({ success: false, error: new Error('Failed to update tab') });
-          }
-          break;
-
         case MessageAction.EXTRACT_ARTICLE:
-          try {
-            extractionService.current.execute(message.payload.tabUrl).then(async (article: ArticleExtractionResult) => {
-              /** Update the current tab state */
-              setCurrentTabId(message.payload.tabId);
-              setCurrentTabUrl(message.payload.tabUrl);
-              setCurrentArticle(article);
-
-              /** Respond to the content script */
-              sendResponse({
-                success: true,
-                payload: {
-                  tabId: message.payload.tabId,
-                  tabUrl: message.payload.tabUrl,
-                  result: article,
-                },
-              });
-              /*
-               * Read the toast preference via the async getter rather than a snapshot of
-               * the store: the content script never receives settings updates, and its
-               * snapshot is taken before chrome.storage hydration completes, so it would
-               * stay at the default forever.
-               */
-              const isShowMessage = await useSettingsStore.getState().getIsShowMessage();
-              if (article?.isSuccess && isShowMessage) {
-                toast.success('Article extracted successfully');
-              }
+          /* extractWithProgress never rejects: a failure comes back as isSuccess: false after its toast */
+          extractWithProgress(() => extractionService.current.execute(message.payload.tabUrl), {
+            showProgress: () => toast.info('Extracting…', { persistent: true }),
+            dismissProgress: (id: string) => toast.dismiss(id),
+            showFailure: () => toast.error("Couldn't extract the content of this page"),
+          }).then((article: ArticleExtractionResult) => {
+            /** Respond to the service worker */
+            sendResponse({
+              success: true,
+              payload: {
+                tabId: message.payload.tabId,
+                tabUrl: message.payload.tabUrl,
+                result: article,
+              },
             });
-          } catch (error: any) {
-            logger.error('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Failed to extract article:', error);
-
-            /** Update the current tab state */
-            setCurrentArticle(null);
-
-            /** Respond to the content script */
-            sendResponse({ success: false, error: new Error(error.message) });
-          }
+          });
           break;
 
         case MessageAction.INJECT_ARTICLE:
@@ -160,7 +109,7 @@ export const useContentMessage = () => {
 
             createPrompt(service, useSettingsStore.getState(), message.payload.article)
               .then(async prompt => {
-                /* Read the model via the async getter, which goes to chrome.storage (see EXTRACT_ARTICLE above) */
+                /* Read the model via the async getter, which goes to chrome.storage: the store snapshot of the content script is taken before hydration */
                 const model = await useSettingsStore.getState().getModelFor(service);
                 injectionService.current.execute(message.payload.tabUrl, prompt, model).then((result: ArticleInjectionResult) => {
                   /** Respond to the content script */
@@ -219,6 +168,4 @@ export const useContentMessage = () => {
       logger.debug('🫳💬', '[useContentMessage.tsx]', '[useEffect]', 'useContentMessage unmounted');
     };
   }, []);
-
-  return { currentArticle, currentTabId, currentTabUrl };
 };

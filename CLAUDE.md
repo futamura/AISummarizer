@@ -38,8 +38,8 @@ Feature code lives in `src/features/<context>/` matching those contexts. Cross-c
 
 ### Core data flow
 
-1. Content script extracts the article via `src/features/content/extractors/` — `Readability.ts` (web pages), `Youtube.ts` (transcripts), `PDF.ts` (pdfjs-dist; the worker file is copied to `pdf.worker.min.mjs` by webpack), `X.ts` (single post pages of x.com/twitter.com, reading the post out of the DOM because Readability pulls in replies, trends and ads; falls back to Readability when the markup no longer matches)
-2. `ArticleExtractionService` stores results in IndexedDB (`src/db/Database.ts`, `idb` wrapper, capped at 200 records, cleaned up by the service worker)
+1. Extraction runs only on a user action — an AI service or "Copy to clipboard" in the popup or the context menu. The service worker's `extractAndStore` sends `EXTRACT_ARTICLE` to the content script, which extracts via `src/features/content/extractors/` — `Readability.ts` (web pages), `Youtube.ts` (transcripts), `PDF.ts` (pdfjs-dist; the worker file is copied to `pdf.worker.min.mjs` by webpack), `X.ts` (single post pages of x.com/twitter.com, reading the post out of the DOM because Readability pulls in replies, trends and ads; falls back to Readability when the markup no longer matches). `extractWithProgress` shows an "Extracting…" toast after 500 ms and a failure toast. Page loads do not extract, except to resume a mobile YouTube summary held in `storage.session`
+2. The service worker stores the result in IndexedDB (`src/db/Database.ts`, `idb` wrapper, upserted by URL, capped at 200 records, cleaned up by the service worker) and uses the returned article id
 3. When the user picks an AI service, a tab opens for it and the matching injector in `src/features/content/injectors/` (one file per AI service) pastes the article plus summarize prompt into that service's chat UI
 
 Adding a new AI service = new injector file there + entry in `src/types/AIService.ts` + icon assets in `src/styles/images/`.

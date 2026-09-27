@@ -54,7 +54,7 @@ export class ContextMenuService {
     }
   }
 
-  async createMenu(isExtracted: boolean, tabUrl?: string) {
+  async createMenu(tabUrl?: string) {
     if (!isContextMenuSupported()) return;
 
     const { result, error } = await this._removeMenu();
@@ -68,11 +68,11 @@ export class ContextMenuService {
     if (!tabUrl || isInvalid) {
       await this.createBasicMenu();
     } else {
-      await this.createFullMenu(tabUrl, isExtracted);
+      await this.createFullMenu();
     }
   }
 
-  private async createFullMenu(tabUrl: string, isExtracted: boolean) {
+  private async createFullMenu() {
     try {
       logger.debug('🧑‍🍳📃', '[ContextMenuService.tsx]', '[createFullMenu]', '+ Creating full menu');
       const { result: root, error: rootError } = await this._createContextMenu({
@@ -103,19 +103,9 @@ export class ContextMenuService {
       });
 
       /** Create copy option */
-      if (tabUrl && isExtracted) {
-        await this._createContextMenu({
-          id: MENU_ITEMS.COPY.id,
-          title: MENU_ITEMS.COPY.title,
-          contexts: ['page' as chrome.contextMenus.ContextType],
-          parentId: root,
-        });
-      }
-
-      /** Create extract option */
       await this._createContextMenu({
-        id: MENU_ITEMS.EXTRACT.id,
-        title: MENU_ITEMS.EXTRACT.title,
+        id: MENU_ITEMS.COPY.id,
+        title: MENU_ITEMS.COPY.title,
         contexts: ['page' as chrome.contextMenus.ContextType],
         parentId: root,
       });

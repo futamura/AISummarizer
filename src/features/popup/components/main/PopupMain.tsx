@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-import { IoClipboardOutline, IoReloadOutline, IoSettingsOutline } from 'react-icons/io5';
+import { IoClipboardOutline, IoSettingsOutline } from 'react-icons/io5';
 
 import { Divider, ServiceIcon } from '@/components';
 import { ServiceListMenu } from '@/features/popup/components/main';
@@ -89,32 +89,6 @@ export const PopupMain: React.FC = () => {
           >
             <IoClipboardOutline className="w-4 h-4" />
             Copy to clipboard
-          </ServiceListMenu>
-          <ServiceListMenu
-            onClick={async () => {
-              logger.debug('📦🍿', '[PopupMain.tsx]', '[render]', 'Extract article again');
-              /** Check if the content script is injected */
-              const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-              if (!tab.id || !tab.url) throw new Error('No active tab found');
-
-              /** Check if the tab exists before sending message */
-              if (!(await chrome.tabs.get(tab.id).catch(() => null))) {
-                logger.warn('📦🍿', '[PopupMain.tsx]', '[render]', 'Tab not found:', tab.id);
-                return;
-              }
-
-              /** Send the message to the content script */
-              await chrome.tabs.sendMessage(tab.id, {
-                action: MessageAction.EXTRACT_ARTICLE,
-                payload: { tabId: tab.id, tabUrl: tab.url },
-              });
-
-              /** Close the popup */
-              window.close();
-            }}
-          >
-            <IoReloadOutline className="w-4 h-4" />
-            Extract article again
           </ServiceListMenu>
           <Divider />
           <ServiceListMenu

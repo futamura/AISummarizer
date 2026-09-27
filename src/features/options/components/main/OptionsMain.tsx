@@ -1,10 +1,10 @@
 import clsx from 'clsx';
 
-import React, { Fragment, useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import { IoClose } from 'react-icons/io5';
 
-import { Field, Input, Switch, Tab, TabGroup, TabList, TabPanel, TabPanels, Textarea } from '@headlessui/react';
+import { Field, Input, Tab, TabGroup, TabList, TabPanel, TabPanels, Textarea } from '@headlessui/react';
 
 import { toast, Toaster } from '@/features/content/components/main/Toaster';
 import { ConfirmDialog, OptionCard } from '@/features/options/components/main';
@@ -12,12 +12,8 @@ import { closeSettingsPanel } from '@/platform';
 import { DEFAULT_SETTINGS, useGlobalContext } from '@/stores';
 import {
   AIService,
-  ContentExtractionTiming,
   getAIServiceLabel,
   getAvailableTabBehaviors,
-  getContentExtractionTimingFromIndex,
-  getContentExtractionTimingIndex,
-  getContentExtractionTimingLabel,
   getModelOptionsFor,
   getTabBehaviorFromIndex,
   getTabBehaviorIndex,
@@ -59,21 +55,6 @@ export const OptionsMain: React.FC = () => {
     /** tabBehavior */
     tabBehavior: storedTabBehavior,
     setTabBehavior: setStoredTabBehavior,
-    /** contentExtractionTiming */
-    contentExtractionTiming: storedContentExtractionTiming,
-    setContentExtractionTiming: setStoredContentExtractionTiming,
-    /** extractionDenylist */
-    extractionDenylist: storedExtractionDenylist,
-    setExtractionDenylist: setStoredExtractionDenylist,
-    /** saveArticleOnClipboard */
-    saveArticleOnClipboard: storedSaveArticleOnClipboard,
-    setSaveArticleOnClipboard: setStoredSaveArticleOnClipboard,
-    /** isShowMessage */
-    isShowMessage: storedIsShowMessage,
-    setIsShowMessage: setStoredIsShowMessage,
-    /** isShowBadge */
-    isShowBadge: storedIsShowBadge,
-    setIsShowBadge: setStoredIsShowBadge,
     /** manage settings */
     exportSettings,
     importSettings,
@@ -90,12 +71,6 @@ export const OptionsMain: React.FC = () => {
   const [inputServiceStatus, setInputServiceStatus] = useState<{ [key in AIService]: boolean } | undefined>(undefined);
 
   const [inputTabBehavior, setInputTabBehavior] = useState<number | undefined>(undefined);
-  const [inputContentExtractionTiming, setInputContentExtractionTiming] = useState<number | undefined>(undefined);
-  const [inputIsSaveArticleOnClipboard, setInputIsSaveArticleOnClipboard] = useState<boolean | undefined>(undefined);
-  const [inputIsShowMessage, setInputIsShowMessage] = useState<boolean | undefined>(undefined);
-  const [inputIsShowBadge, setInputIsShowBadge] = useState<boolean | undefined>(undefined);
-
-  const [inputExtractionDenylist, setInputExtractionDenylist] = useState<string | undefined>(undefined);
 
   const [isDeleteCacheDialogOpen, setIsDeleteCacheDialogOpen] = useState<boolean>(false);
   const [isResetSettingsDialogOpen, setIsResetSettingsDialogOpen] = useState<boolean>(false);
@@ -153,26 +128,6 @@ export const OptionsMain: React.FC = () => {
     if (inputTabBehavior === undefined) setInputTabBehavior(getTabBehaviorIndex(storedTabBehavior));
   }, [inputTabBehavior, storedTabBehavior]);
 
-  useEffect(() => {
-    if (inputContentExtractionTiming === undefined) setInputContentExtractionTiming(getContentExtractionTimingIndex(storedContentExtractionTiming));
-  }, [inputContentExtractionTiming, storedContentExtractionTiming]);
-
-  useEffect(() => {
-    if (inputExtractionDenylist === undefined) setInputExtractionDenylist(storedExtractionDenylist);
-  }, [inputExtractionDenylist, storedExtractionDenylist]);
-
-  useEffect(() => {
-    if (inputIsSaveArticleOnClipboard === undefined) setInputIsSaveArticleOnClipboard(storedSaveArticleOnClipboard);
-  }, [inputIsSaveArticleOnClipboard, storedSaveArticleOnClipboard]);
-
-  useEffect(() => {
-    if (inputIsShowMessage === undefined) setInputIsShowMessage(storedIsShowMessage);
-  }, [inputIsShowMessage, storedIsShowMessage]);
-
-  useEffect(() => {
-    if (inputIsShowBadge === undefined) setInputIsShowBadge(storedIsShowBadge);
-  }, [inputIsShowBadge, storedIsShowBadge]);
-
   /*******************************************************
    * Handlers
    *******************************************************/
@@ -195,15 +150,8 @@ export const OptionsMain: React.FC = () => {
       },
       clipboardPrompt: inputClipboardPrompt ?? DEFAULT_SETTINGS.clipboardPrompt,
       tabBehavior: getTabBehaviorFromIndex(inputTabBehavior ?? getTabBehaviorIndex(DEFAULT_SETTINGS.tabBehavior)),
-      contentExtractionTiming: getContentExtractionTimingFromIndex(
-        inputContentExtractionTiming ?? getContentExtractionTimingIndex(DEFAULT_SETTINGS.contentExtractionTiming)
-      ),
-      extractionDenylist: inputExtractionDenylist ?? DEFAULT_SETTINGS.extractionDenylist,
-      saveArticleOnClipboard: inputIsSaveArticleOnClipboard ?? DEFAULT_SETTINGS.saveArticleOnClipboard,
-      isShowMessage: inputIsShowMessage ?? DEFAULT_SETTINGS.isShowMessage,
-      isShowBadge: inputIsShowBadge ?? DEFAULT_SETTINGS.isShowBadge,
     });
-  }, [inputPrompts, inputModels, inputClipboardPrompt, inputTabBehavior, inputContentExtractionTiming, inputIsSaveArticleOnClipboard]);
+  }, [inputPrompts, inputModels, inputClipboardPrompt, inputTabBehavior]);
 
   /**
    * Unset Input Settings
@@ -215,11 +163,6 @@ export const OptionsMain: React.FC = () => {
     await setInputModels(undefined);
     await setInputServiceStatus(undefined);
     await setInputTabBehavior(undefined);
-    await setInputContentExtractionTiming(undefined);
-    await setInputExtractionDenylist(undefined);
-    await setInputIsSaveArticleOnClipboard(undefined);
-    await setInputIsShowMessage(undefined);
-    await setInputIsShowBadge(undefined);
   }, []);
 
   /**
@@ -571,113 +514,6 @@ export const OptionsMain: React.FC = () => {
                 ))}
               </TabList>
             </TabGroup>
-          </OptionCard>
-
-          {/* Content Extraction */}
-          <OptionCard title="Content Extraction">
-            <TabGroup selectedIndex={inputContentExtractionTiming} onChange={setInputContentExtractionTiming}>
-              <TabList className="flex flex-wrap gap-2">
-                {Object.entries(ContentExtractionTiming).map(([name, method]: [string, ContentExtractionTiming], index) => (
-                  <Tab
-                    key={name}
-                    className={clsx(
-                      'rounded-full px-3 py-1 font-semibold',
-                      'text-zinc-900 dark:text-zinc-50',
-                      'bg-zinc-300 dark:bg-zinc-700',
-                      'opacity-30 dark:opacity-30',
-                      'hover:opacity-100',
-                      inputContentExtractionTiming === index && '!bg-blue-600 !opacity-100',
-                      'focus:outline-none',
-                      'transition-opacity'
-                    )}
-                    onClick={async () => await setStoredContentExtractionTiming(method)}
-                  >
-                    {getContentExtractionTimingLabel(method)}
-                  </Tab>
-                ))}
-              </TabList>
-            </TabGroup>
-          </OptionCard>
-          {storedContentExtractionTiming === ContentExtractionTiming.AUTOMATIC && (
-            <div className="p-2">
-              <h3 className="mb-4 text-default font-semibold text-zinc-900 dark:text-zinc-100">Denylist</h3>
-              <Textarea
-                name="denylist"
-                className={`
-                  block w-full
-                  rounded-lg
-                  px-3 py-1.5
-                  text-base/6
-                  text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-none
-                  focus:outline-none focus:ring-1 focus:ring-zinc-300 dark:focus:ring-zinc-700
-                  focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700
-                `}
-                rows={12}
-                value={inputExtractionDenylist}
-                onChange={e => {
-                  const newValue = e.target.value;
-                  setInputExtractionDenylist(newValue);
-                  setStoredExtractionDenylist(newValue);
-                }}
-              />
-            </div>
-          )}
-
-          {/* Copy Article to Clipboard */}
-          <OptionCard title="Copy Article to Clipboard When Extraction Completes">
-            <Switch checked={inputIsSaveArticleOnClipboard ?? false} onChange={setInputIsSaveArticleOnClipboard} as={Fragment}>
-              {({ checked, disabled }) => (
-                <button
-                  className={clsx(
-                    'group inline-flex h-6 w-11 items-center rounded-full',
-                    checked ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700',
-                    disabled && 'cursor-not-allowed opacity-50'
-                  )}
-                  onClick={async () => await setStoredSaveArticleOnClipboard(!checked)}
-                >
-                  <span className="sr-only">Copy Article to Clipboard</span>
-                  <span className={clsx('size-4 rounded-full transition', 'bg-white', checked ? 'translate-x-6' : 'translate-x-1')} />
-                </button>
-              )}
-            </Switch>
-          </OptionCard>
-
-          {/* Show Message on Extraction Complete */}
-          <OptionCard title="Show Message When Extraction Completes">
-            <Switch checked={inputIsShowMessage ?? false} onChange={setInputIsShowMessage} as={Fragment}>
-              {({ checked, disabled }) => (
-                <button
-                  className={clsx(
-                    'group inline-flex h-6 w-11 items-center rounded-full',
-                    checked ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700',
-                    disabled && 'cursor-not-allowed opacity-50'
-                  )}
-                  onClick={async () => await setStoredIsShowMessage(!checked)}
-                >
-                  <span className="sr-only">Show Message on Extraction Complete</span>
-                  <span className={clsx('size-4 rounded-full transition', 'bg-white', checked ? 'translate-x-6' : 'translate-x-1')} />
-                </button>
-              )}
-            </Switch>
-          </OptionCard>
-
-          {/* Show Badge on Extraction Complete */}
-          <OptionCard title="Show Badge When Extraction Completes">
-            <Switch checked={inputIsShowBadge ?? false} onChange={setInputIsShowBadge} as={Fragment}>
-              {({ checked, disabled }) => (
-                <button
-                  className={clsx(
-                    'group inline-flex h-6 w-11 items-center rounded-full',
-                    checked ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700',
-                    disabled && 'cursor-not-allowed opacity-50'
-                  )}
-                  onClick={async () => await setStoredIsShowBadge(!checked)}
-                >
-                  <span className="sr-only">Show Message on Extraction Complete</span>
-                  <span className={clsx('size-4 rounded-full transition', 'bg-white', checked ? 'translate-x-6' : 'translate-x-1')} />
-                </button>
-              )}
-            </Switch>
           </OptionCard>
 
           {/* Manage Settings */}

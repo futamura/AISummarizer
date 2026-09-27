@@ -14,7 +14,7 @@ A free and open-source browser extension for Chrome and Firefox (desktop and And
 ### Core Features
 
 - No charge, no API key, no login required
-- Extract articles automatically from webpages
+- Extract the page when you summarize it, so content that loads late is included
 - Summarize articles with multiple AI services
 - Context menu support (desktop browsers)
 - Dark/Light mode support

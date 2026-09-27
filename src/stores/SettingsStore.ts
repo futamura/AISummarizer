@@ -2,9 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { STORAGE_KEYS } from '@/constants';
-import { AIService, ContentExtractionTiming, TabBehavior } from '@/types';
+import { AIService, TabBehavior } from '@/types';
 import { logger } from '@/utils';
-/* Import directly: DEFAULT_PROMPT calls it at module load, when the @/utils barrel may still be loading (utils/Regex imports this store) */
+/* Import directly: DEFAULT_PROMPT calls it at module load, when the @/utils barrel may still be loading (utils/Text imports this store) */
 import { getBrowserLanguage } from '@/utils/i18n';
 
 export interface SettingsState {
@@ -21,11 +21,6 @@ export interface SettingsState {
   /* Prompt for "Copy to clipboard", which has no AI service to take a prompt from */
   clipboardPrompt: string;
   tabBehavior: TabBehavior;
-  contentExtractionTiming: ContentExtractionTiming;
-  extractionDenylist: string;
-  saveArticleOnClipboard: boolean;
-  isShowMessage: boolean;
-  isShowBadge: boolean;
 }
 
 const DEFAULT_PROMPT = `Extract each theme from the following text without omission and summarize the main points in ${getBrowserLanguage()}.
@@ -75,32 +70,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
   },
   clipboardPrompt: DEFAULT_PROMPT,
   tabBehavior: TabBehavior.NEW_TAB,
-  contentExtractionTiming: ContentExtractionTiming.AUTOMATIC,
-  extractionDenylist: `/** Search engines */
-(https?)\\:\\/\\/((www|m|search|images?|videos?|maps|mail|shopping|auctions)\\.)?(google|bing|yahoo|duckduckgo|baidu|yandex|ecosia|startpage|naver)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
-/** Google services */
-(https?)\\:\\/\\/(mail|docs|drive|calendar|meet|news|photos|play|accounts|myaccount|translate|keep|chat|contacts|notebooklm)\\.google\\.com(\\/|\\?|#|$)
-/** Microsoft services */
-(https?)\\:\\/\\/(outlook|teams|onedrive)\\.(live|office|office365|microsoft)\\.com(\\/|\\?|#|$)
-(https?)\\:\\/\\/(login|account)\\.microsoftonline\\.com(\\/|\\?|#|$)
-/** AI chat services */
-(https?)\\:\\/\\/(copilot\\.microsoft\\.com|(www\\.)?poe\\.com)(\\/|\\?|#|$)
-/** Social networks */
-(https?)\\:\\/\\/((www|m|mobile)\\.)?(facebook|instagram|tiktok|threads|linkedin|pinterest)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
-/** X (single post pages stay extractable; timelines and everything else do not) */
-(https?)\\:\\/\\/((www|m|mobile)\\.)?(x|twitter)\\.com(?!\\/[^\\/]+\\/status\\/[0-9]+)(\\/|\\?|#|$)
-/** Streaming services */
-(https?)\\:\\/\\/((www|m|open)\\.)?(netflix|primevideo|hulu|disneyplus|twitch|spotify|abema|tver|nicovideo)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
-/** E-commerce sites */
-(https?)\\:\\/\\/((www|m|shop|store)\\.)?(amazon|shop|etsy|ebay|walmart|bestbuy|target|costco|apple|flipkart|rakuten|mercari|alibaba|aliexpress|shein|taobao|qoo10)\\.(com?\\.[a-z]{2}|[a-z]{2,3})(\\/|\\?|#|$)
-/** Local development */
-(https?)\\:\\/\\/localhost(\\:[0-9]+)?(\\/|\\?|#|$)
-(https?)\\:\\/\\/(\\d{1,3}\\.){3}\\d{1,3}(\\:[0-9]+)?(\\/|\\?|#|$)
-(https?)\\:\\/\\/\\[[0-9a-fA-F\\:]+\\](\\:[0-9]+)?(\\/|\\?|#|$)
-`,
-  saveArticleOnClipboard: false,
-  isShowMessage: false,
-  isShowBadge: true,
 };
 
 export interface SettingsStore extends SettingsState {
@@ -115,16 +84,6 @@ export interface SettingsStore extends SettingsState {
   getClipboardPrompt: () => Promise<string>;
   setTabBehavior: (tabBehavior: TabBehavior) => Promise<void>;
   getTabBehavior: () => Promise<TabBehavior>;
-  setContentExtractionTiming: (contentExtractionTiming: ContentExtractionTiming) => Promise<void>;
-  getContentExtractionTiming: () => Promise<ContentExtractionTiming>;
-  setExtractionDenylist: (extractionDenylist: string) => Promise<void>;
-  getExtractionDenylist: () => Promise<string>;
-  setIsShowMessage: (isShowMessage: boolean) => Promise<void>;
-  getIsShowMessage: () => Promise<boolean>;
-  setIsShowBadge: (isShowBadge: boolean) => Promise<void>;
-  getIsShowBadge: () => Promise<boolean>;
-  setSaveArticleOnClipboard: (saveArticleOnClipboard: boolean) => Promise<void>;
-  getSaveArticleOnClipboard: () => Promise<boolean>;
   exportSettings: () => Promise<{ success: boolean; error?: Error }>;
   importSettings: (file: File) => Promise<{ success: boolean; error?: Error }>;
   restoreSettings: () => Promise<{ success: boolean; error?: Error }>;
@@ -190,41 +149,6 @@ export const useSettingsStore = create<SettingsStore>()(
         const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
         return settings[STORAGE_KEYS.SETTINGS]?.state?.tabBehavior ?? DEFAULT_SETTINGS.tabBehavior;
       },
-      setContentExtractionTiming: async (contentExtractionTiming: ContentExtractionTiming) => {
-        await get().updateSettings({ contentExtractionTiming });
-      },
-      getContentExtractionTiming: async () => {
-        const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-        return settings[STORAGE_KEYS.SETTINGS]?.state?.contentExtractionTiming ?? DEFAULT_SETTINGS.contentExtractionTiming;
-      },
-      setExtractionDenylist: async (extractionDenylist: string) => {
-        await get().updateSettings({ extractionDenylist });
-      },
-      getExtractionDenylist: async () => {
-        const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-        return settings[STORAGE_KEYS.SETTINGS]?.state?.extractionDenylist ?? DEFAULT_SETTINGS.extractionDenylist;
-      },
-      setSaveArticleOnClipboard: async (saveArticleOnClipboard: boolean) => {
-        await get().updateSettings({ saveArticleOnClipboard });
-      },
-      getSaveArticleOnClipboard: async () => {
-        const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-        return settings[STORAGE_KEYS.SETTINGS]?.state?.saveArticleOnClipboard ?? DEFAULT_SETTINGS.saveArticleOnClipboard;
-      },
-      setIsShowMessage: async (isShowMessage: boolean) => {
-        await get().updateSettings({ isShowMessage });
-      },
-      getIsShowMessage: async () => {
-        const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-        return settings[STORAGE_KEYS.SETTINGS]?.state?.isShowMessage ?? DEFAULT_SETTINGS.isShowMessage;
-      },
-      setIsShowBadge: async (isShowBadge: boolean) => {
-        await get().updateSettings({ isShowBadge });
-      },
-      getIsShowBadge: async () => {
-        const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-        return settings[STORAGE_KEYS.SETTINGS]?.state?.isShowBadge ?? DEFAULT_SETTINGS.isShowBadge;
-      },
       exportSettings: async (): Promise<{ success: boolean; error?: Error }> => {
         try {
           /** Get the extension version */
@@ -242,11 +166,6 @@ export const useSettingsStore = create<SettingsStore>()(
               models: settings.models || {},
               clipboardPrompt: settings.clipboardPrompt || DEFAULT_SETTINGS.clipboardPrompt,
               tabBehavior: settings.tabBehavior || '',
-              contentExtractionTiming: settings.contentExtractionTiming || '',
-              extractionDenylist: settings.extractionDenylist || [],
-              saveArticleOnClipboard: settings.saveArticleOnClipboard || false,
-              isShowMessage: settings.isShowMessage || false,
-              isShowBadge: settings.isShowBadge || false,
             },
           };
 
@@ -297,11 +216,6 @@ export const useSettingsStore = create<SettingsStore>()(
             models: backupData.settings.models ?? DEFAULT_SETTINGS.models,
             clipboardPrompt: backupData.settings.clipboardPrompt ?? DEFAULT_SETTINGS.clipboardPrompt,
             tabBehavior: backupData.settings.tabBehavior as TabBehavior,
-            contentExtractionTiming: backupData.settings.contentExtractionTiming as ContentExtractionTiming,
-            extractionDenylist: backupData.settings.extractionDenylist,
-            saveArticleOnClipboard: backupData.settings.saveArticleOnClipboard,
-            isShowMessage: backupData.settings.isShowMessage,
-            isShowBadge: backupData.settings.isShowBadge,
           });
 
           return { success: true };
@@ -318,11 +232,6 @@ export const useSettingsStore = create<SettingsStore>()(
             models: DEFAULT_SETTINGS.models,
             clipboardPrompt: DEFAULT_SETTINGS.clipboardPrompt,
             tabBehavior: DEFAULT_SETTINGS.tabBehavior,
-            contentExtractionTiming: DEFAULT_SETTINGS.contentExtractionTiming,
-            extractionDenylist: DEFAULT_SETTINGS.extractionDenylist,
-            saveArticleOnClipboard: DEFAULT_SETTINGS.saveArticleOnClipboard,
-            isShowMessage: DEFAULT_SETTINGS.isShowMessage,
-            isShowBadge: DEFAULT_SETTINGS.isShowBadge,
           });
 
           return { success: true };
@@ -342,11 +251,6 @@ export const useSettingsStore = create<SettingsStore>()(
         serviceOnMenu: state.serviceOnMenu,
         clipboardPrompt: state.clipboardPrompt,
         tabBehavior: state.tabBehavior,
-        contentExtractionTiming: state.contentExtractionTiming,
-        extractionDenylist: state.extractionDenylist,
-        saveArticleOnClipboard: state.saveArticleOnClipboard,
-        isShowMessage: state.isShowMessage,
-        isShowBadge: state.isShowBadge,
       }),
       storage: {
         getItem: async (name: string) => {
