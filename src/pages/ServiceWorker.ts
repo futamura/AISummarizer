@@ -132,7 +132,8 @@ class ServiceWorker {
         break;
 
       case MessageAction.READ_ARTICLE_FOR_CLIPBOARD:
-        await this.readArticleForClipboard(message.payload.tabId, message.payload.tabUrl);
+        /* Not awaited: Firefox answers the popup only when this listener settles, and the popup waits for that answer before closing */
+        this.readArticleForClipboard(message.payload.tabId, message.payload.tabUrl);
         break;
 
       case MessageAction.OPEN_SETTINGS:

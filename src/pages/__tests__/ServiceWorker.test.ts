@@ -282,6 +282,22 @@ describe('ServiceWorker summarizing a page', () => {
     await copyToClipboard();
     expect(clipboardWrites()).toHaveLength(0);
   });
+
+  /* Firefox resolves the popup's sendMessage only when the listener's promise settles, and the popup closes after it */
+  it('answers the clipboard message without waiting for the extraction', async () => {
+    chromeMock.tabs.sendMessage.mockImplementation((() => new Promise(() => undefined)) as any);
+    const listener = chromeMock.runtime.onMessage.addListener.mock.calls.at(-1)![0] as (
+      message: unknown,
+      sender: unknown,
+      sendResponse: unknown
+    ) => Promise<void>;
+    let isAnswered = false;
+    listener({ action: 'READ_ARTICLE_FOR_CLIPBOARD', payload: { tabId: ARTICLE_TAB.id, tabUrl: ARTICLE_TAB.url } }, {}, jest.fn()).then(() => {
+      isAnswered = true;
+    });
+    await settle();
+    expect(isAnswered).toBe(true);
+  });
 });
 
 describe('ServiceWorker summarizing a mobile YouTube video', () => {
