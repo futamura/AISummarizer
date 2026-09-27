@@ -210,17 +210,6 @@ class ServiceWorker {
       case 'copy':
         this.readArticleForClipboard(tab.id, tab.url, true);
         break;
-
-      case 'extract':
-        /** Execute the extraction */
-        this.executeExtraction(tab.id, tab.url, true);
-
-        /** Update the UI state */
-        this.toggleUIState(tab.id, tab.url);
-
-        /** Notify the current tab state */
-        this.notifyCurrentTabState(tab.id, tab.url);
-        break;
     }
   }
 
@@ -470,9 +459,8 @@ class ServiceWorker {
       const doesArticleExist = (await useArticleStore.getState().getArticleByUrl(tabUrl))?.is_success ?? false;
 
       /** Toggle the context menu */
-      // await this.contextMenuService.createMenu(doesArticleExist, tabUrl);
       try {
-        await this.contextMenuService.createMenu(doesArticleExist, tabUrl);
+        await this.contextMenuService.createMenu(tabUrl);
       } catch (error) {
         logger.error('🧑‍🍳📃', '[ServiceWorker.tsx]', '[toggleUIState]', 'Failed to create context menu:', error);
       }
