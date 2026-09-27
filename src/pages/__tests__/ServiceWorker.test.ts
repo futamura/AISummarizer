@@ -4,15 +4,12 @@
  * IndexedDB, which does not exist in the node test environment.
  */
 jest.mock('@/stores', () => ({
-  useArticleStore: { getState: () => ({ getArticleByUrl: jest.fn(() => Promise.resolve(undefined)) }) },
   useSettingsStore: {
     getState: () => ({
       getServiceOnMenu: jest.fn(() => Promise.resolve(true)),
       getClipboardPrompt: jest.fn(() => Promise.resolve('{title}\n{content}')),
     }),
   },
-  /* Regex.ts falls back to this when the stored settings hold no denylist */
-  DEFAULT_SETTINGS: { extractionDenylist: '' },
 }));
 jest.mock('@/stores/SettingsStore', () => ({ DEFAULT_SETTINGS: { models: {} } }));
 /* The service worker reaches the database through this wrapper, which opens IndexedDB on import; addArticle upserts by URL like the real one */
@@ -117,7 +114,11 @@ const answerExtraction = (chromeMock: Pick<ChromeMock, 'tabs'>, ...results: Arra
 
 /* The theme service registers its own listener from a class field, so the service worker's is the last one */
 const sendToServiceWorker = async (chromeMock: Pick<ChromeMock, 'runtime'>, message: unknown) => {
-  const listener = chromeMock.runtime.onMessage.addListener.mock.calls.at(-1)![0] as (message: unknown, sender: unknown, sendResponse: unknown) => Promise<void>;
+  const listener = chromeMock.runtime.onMessage.addListener.mock.calls.at(-1)![0] as (
+    message: unknown,
+    sender: unknown,
+    sendResponse: unknown
+  ) => Promise<void>;
   await listener(message, {}, jest.fn());
   await settle();
 };
@@ -126,7 +127,11 @@ const sendToServiceWorker = async (chromeMock: Pick<ChromeMock, 'runtime'>, mess
 const loadTab = async (chromeMock: Pick<ChromeMock, 'tabs'>, tab: { id: number; windowId: number; url: string }) => {
   chromeMock.tabs.get.mockImplementation(() => Promise.resolve(tab) as any);
   chromeMock.tabs.query.mockImplementation(() => Promise.resolve([tab]) as any);
-  const handleTabUpdated = chromeMock.tabs.onUpdated.addListener.mock.calls[0][0] as (tabId: number, changeInfo: { status: string }, tab: unknown) => Promise<void>;
+  const handleTabUpdated = chromeMock.tabs.onUpdated.addListener.mock.calls[0][0] as (
+    tabId: number,
+    changeInfo: { status: string },
+    tab: unknown
+  ) => Promise<void>;
   await handleTabUpdated(tab.id, { status: 'complete' }, tab);
   await settle();
 };
