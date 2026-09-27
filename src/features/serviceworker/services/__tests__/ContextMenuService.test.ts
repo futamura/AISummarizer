@@ -67,8 +67,6 @@ describe('ContextMenuService', () => {
 
   describe('on an ordinary page', () => {
     beforeEach(() => {
-      /* isInvalidUrl still reads the extraction denylist from the stored settings */
-      chromeMock.storage = { local: { get: jest.fn(async () => ({ 'free-ai-summarizer-settings': { state: { extractionDenylist: '' } } })) } };
       chromeMock.contextMenus.removeAll.mockImplementation((callback: () => void) => callback());
       chromeMock.contextMenus.create.mockImplementation((props: { id?: string }, callback?: () => void) => {
         callback?.();
