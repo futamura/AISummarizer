@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { loadFixture } from '@/features/content/__fixtures__';
 import { injectClaude } from '@/features/content/injectors/Claude';
 
 const PROMPT = 'Summarize the following article.\n\nArticle body.';
@@ -17,7 +18,6 @@ describe('injectClaude', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-    document.body.innerHTML = '';
   });
 
   const run = async () => {
@@ -26,18 +26,20 @@ describe('injectClaude', () => {
     return result;
   };
 
-  /* Composer markup as observed on claude.ai (2026-09-13): the send button sits next to the editor in a fieldset */
-  const mount = (sendButton: string) => {
-    document.body.innerHTML = `<fieldset><div class="ProseMirror" contenteditable="true"></div>${sendButton}</fieldset>`;
+  /* The composer of claude.ai/new, captured with text typed in so that the send button is enabled */
+  const mount = () => {
+    loadFixture('claude-composer');
     const onEnter = jest.fn();
     document.querySelector('div.ProseMirror')!.addEventListener('keydown', event => {
       if ((event as KeyboardEvent).key === 'Enter') onEnter();
     });
-    return { onEnter };
+    const onClick = jest.fn();
+    document.querySelector('button[data-testid="chat-input-send"]')!.addEventListener('click', onClick);
+    return { onEnter, onClick };
   };
 
   it('reports pasting, then sending', async () => {
-    mount('<button data-testid="chat-input-send"></button>');
+    mount();
     const onStage = jest.fn();
 
     const result = injectClaude(PROMPT, { onStage });
@@ -48,7 +50,7 @@ describe('injectClaude', () => {
   });
 
   it('types the prompt through execCommand', async () => {
-    mount('<button data-testid="chat-input-send"></button>');
+    mount();
 
     await run();
 
@@ -56,9 +58,7 @@ describe('injectClaude', () => {
   });
 
   it('clicks the send button when it is enabled', async () => {
-    const { onEnter } = mount('<button data-testid="chat-input-send" aria-label="メッセージを送信"></button>');
-    const onClick = jest.fn();
-    document.querySelector('button')!.addEventListener('click', onClick);
+    const { onEnter, onClick } = mount();
 
     await expect(run()).resolves.toEqual({ success: true });
 
@@ -68,7 +68,8 @@ describe('injectClaude', () => {
   });
 
   it('falls back to Enter when the send button is missing', async () => {
-    const { onEnter } = mount('');
+    const { onEnter } = mount();
+    document.querySelector('button[data-testid="chat-input-send"]')!.remove();
 
     await expect(run()).resolves.toEqual({ success: true });
 
@@ -76,10 +77,21 @@ describe('injectClaude', () => {
   });
 
   it('falls back to Enter when the send button is disabled', async () => {
-    const { onEnter } = mount('<button data-testid="chat-input-send" disabled></button>');
+    const { onEnter, onClick } = mount();
+    document.querySelector('button[data-testid="chat-input-send"]')!.setAttribute('disabled', '');
 
     await expect(run()).resolves.toEqual({ success: true });
 
+    expect(onClick).not.toHaveBeenCalled();
     expect(onEnter).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails when the editor is missing', async () => {
+    loadFixture('claude-composer');
+    document.querySelector('div.ProseMirror')!.remove();
+
+    const result = await run();
+
+    expect(result.success).toBe(false);
   });
 });
