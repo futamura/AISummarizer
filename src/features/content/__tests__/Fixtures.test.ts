@@ -21,6 +21,8 @@ const LEAK_PATTERNS: [string, RegExp][] = [
   ['inline styles', /\sstyle="/i],
   ['URL attributes', /\s(?:src|srcset|href|action|poster)="/i],
   ['X avatar handles', /UserAvatar-Container-(?!REDACTED)/],
+  /* Markup other extensions add to every page: not the site's DOM, and it reveals the capturer's extensions */
+  ['markup from browser extensions', /<(?:deepl|protonpass|plasmo)-|\sdata-(?:darkreader|dl-)|class="translatetweet"/i],
 ];
 
 /* Same rule as the sanitizer: long words with several digits are tokens or ids */
