@@ -1,7 +1,9 @@
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
-export async function injectAIStudio(prompt: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectAIStudio(prompt: string, { onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
+    onStage('pasting');
     logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'Injecting article into AIStudio\n', prompt);
 
     /** Wait for 2 seconds to ensure page is fully loaded */
@@ -59,6 +61,7 @@ export async function injectAIStudio(prompt: string): Promise<{ success: boolean
     } else {
       throw new Error('AIStudio editor is not a textarea element');
     }
+    onStage('sending');
 
     /** Wait for 0.5 to 1 second */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));

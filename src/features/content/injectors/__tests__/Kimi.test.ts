@@ -1,4 +1,7 @@
-import { isPromptResidue } from '@/features/content/injectors/Kimi';
+/**
+ * @jest-environment jsdom
+ */
+import { injectKimi, isPromptResidue } from '@/features/content/injectors/Kimi';
 
 /* Multi-paragraph prompt mirroring the article + prompt text injectKimi sends */
 const PROMPT = 'First paragraph text.\n\nSecond paragraph text.\n\nThird paragraph tail chunk text.';
@@ -44,5 +47,35 @@ describe('isPromptResidue', () => {
   it('returns false for a fragment taken from the middle of the prompt', () => {
     /* Text the user typed can repeat a phrase of the article, so only a suffix counts as residue */
     expect(isPromptResidue('Second paragraph text.', PROMPT)).toBe(false);
+  });
+});
+
+describe('injectKimi stages', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    /* jsdom does not implement execCommand */
+    Object.defineProperty(document, 'execCommand', { value: jest.fn(() => true), configurable: true });
+    document.body.innerHTML = '<div contenteditable="true" data-lexical-editor="true"></div><div class="send-button-container"></div>';
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    document.body.innerHTML = '';
+  });
+
+  const stagesOf = async (options: { model?: string }) => {
+    const onStage = jest.fn();
+    const result = injectKimi('Prompt', { ...options, onStage });
+    await jest.runAllTimersAsync();
+    await expect(result).resolves.toEqual({ success: true });
+    return onStage.mock.calls.map(([stage]) => stage);
+  };
+
+  it('reports selecting the model first when a model is given', async () => {
+    expect(await stagesOf({ model: 'K3' })).toEqual(['selectingModel', 'pasting', 'sending']);
+  });
+
+  it('starts with pasting when no model is given', async () => {
+    expect(await stagesOf({})).toEqual(['pasting', 'sending']);
   });
 });

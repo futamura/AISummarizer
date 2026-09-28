@@ -39,6 +39,17 @@ describe('injectChatGPT', () => {
     return { editor, onEnter, onClick };
   };
 
+  it('reports pasting, then sending', async () => {
+    mountProseMirror('aria-disabled="false"');
+    const onStage = jest.fn();
+
+    const result = injectChatGPT(PROMPT, { onStage });
+    await jest.runAllTimersAsync();
+    await result;
+
+    expect(onStage.mock.calls.map(([stage]) => stage)).toEqual(['pasting', 'sending']);
+  });
+
   it('types the prompt through execCommand so the editor state follows the DOM', async () => {
     mountProseMirror('aria-disabled="false"');
 

@@ -9,10 +9,10 @@ import {
   injectPerplexity,
   injectQwen,
 } from '@/features/content/injectors';
-import { AIService, ArticleInjectionResult, getAIServiceForUrl } from '@/types';
+import { AIService, ArticleInjectionResult, getAIServiceForUrl, InjectOptions } from '@/types';
 import { isAIServiceUrl, logger } from '@/utils';
 
-const injectors: Record<AIService, (prompt: string, model?: string) => Promise<{ success: boolean; error?: Error }>> = {
+const injectors: Record<AIService, (prompt: string, options?: InjectOptions) => Promise<{ success: boolean; error?: Error }>> = {
   [AIService.CHATGPT]: injectChatGPT,
   [AIService.GEMINI]: injectGemini,
   [AIService.AI_STUDIO]: injectAIStudio,
@@ -25,7 +25,7 @@ const injectors: Record<AIService, (prompt: string, model?: string) => Promise<{
 };
 
 export class ArticleInjectionService {
-  async execute(serviceUrl: string, prompt: string, model?: string): Promise<ArticleInjectionResult> {
+  async execute(serviceUrl: string, prompt: string, options: InjectOptions = {}): Promise<ArticleInjectionResult> {
     logger.debug('🧑‍🍳📖', '[ArticleInjectionService.tsx]', '[execute]', 'Injecting...', '\nserviceUrl:', serviceUrl);
 
     /**
@@ -47,7 +47,7 @@ export class ArticleInjectionService {
     if (injector) {
       logger.debug('🧑‍🍳📖', '[ArticleInjectionService.tsx]', '[execute]', 'Injecting article into', service);
       try {
-        return await injector(prompt, model);
+        return await injector(prompt, options);
       } catch (error: any) {
         logger.error('🧑‍🍳📖', '[ArticleInjectionService.tsx]', '[execute]', 'Failed to inject article into', service, ':', error);
         return {

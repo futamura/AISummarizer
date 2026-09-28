@@ -1,3 +1,4 @@
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /** Lexical renders each line as its own paragraph, so texts are compared without whitespace */
@@ -7,8 +8,9 @@ const stripWhitespace = (text: string): string => text.replace(/\s+/g, '');
 const isPromptInserted = (editorText: string | null, prompt: string): boolean =>
   stripWhitespace(editorText ?? '').startsWith(stripWhitespace(prompt).slice(0, 100));
 
-export async function injectPerplexity(prompt: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectPerplexity(prompt: string, { onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
+    onStage('pasting');
     logger.debug('📕', '[Perplexity.tsx]', '[injectPerplexity]', 'Injecting article into Perplexity\n', prompt);
 
     /** Wait for 1 to 1.5 seconds to ensure the Lexical editor is interactive */
@@ -50,6 +52,8 @@ export async function injectPerplexity(prompt: string): Promise<{ success: boole
       /** Wait for 1 to 1.5 seconds */
       await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
     }
+
+    onStage('sending');
 
     /** Wait for the submit button to be found */
     const submitButton = await waitForElement('button[aria-label="Submit"]');
