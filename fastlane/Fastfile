@@ -28,10 +28,11 @@ def ensure_develop_branch
   end
 end
 
-desc "Build extension in development mode"
+desc "Build extension in development mode for Chrome and Firefox (one-off, no watch)"
 lane :build_dev do
   ensure_develop_branch
-  sh("pnpm run dev")
+  sh("pnpm run start")
+  sh("TARGET=firefox pnpm run start")
 end
 
 desc "Build extension for production"
@@ -284,6 +285,9 @@ lane :release do
   # Build and package for Firefox to catch Firefox-only build failures before tagging
   build_firefox
   create_firefox_package
+
+  # Rebuild the development builds so dist/dev and dist/firefox-dev carry the new version
+  build_dev
 
   # Git commit and tag
   version = JSON.parse(File.read("../package.json"))["version"]
