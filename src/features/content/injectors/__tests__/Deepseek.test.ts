@@ -1,24 +1,31 @@
 /**
  * @jest-environment jsdom
  */
+import { loadFixture } from '@/features/content/__fixtures__';
 import { injectDeepSeek } from '@/features/content/injectors/Deepseek';
 
-describe('injectDeepSeek stages', () => {
+const SEND_BUTTON = 'div[role="button"].ds-button--primary.ds-button--filled.ds-button--circle';
+
+describe('injectDeepSeek', () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    document.body.innerHTML = '<textarea></textarea><div role="button" class="ds-button--primary ds-button--filled ds-button--circle"></div>';
+    /* The composer of chat.deepseek.com, captured with text typed in so that the send button is enabled */
+    loadFixture('deepseek-composer');
   });
 
   afterEach(() => {
     jest.useRealTimers();
-    document.body.innerHTML = '';
   });
+
+  const run = async (options: { model?: string; onStage?: jest.Mock } = {}) => {
+    const result = injectDeepSeek('Prompt', options);
+    await jest.runAllTimersAsync();
+    return result;
+  };
 
   const stagesOf = async (options: { model?: string }) => {
     const onStage = jest.fn();
-    const result = injectDeepSeek('Prompt', { ...options, onStage });
-    await jest.runAllTimersAsync();
-    await expect(result).resolves.toEqual({ success: true });
+    await expect(run({ ...options, onStage })).resolves.toEqual({ success: true });
     return onStage.mock.calls.map(([stage]) => stage);
   };
 
@@ -28,5 +35,40 @@ describe('injectDeepSeek stages', () => {
 
   it('starts with pasting when no model is given', async () => {
     expect(await stagesOf({})).toEqual(['pasting', 'sending']);
+  });
+
+  it('sets the textarea value and notifies React through an input event', async () => {
+    const textarea = document.querySelector('textarea')!;
+    const onInput = jest.fn();
+    textarea.addEventListener('input', onInput);
+
+    await run();
+
+    expect(textarea.value).toBe('Prompt');
+    expect(onInput).toHaveBeenCalled();
+  });
+
+  it('clicks the send button', async () => {
+    const onClick = jest.fn();
+    document.querySelector(SEND_BUTTON)!.addEventListener('click', onClick);
+
+    await expect(run()).resolves.toEqual({ success: true });
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('continues without selecting a model when the page has no model tabs', async () => {
+    /* DeepSeek merged Instant / Expert / Vision into one model; the captured page has no model tabs */
+    expect(document.querySelectorAll('[role="radio"]')).toHaveLength(0);
+
+    await expect(run({ model: 'Expert' })).resolves.toEqual({ success: true });
+  });
+
+  it('fails when the send button stays disabled', async () => {
+    document.querySelector(SEND_BUTTON)!.classList.add('ds-button--disabled');
+
+    const result = await run();
+
+    expect(result.success).toBe(false);
   });
 });

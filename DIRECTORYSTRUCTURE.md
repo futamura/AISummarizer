@@ -10,6 +10,7 @@ Please follow the directory structure below for implementation:
 │   ├── db/                       # Database related implementations
 │   ├── features/                 # Feature-specific implementations
 │   │   ├── content/             # Content script feature
+│   │   │   └── __fixtures__/       # Sanitized snapshots of live pages for injector / extractor tests
 │   │   ├── offscreen/           # Offscreen feature
 │   │   ├── options/             # Options page feature
 │   │   ├── popup/               # Popup feature
@@ -27,6 +28,7 @@ Please follow the directory structure below for implementation:
 │   ├── types/                    # TypeScript type definitions
 │   └── utils/                    # Utility functions
 ├── build/                        # Build-time scripts (manifest transforms)
+├── scripts/                      # Developer scripts run by hand (fixture capture)
 ├── public/                       # Static assets
 ├── dist/                         # Output directory (dev/prod: Chrome, firefox-dev/firefox-prod: Firefox)
 ├── node_modules/                 # Dependency packages
@@ -62,6 +64,7 @@ Please follow the directory structure below for implementation:
 - `db/`: Database related implementations and migrations
 - `features/`: Feature-specific implementations
   - `content/`: Content script feature implementation
+    - `__fixtures__/`: Sanitized snapshots of live pages that injector and extractor tests run against, captured with `scripts/fixtures/`
   - `offscreen/`: Offscreen feature implementation
   - `options/`: Options page feature implementation
   - `popup/`: Popup feature implementation
@@ -90,6 +93,7 @@ Please follow the directory structure below for implementation:
 
 #### Build and Dependencies
 - `build/`: Build-time scripts used by webpack (manifest transforms for development and Firefox builds)
+- `scripts/`: Developer scripts run by hand, not part of the build (`fixtures/`: capturing page fixtures; see its README)
 - `dist/`: Compiled output files (`dev` / `prod` for Chrome, `firefox-dev` / `firefox-prod` for Firefox)
 - `public/`: Static assets
 - `node_modules/`: Third-party dependencies
