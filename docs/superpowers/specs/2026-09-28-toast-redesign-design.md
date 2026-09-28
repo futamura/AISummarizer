@@ -21,11 +21,12 @@ Make the toasts noticeable, and show the progress of the automatic injection on 
 | Units | px only (Tailwind arbitrary values such as `text-[15px]`) | Independent of the page root font size and of the 12px Chromium injects into extension pages |
 | Position | top-center, 24px from the top (sonner default) | User choice |
 | Stacking | Newest on top; toasts in the same group replace the previous one, which fades out | Shows that the work moves through stages |
-| Minimum stage display | 0.6 s per toast in a group before the next one enters | Without it, an injection that finishes in a few ms flickers and only "Sent" stays readable |
+| Minimum stage display | 0.6 s per toast in a group before the next one enters | Without it, an injection that finishes in a few ms flickers and only "Article has been sent!" stays readable |
 | Durations | loading: until replaced or dismissed; success / info / warning: 3 s; error: stays until closed with × | A missed failure leaves the user wondering why nothing was summarized |
 | Extraction messages | Per kind: web page, YouTube, PDF, X post | Tells the user what was being extracted |
-| Injection stages | "Selecting model…" (only when the injector selects a model), "Pasting article…", "Sending…", then "Sent" | "Preparing" was vague; prompt building is instant and model selection never fails the injection |
+| Injection stages | "Selecting model…" (only when the injector selects a model), "Pasting article…", "Sending article…", then "Article has been sent!" | "Preparing" was vague; prompt building is instant and model selection never fails the injection |
 | Service name in messages | Not shown | User choice |
+| Message length | 15–29 characters: "Sending article…", "Article has been sent!", shorter extraction failures | The card is 356px wide at top-center, so a 4-character "Sent" next to a 43-character failure left a wide empty right side (seen on the production build, 2026-09-28) |
 | Stage reporting | Injectors take an `onStage` callback | Explicit dependency, testable per injector |
 
 ## Design
@@ -85,8 +86,8 @@ Structure:
 
 | Kind | Progress | Failure |
 |---|---|---|
-| webpage | Extracting article… | Couldn't extract the article from this page |
-| youtube | Extracting transcript… | Couldn't get the transcript of this video |
+| webpage | Extracting article… | Couldn't extract this article |
+| youtube | Extracting transcript… | Couldn't get this transcript |
 | pdf | Extracting PDF… | Couldn't read this PDF |
 | x | Extracting post… | Couldn't extract this post |
 
@@ -107,8 +108,8 @@ Structure:
 
 - `ArticleInjectionService.execute(serviceUrl, prompt, model, onStage)` passes it through
 - New `src/features/content/services/InjectionProgress.ts`, pure like `ExtractionProgress`: `injectWithProgress(inject, toasts)`
-  - Each reported stage shows a `loading` toast with `group: 'inject'`: "Selecting model…", "Pasting article…", "Sending…"
-  - Success shows "Sent" (success, same group)
+  - Each reported stage shows a `loading` toast with `group: 'inject'`: "Selecting model…", "Pasting article…", "Sending article…"
+  - Success shows "Article has been sent!" (success, same group)
   - Failure or exception shows an error in the same group, chosen by the last reported stage: `sending` → "Couldn't send the message"; anything else, including no stage yet → "Couldn't paste the article"
 - `useContentMessage` runs prompt building (`createPrompt`) and the model lookup (`getModelFor`) inside `injectWithProgress`, so their failures show "Couldn't paste the article". The duplicate-delivery guard and the aismid mismatch check stay before it and show no toast, as today
 
@@ -126,7 +127,7 @@ Checks: `pnpm test`, `pnpm type-check`, `pnpm eslint-check`, `pnpm prettier-chec
 
 Manual checks (the rendering changes everywhere):
 
-- Chrome dev build: "Extracting transcript…" on a YouTube summary; stages then "Sent" on ChatGPT (no model selection) and on Gemini or Kimi (model selection); failure toast with × on a video without a transcript; dark mode; options page export result
+- Chrome dev build: "Extracting transcript…" on a YouTube summary; stages then "Article has been sent!" on ChatGPT (no model selection) and on Gemini or Kimi (model selection); failure toast with × on a video without a transcript; dark mode; options page export result
 - Firefox desktop: one injection; options page
 - Firefox for Android: one injection; the width on a narrow screen
 

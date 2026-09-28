@@ -16,8 +16,8 @@ describe('injectWithProgress', () => {
     }, toasts);
 
     expect(result).toEqual({ success: true });
-    expect(toasts.loading.mock.calls).toEqual([['Selecting model…'], ['Pasting article…'], ['Sending…']]);
-    expect(toasts.success).toHaveBeenCalledWith('Sent');
+    expect(toasts.loading.mock.calls).toEqual([['Selecting model…'], ['Pasting article…'], ['Sending article…']]);
+    expect(toasts.success).toHaveBeenCalledWith('Article has been sent!');
     expect(toasts.error).not.toHaveBeenCalled();
   });
 
@@ -31,7 +31,7 @@ describe('injectWithProgress', () => {
       return { success: true };
     }, toasts);
 
-    expect(toasts.loading.mock.calls).toEqual([['Pasting article…'], ['Sending…']]);
+    expect(toasts.loading.mock.calls).toEqual([['Pasting article…'], ['Sending article…']]);
   });
 
   it('says the article could not be pasted when it fails before sending', async () => {
@@ -88,7 +88,7 @@ describe('injectWithProgress', () => {
 
 describe('injection messages', () => {
   it('has the agreed wording', () => {
-    expect(INJECTION_STAGE_MESSAGES).toEqual({ selectingModel: 'Selecting model…', pasting: 'Pasting article…', sending: 'Sending…' });
+    expect(INJECTION_STAGE_MESSAGES).toEqual({ selectingModel: 'Selecting model…', pasting: 'Pasting article…', sending: 'Sending article…' });
     expect(getInjectionFailureMessage(null)).toBe("Couldn't paste the article");
     expect(getInjectionFailureMessage('selectingModel')).toBe("Couldn't paste the article");
     expect(getInjectionFailureMessage('pasting')).toBe("Couldn't paste the article");

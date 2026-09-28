@@ -21,8 +21,8 @@ describe('getExtractionKind', () => {
 describe('EXTRACTION_MESSAGES', () => {
   it('has the agreed wording', () => {
     expect(EXTRACTION_MESSAGES).toEqual({
-      webpage: { progress: 'Extracting article…', failure: "Couldn't extract the article from this page" },
-      youtube: { progress: 'Extracting transcript…', failure: "Couldn't get the transcript of this video" },
+      webpage: { progress: 'Extracting article…', failure: "Couldn't extract this article" },
+      youtube: { progress: 'Extracting transcript…', failure: "Couldn't get this transcript" },
       pdf: { progress: 'Extracting PDF…', failure: "Couldn't read this PDF" },
       x: { progress: 'Extracting post…', failure: "Couldn't extract this post" },
     });

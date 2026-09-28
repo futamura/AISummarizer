@@ -10,10 +10,10 @@ export interface InjectionToasts {
 export const INJECTION_STAGE_MESSAGES: Record<InjectionStage, string> = {
   selectingModel: 'Selecting model…',
   pasting: 'Pasting article…',
-  sending: 'Sending…',
+  sending: 'Sending article…',
 };
 
-export const INJECTION_SUCCESS_MESSAGE = 'Sent';
+export const INJECTION_SUCCESS_MESSAGE = 'Article has been sent!';
 
 /* Each stage replaces the previous one */
 export const INJECTION_TOAST_GROUP = 'inject';
