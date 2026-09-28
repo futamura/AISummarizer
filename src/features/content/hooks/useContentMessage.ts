@@ -8,6 +8,8 @@ import {
   EXTRACTION_TOAST_GROUP,
   extractWithProgress,
   getExtractionKind,
+  INJECTION_TOAST_GROUP,
+  injectWithProgress,
 } from '@/features/content/services';
 import { useSettingsStore } from '@/stores';
 import { AI_SERVICE_QUERY_KEY, ArticleExtractionResult, ArticleInjectionResult, getAIServiceForUrl, Message, MessageAction, MessageResponse } from '@/types';
@@ -118,19 +120,30 @@ export const useContentMessage = () => {
             }
             handledInjectionArticleIds.add(String(message.payload.article.id));
 
-            createPrompt(service, useSettingsStore.getState(), message.payload.article)
-              .then(async prompt => {
+            /* Building the prompt and reading the model run inside, so that their failures get a toast too */
+            injectWithProgress(
+              async onStage => {
+                const prompt = await createPrompt(service, useSettingsStore.getState(), message.payload.article);
                 /* Read the model via the async getter, which goes to chrome.storage: the store snapshot of the content script is taken before hydration */
                 const model = await useSettingsStore.getState().getModelFor(service);
-                injectionService.current.execute(message.payload.tabUrl, prompt, { model }).then((result: ArticleInjectionResult) => {
-                  /** Respond to the content script */
-                  sendResponse({ success: result.success, error: result.error });
-                });
-              })
-              .catch(error => {
-                logger.error('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Failed to get prompt:', error);
-                sendResponse({ success: false, error: new Error('Failed to get prompt') });
-              });
+                return injectionService.current.execute(message.payload.tabUrl, prompt, { model, onStage });
+              },
+              {
+                loading: text => {
+                  toast.loading(text, { group: INJECTION_TOAST_GROUP });
+                },
+                success: text => {
+                  toast.success(text, { group: INJECTION_TOAST_GROUP });
+                },
+                error: text => {
+                  toast.error(text, { group: INJECTION_TOAST_GROUP });
+                },
+              }
+            ).then((result: ArticleInjectionResult) => {
+              if (!result.success) logger.error('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Failed to inject article:', result.error);
+              /** Respond to the service worker */
+              sendResponse({ success: result.success, error: result.error });
+            });
           } catch (error: any) {
             logger.error('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Failed to inject article:', error);
             sendResponse({ success: false, error: error instanceof Error ? error : new Error('Failed to inject article') });
