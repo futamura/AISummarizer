@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { loadFixture } from '@/features/content/__fixtures__';
 import { injectChatGPT, MAX_PROMPT_CHARS, truncateForChatGPT } from '@/features/content/injectors/ChatGPT';
 
 const PROMPT = 'Summarize the following article.\n\nArticle body.';
@@ -17,7 +18,6 @@ describe('injectChatGPT', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-    document.body.innerHTML = '';
   });
 
   const run = async () => {
@@ -26,21 +26,31 @@ describe('injectChatGPT', () => {
     return result;
   };
 
-  /* Composer markup as observed on chatgpt.com (2026-09-20): the send button carries aria-disabled until the app sees the text */
-  const mountProseMirror = (submitAttributes: string) => {
-    document.body.innerHTML = `<form><div id="prompt-textarea" class="ProseMirror" contenteditable="true"></div><button id="composer-submit-button" data-testid="send-button" ${submitAttributes}></button></form>`;
+  /* Stop the click from submitting the form, which jsdom does not implement */
+  const watchClicks = (button: Element) => {
+    const onClick = jest.fn((event: Event) => event.preventDefault());
+    button.addEventListener('click', onClick);
+    return onClick;
+  };
+
+  /*
+   * The signed-in composer of chatgpt.com, captured with text typed in so that the send button
+   * exists; it carries aria-disabled until the app sees the text
+   */
+  const mountSignedIn = (ariaDisabled: 'true' | 'false') => {
+    loadFixture('chatgpt-composer');
+    const submit = document.querySelector('#composer-submit-button')!;
+    submit.setAttribute('aria-disabled', ariaDisabled);
     const editor = document.querySelector('#prompt-textarea')!;
     const onEnter = jest.fn();
     editor.addEventListener('keydown', event => {
       if ((event as KeyboardEvent).key === 'Enter') onEnter();
     });
-    const onClick = jest.fn();
-    document.querySelector('button')!.addEventListener('click', onClick);
-    return { editor, onEnter, onClick };
+    return { submit, onEnter, onClick: watchClicks(submit) };
   };
 
   it('reports pasting, then sending', async () => {
-    mountProseMirror('aria-disabled="false"');
+    mountSignedIn('false');
     const onStage = jest.fn();
 
     const result = injectChatGPT(PROMPT, { onStage });
@@ -51,7 +61,7 @@ describe('injectChatGPT', () => {
   });
 
   it('types the prompt through execCommand so the editor state follows the DOM', async () => {
-    mountProseMirror('aria-disabled="false"');
+    mountSignedIn('false');
 
     await run();
 
@@ -59,7 +69,7 @@ describe('injectChatGPT', () => {
   });
 
   it('clicks the send button once it is enabled', async () => {
-    const { onClick, onEnter } = mountProseMirror('aria-disabled="false"');
+    const { onClick, onEnter } = mountSignedIn('false');
 
     await expect(run()).resolves.toEqual({ success: true });
 
@@ -68,9 +78,9 @@ describe('injectChatGPT', () => {
   });
 
   it('waits for aria-disabled to clear before clicking', async () => {
-    const { onClick } = mountProseMirror('aria-disabled="true"');
+    const { submit, onClick } = mountSignedIn('true');
     /* chatgpt.com drops a click on an aria-disabled button, so the article would stay in the composer */
-    setTimeout(() => document.querySelector('button')!.setAttribute('aria-disabled', 'false'), 1500);
+    setTimeout(() => submit.setAttribute('aria-disabled', 'false'), 1500);
 
     await expect(run()).resolves.toEqual({ success: true });
 
@@ -78,7 +88,7 @@ describe('injectChatGPT', () => {
   });
 
   it('falls back to Enter when the send button stays disabled', async () => {
-    const { onClick, onEnter } = mountProseMirror('aria-disabled="true"');
+    const { onClick, onEnter } = mountSignedIn('true');
 
     await run();
 
@@ -101,7 +111,7 @@ describe('injectChatGPT', () => {
   });
 
   it('types the cut prompt rather than the original', async () => {
-    mountProseMirror('aria-disabled="false"');
+    mountSignedIn('false');
     const long = 'a'.repeat(MAX_PROMPT_CHARS + 1000);
 
     const result = injectChatGPT(long);
@@ -112,10 +122,10 @@ describe('injectChatGPT', () => {
   });
 
   it('keeps using the native value setter for the guest textarea composer', async () => {
-    document.body.innerHTML = '<form><textarea name="prompt"></textarea><button aria-label="Send message"></button></form>';
-    const textarea = document.querySelector('textarea')!;
-    const onClick = jest.fn();
-    document.querySelector('button')!.addEventListener('click', onClick);
+    /* The signed-out composer of chatgpt.com, captured in a private window */
+    loadFixture('chatgpt-guest-composer');
+    const textarea = document.querySelector<HTMLTextAreaElement>('form textarea[name="prompt"]')!;
+    const onClick = watchClicks(document.querySelector('form button[aria-label="Send message"]')!);
 
     await expect(run()).resolves.toEqual({ success: true });
 

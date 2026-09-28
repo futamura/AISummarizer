@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { loadFixture } from '@/features/content/__fixtures__';
 import { injectGrok } from '@/features/content/injectors/Grok';
 
 const PROMPT = 'Summarize the following article.\n\nArticle body.';
@@ -17,7 +18,6 @@ describe('injectGrok', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-    document.body.innerHTML = '';
   });
 
   const run = async () => {
@@ -33,8 +33,12 @@ describe('injectGrok', () => {
     return onClick;
   };
 
+  /*
+   * grok.com serves either composer, varying between page loads (desktop and Android); both were
+   * captured with text typed in so that Submit replaces the voice mode button
+   */
   it('reports pasting, then sending', async () => {
-    document.body.innerHTML = '<form><textarea></textarea><button type="submit" aria-label="Submit"></button></form>';
+    loadFixture('grok-textarea-composer');
     watchSubmitClicks();
     const onStage = jest.fn();
 
@@ -46,6 +50,8 @@ describe('injectGrok', () => {
   });
 
   it('reports no sending when the editor is missing', async () => {
+    loadFixture('grok-textarea-composer');
+    document.querySelector('form textarea')!.remove();
     const onStage = jest.fn();
 
     const result = injectGrok(PROMPT, { onStage });
@@ -56,11 +62,10 @@ describe('injectGrok', () => {
   });
 
   it('fills the composer textarea and clicks Submit', async () => {
-    /* grok.com as of 2026-09-13 (desktop and Android): a React textarea in the form, plus an aria-hidden autosize shadow outside it */
-    document.body.innerHTML =
-      '<form><textarea aria-label="Ask Grok anything"></textarea><button type="submit" aria-label="Submit"></button></form>' +
-      '<textarea aria-hidden="true" tabindex="-1"></textarea>';
-    const [composer, shadow] = Array.from(document.querySelectorAll('textarea'));
+    /* The composer textarea sits in the form; an aria-hidden autosize shadow textarea sits outside it */
+    loadFixture('grok-textarea-composer');
+    const composer = document.querySelector<HTMLTextAreaElement>('form textarea')!;
+    const shadow = document.querySelector<HTMLTextAreaElement>('body > textarea[aria-hidden="true"]')!;
     const onInput = jest.fn();
     composer.addEventListener('input', onInput);
     const onSubmitClick = watchSubmitClicks();
@@ -74,7 +79,7 @@ describe('injectGrok', () => {
   });
 
   it('fills the Tiptap editor and clicks Submit', async () => {
-    document.body.innerHTML = '<form><div class="tiptap ProseMirror" contenteditable="true"></div><button type="submit" aria-label="Submit"></button></form>';
+    loadFixture('grok-tiptap-composer');
     const onSubmitClick = watchSubmitClicks();
 
     await expect(run()).resolves.toEqual({ success: true });
