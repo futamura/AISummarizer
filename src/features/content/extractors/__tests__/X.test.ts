@@ -1,9 +1,10 @@
 /**
  * @jest-environment jsdom
  */
+import { loadFixture } from '@/features/content/__fixtures__';
 import { extractX, isXStatusUrl } from '@/features/content/extractors/X';
 
-/* Markup trimmed down from live post pages of X, keeping the attributes the extractor relies on */
+/* Markup trimmed down from live post pages of X, for the cases the captured fixtures do not cover */
 const post = ({ handle, name, text, time, main = false }: { handle: string; name: string; text: string; time: string; main?: boolean }) => `
   <article data-testid="tweet" tabindex="${main ? '-1' : '0'}">
     <div data-testid="User-Name"><span>${name}</span><span>${handle}</span></div>
@@ -76,18 +77,24 @@ describe('extractX', () => {
     return result;
   };
 
-  it('extracts the main post and leaves out replies from other users', async () => {
-    document.body.innerHTML = [
-      post({ handle: '@main_author', name: 'Main Author', text: 'Main post body.', time: '2026-09-20T13:18:57.000Z', main: true }),
-      post({ handle: '@someone_else', name: 'Someone Else', text: 'A reply.', time: '2026-09-20T13:30:00.000Z' }),
-    ].join('');
+  it('extracts a captured post with its self reply and leaves out the other replies and the translation', async () => {
+    loadFixture('x-post');
 
     const result = await run();
 
     expect(result.isSuccess).toBe(true);
-    expect(result.title).toBe('Main Author (@main_author): Main post body.');
-    expect(result.content).toBe('Main Author (@main_author) · 2026-09-20T13:18:57.000Z\nMain post body.');
-    expect(result.content).not.toContain('A reply.');
+    expect(result.title).toBe('Developers (@XDevelopers): X Livestream API has been rebuilt from the ground up. Your entire broadcast life…');
+    expect(result.content).toBe(
+      [
+        'Developers (@XDevelopers) · 2026-09-22T23:06:31.000Z',
+        'X Livestream API has been rebuilt from the ground up.',
+        'Your entire broadcast lifecycle on X can now be powered by our AP…',
+        'Developers (@XDevelopers) · 2026-09-22T23:06:32.000Z',
+        'Check out our official docs here:',
+      ].join('\n')
+    );
+    /* X shows a machine translation under the post for the signed-in user's language */
+    expect(result.content).not.toContain('ゼロから');
   });
 
   it('keeps the posts of a self thread around the main post', async () => {
@@ -123,6 +130,19 @@ describe('extractX', () => {
         '> Quoted post body.',
       ].join('\n')
     );
+  });
+
+  it('extracts a captured long-form post with its title, author and paragraphs', async () => {
+    loadFixture('x-article');
+
+    const result = await run();
+
+    expect(result.isSuccess).toBe(true);
+    expect(result.title).toBe('X achieves TAG Brand Safety Certification');
+    expect(result.content).toMatch(/^X achieves TAG Brand Safety Certification\nSafety \(@Safety\)\nOver the past 18 months, /);
+    expect(result.content).toContain('\nFor our customers, we have deployed every single brand control');
+    /* Engagement counts and the upgrade prompt of the read view are interface, not content */
+    expect(result.content).not.toMatch(/プレミアム|件の表示/);
   });
 
   it('extracts a long-form post with its block structure', async () => {

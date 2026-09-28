@@ -1,4 +1,9 @@
-import { formatTime, groupTranscriptSegments, parseTimestamp } from '../Youtube';
+/**
+ * @jest-environment jsdom
+ */
+import { loadFixture } from '@/features/content/__fixtures__';
+
+import { extractYoutube, formatTime, groupTranscriptSegments, parseTimestamp } from '../Youtube';
 
 describe('parseTimestamp', () => {
   it('parses MM:SS format', () => {
@@ -50,5 +55,61 @@ describe('groupTranscriptSegments', () => {
 
   it('returns an empty array for no segments', () => {
     expect(groupTranscriptSegments([])).toEqual([]);
+  });
+});
+
+describe('extractYoutube on a captured watch page', () => {
+  const run = async () => {
+    const result = extractYoutube(meta.source);
+    await jest.runAllTimersAsync();
+    return result;
+  };
+
+  let meta: ReturnType<typeof loadFixture>;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    /* Captured with the transcript panel open, so the button click is a no-op in jsdom */
+    meta = loadFixture('youtube-watch');
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('extracts the title and the transcript grouped by minute with timestamp links', async () => {
+    const result = await run();
+
+    expect(result.isSuccess).toBe(true);
+    expect(result.title).toBe('Me at the zoo');
+    expect(result.content).toBe(
+      '[0:01](https://youtu.be/jNQXAC9IVRw?t=1s) All right, so here we are, in front of the elephants the cool thing about these guys is that they have really... ' +
+        "really really long trunks and that's cool (baaaaaaaaaaahhh!!) and that's pretty much all there is to say"
+    );
+  });
+
+  it('hides the transcript panel after extraction', async () => {
+    await run();
+
+    const panel = document.querySelector('transcript-segment-view-model')?.closest('ytd-engagement-panel-section-list-renderer');
+    expect(panel?.getAttribute('visibility')).toBe('ENGAGEMENT_PANEL_VISIBILITY_HIDDEN');
+  });
+
+  it('fails when the transcript button is missing', async () => {
+    document.querySelector('ytd-video-description-transcript-section-renderer')?.remove();
+
+    const result = await run();
+
+    expect(result.isSuccess).toBe(false);
+    expect(result.error?.message).toBe('Transcript button not found');
+  });
+
+  it('fails when no transcript segment is rendered', async () => {
+    document.querySelectorAll('transcript-segment-view-model').forEach(segment => segment.remove());
+
+    const result = await run();
+
+    expect(result.isSuccess).toBe(false);
+    expect(result.error?.message).toBe('Transcript segments not found');
   });
 });
