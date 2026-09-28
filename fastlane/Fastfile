@@ -84,6 +84,12 @@ lane :type_check do
   sh("pnpm type-check")
 end
 
+desc "Run unit tests"
+lane :unit_test do
+  ensure_develop_branch
+  sh("pnpm test")
+end
+
 desc "Bump version number"
 lane :bump_version do
   ensure_develop_branch
@@ -272,6 +278,9 @@ lane :release do
 
   # Check type
   type_check
+
+  # Run unit tests; a failure stops the lane before commit and tag
+  unit_test
 
   # Check security
   security_check
