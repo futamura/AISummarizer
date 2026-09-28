@@ -2,7 +2,7 @@ import clsx from 'clsx';
 
 import React, { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 
-import { IoCheckmarkCircle, IoClose, IoCloseCircle, IoInformationCircle, IoWarning } from 'react-icons/io5';
+import { IoCheckmarkCircle, IoCloseCircle, IoInformationCircle, IoWarning } from 'react-icons/io5';
 
 import { computeToastOffsets, ToastItem, ToastOptions, ToastQueue, ToastType } from '@/features/content/services/ToastQueue';
 
@@ -88,7 +88,21 @@ const ToastCard: React.FC<ToastCardProps> = ({ item, offset, onMeasure }) => {
               TYPE_CLASSES[item.type]
             )}
           >
-            <IoClose className="w-[12px] h-[12px]" />
+            {/* The thin stroked cross of sonner; the filled IoClose looked heavier and pushed out of the button */}
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         )}
         <span className="flex items-center justify-center shrink-0 w-[20px] h-[20px]">
