@@ -33,6 +33,28 @@ describe('injectGrok', () => {
     return onClick;
   };
 
+  it('reports pasting, then sending', async () => {
+    document.body.innerHTML = '<form><textarea></textarea><button type="submit" aria-label="Submit"></button></form>';
+    watchSubmitClicks();
+    const onStage = jest.fn();
+
+    const result = injectGrok(PROMPT, { onStage });
+    await jest.runAllTimersAsync();
+    await result;
+
+    expect(onStage.mock.calls.map(([stage]) => stage)).toEqual(['pasting', 'sending']);
+  });
+
+  it('reports no sending when the editor is missing', async () => {
+    const onStage = jest.fn();
+
+    const result = injectGrok(PROMPT, { onStage });
+    await jest.runAllTimersAsync();
+
+    await expect(result).resolves.toMatchObject({ success: false });
+    expect(onStage.mock.calls.map(([stage]) => stage)).toEqual(['pasting']);
+  });
+
   it('fills the composer textarea and clicks Submit', async () => {
     /* grok.com as of 2026-09-13 (desktop and Android): a React textarea in the form, plus an aria-hidden autosize shadow outside it */
     document.body.innerHTML =

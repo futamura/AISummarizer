@@ -122,7 +122,7 @@ export const useContentMessage = () => {
               .then(async prompt => {
                 /* Read the model via the async getter, which goes to chrome.storage: the store snapshot of the content script is taken before hydration */
                 const model = await useSettingsStore.getState().getModelFor(service);
-                injectionService.current.execute(message.payload.tabUrl, prompt, model).then((result: ArticleInjectionResult) => {
+                injectionService.current.execute(message.payload.tabUrl, prompt, { model }).then((result: ArticleInjectionResult) => {
                   /** Respond to the content script */
                   sendResponse({ success: result.success, error: result.error });
                 });

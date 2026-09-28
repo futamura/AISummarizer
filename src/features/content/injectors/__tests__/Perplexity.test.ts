@@ -62,6 +62,17 @@ describe('injectPerplexity', () => {
     return onClick;
   };
 
+  it('reports pasting, then sending', async () => {
+    watchSubmitClicks();
+    const onStage = jest.fn();
+
+    const result = injectPerplexity(PROMPT, { onStage });
+    await jest.runAllTimersAsync();
+    await result;
+
+    expect(onStage.mock.calls.map(([stage]) => stage)).toEqual(['pasting', 'sending']);
+  });
+
   it('keeps the pasted text when the editor accepts the paste', async () => {
     /* Lexical renders each pasted line as its own paragraph, so textContent loses the line breaks */
     editor().addEventListener('paste', event => {

@@ -1,7 +1,9 @@
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
-export async function injectGrok(prompt: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectGrok(prompt: string, { onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
+    onStage('pasting');
     logger.debug('📕', '[Grok.tsx]', '[injectGrok]', 'Injecting article into Grok', prompt);
 
     /**
@@ -27,6 +29,7 @@ export async function injectGrok(prompt: string): Promise<{ success: boolean; er
     } else {
       throw new Error('Grok editor is not an HTML element');
     }
+    onStage('sending');
 
     /** Wait for 1 to 1.5 seconds */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
