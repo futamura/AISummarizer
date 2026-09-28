@@ -88,6 +88,7 @@ Two stages: local Fastlane, then CI triggered by the version tag.
    - Runs prettier / eslint / type-check / `pnpm audit --audit-level high`
    - Production build, then zips `dist/prod` into `free-ai-summarizer-<version>.zip`
    - Also builds and zips the Firefox version (`free-ai-summarizer-firefox-<version>.zip`) so Firefox-only build failures surface before tagging
+   - Rebuilds `dist/dev` and `dist/firefox-dev` once (`build_dev` lane, no watch) so the unpacked dev builds show the new version
    - Commits `feat: bump version to <version>`, tags `v<version>` (recreating the tag if it already exists), then pushes with tags
    - Merges `develop` into `main` and pushes
 2. Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`:

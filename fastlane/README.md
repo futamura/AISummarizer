@@ -19,7 +19,7 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 [bundle exec] fastlane build_dev
 ```
 
-Build extension in development mode
+Build extension in development mode for Chrome and Firefox (one-off, no watch)
 
 ### build
 
