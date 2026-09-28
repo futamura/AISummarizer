@@ -60,7 +60,7 @@ export const useContentMessage = () => {
         case MessageAction.EXTRACT_ARTICLE:
           /* extractWithProgress never rejects: a failure comes back as isSuccess: false after its toast */
           extractWithProgress(() => extractionService.current.execute(message.payload.tabUrl), {
-            showProgress: () => toast.info('Extracting…', { persistent: true }),
+            showProgress: () => toast.loading('Extracting…'),
             dismissProgress: (id: string) => toast.dismiss(id),
             showFailure: () => toast.error("Couldn't extract the content of this page"),
           }).then((article: ArticleExtractionResult) => {

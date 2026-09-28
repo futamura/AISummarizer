@@ -226,7 +226,7 @@ export const OptionsMain: React.FC = () => {
 
   return (
     <>
-      <Toaster position="top-center" duration={3000} />
+      <Toaster />
       <div className="min-h-screen p-4 bg-white dark:bg-zinc-900">
         <div className="mx-auto max-w-3xl">
           {/* Header */}

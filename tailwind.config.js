@@ -4,6 +4,15 @@ export default {
   darkMode: 'media',
   theme: {
     extend: {
+      keyframes: {
+        'toast-enter': {
+          from: { opacity: '0', transform: 'translateY(-100%)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'toast-enter': 'toast-enter 400ms ease',
+      },
       fontSize: {
         xs: '0.5rem !important', // 8px
         sm: '0.625rem !important', // 10px

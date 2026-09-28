@@ -1,7 +1,7 @@
 # Toast Redesign and Progress Stages Design
 
 Date: 2026-09-28
-Status: Draft
+Status: Approved (2026-09-28)
 Issue: FUT-150
 
 ## Purpose
@@ -62,7 +62,7 @@ toast.dismiss(id)
 ```
 
 - `ToastOptions.persistent` is removed; `loading` replaces it
-- The `duration` prop of `Toaster` is removed; durations are per type. `position` stays
+- `Toaster` takes no props: `duration` gives way to per-type durations, and `position` goes because both call sites use top-center
 
 Behavior:
 
@@ -90,20 +90,20 @@ Structure:
 | pdf | Extracting PDF… | Couldn't read this PDF |
 | x | Extracting post… | Couldn't extract this post |
 
-- `ExtractionProgress`: the toast callbacks take the kind: `showProgress(kind)`, `dismissProgress(id)`, `showFailure(kind)`. The 0.5 s delay before the progress toast, and turning an exception into a failed result, stay
+- `ExtractionProgress` is unchanged: `useContentMessage` picks the messages by kind and passes closures that show them
 - `useContentMessage` shows both with `group: 'extract'`, so a failure replaces a visible progress toast. A success dismisses the progress toast and shows nothing
 - "Article copied to clipboard" is unchanged apart from the new look
 
 ### Injection (the AI service page)
 
 - New types in `src/types/`: `InjectionStage = 'selectingModel' | 'pasting' | 'sending'`, `StageReporter = (stage: InjectionStage) => void`
-- Every injector takes an optional `onStage: StageReporter` (default: no-op) and reports:
+- Every injector takes an options object `InjectOptions = { model?: string; onStage?: StageReporter }` (`onStage` defaults to a no-op) and reports:
 
 | Injector | `selectingModel` | `pasting` | `sending` |
 |---|---|---|---|
-| Gemini, DeepSeek, Kimi, Qwen | At the start, when a model is given (Kimi's initial 2–3 s wait falls here) | After model selection, or at the start when no model is given | Before waiting for the send button |
-| ChatGPT, Claude, Grok, Perplexity | — | At the start | Before waiting for the send button |
-| AI Studio | — (thinking level and URL context are not model selection) | At the start, covering those settings | Before waiting for the send button |
+| Gemini, DeepSeek, Kimi, Qwen | At the start, when a model is given (the initial 2–3 s wait of DeepSeek, Kimi and Qwen falls in the first stage) | After model selection, or at the start when no model is given | Right after the text is inserted |
+| ChatGPT, Claude, Grok, Perplexity | — | At the start | Right after the text is inserted |
+| AI Studio | — (thinking level and URL context are not model selection) | At the start, covering those settings | Right after the text is inserted |
 
 - `ArticleInjectionService.execute(serviceUrl, prompt, model, onStage)` passes it through
 - New `src/features/content/services/InjectionProgress.ts`, pure like `ExtractionProgress`: `injectWithProgress(inject, toasts)`
@@ -119,8 +119,8 @@ Unit tests (jest, `node` environment, fake timers):
 - New `ToastQueue` tests: 0.6 s minimum within a group, several pending toasts in a group, durations (3 s timed, error and loading stay), dismiss while queued / entering / visible, at most 3 ungrouped
 - New `InjectionProgress` tests: stage to message, failure message by last stage, exception as failure, success
 - New `getExtractionKind` tests: the four kinds and mobile YouTube
-- Update `ExtractionProgress` tests for the kind argument
-- Extend the six existing injector tests to assert the order of `onStage` calls
+- `ExtractionProgress` tests stay as they are
+- Assert the order of `onStage` calls for all nine injectors (new jsdom tests for DeepSeek, Qwen and AI Studio)
 
 Checks: `pnpm test`, `pnpm type-check`, `pnpm eslint-check`, `pnpm prettier-check`, `pnpm build`, `pnpm build:firefox`.
 
