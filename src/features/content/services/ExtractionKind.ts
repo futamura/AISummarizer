@@ -18,8 +18,8 @@ export const getExtractionKind = (url: string): ExtractionKind => {
 };
 
 export const EXTRACTION_MESSAGES: Record<ExtractionKind, { progress: string; failure: string }> = {
-  webpage: { progress: 'Extracting article…', failure: "Couldn't extract the article from this page" },
-  youtube: { progress: 'Extracting transcript…', failure: "Couldn't get the transcript of this video" },
+  webpage: { progress: 'Extracting article…', failure: "Couldn't extract this article" },
+  youtube: { progress: 'Extracting transcript…', failure: "Couldn't get this transcript" },
   pdf: { progress: 'Extracting PDF…', failure: "Couldn't read this PDF" },
   x: { progress: 'Extracting post…', failure: "Couldn't extract this post" },
 };
