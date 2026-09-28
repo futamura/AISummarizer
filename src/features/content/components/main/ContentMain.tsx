@@ -6,5 +6,5 @@ export const ContentMain: React.FC = () => {
   /**
    * Render the component
    */
-  return <Toaster position="top-center" duration={2000} />;
+  return <Toaster />;
 };
