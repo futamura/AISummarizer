@@ -1,8 +1,10 @@
 import { insertEditorText } from '@/platform';
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
-export async function injectClaude(prompt: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectClaude(prompt: string, { onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
+    onStage('pasting');
     logger.debug('📕', '[Claude.tsx]', '[injectClaude]', 'Injecting article into Claude', prompt);
 
     /** Wait for the editor to be found */
@@ -20,6 +22,7 @@ export async function injectClaude(prompt: string): Promise<{ success: boolean; 
     document.execCommand('selectAll', false);
     document.execCommand('delete', false);
     insertEditorText(prompt);
+    onStage('sending');
 
     /** Wait for 1.5 to 2 seconds */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1500, 2000)));

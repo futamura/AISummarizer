@@ -1,3 +1,4 @@
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
@@ -27,15 +28,19 @@ async function selectQwenModel(model: string): Promise<void> {
   }
 }
 
-export async function injectQwen(prompt: string, model?: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectQwen(prompt: string, { model, onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[Qwen.tsx]', '[injectQwen]', 'Injecting article into Qwen\n', prompt);
+    onStage(model ? 'selectingModel' : 'pasting');
 
     /** Wait for 2 to 3 seconds to ensure page is fully loaded */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
 
     /* Select the configured model first; failures are non-fatal */
-    if (model) await selectQwenModel(model);
+    if (model) {
+      await selectQwenModel(model);
+      onStage('pasting');
+    }
 
     /** Wait for the editor to be found. The chat box is the sole textarea on the page (verified live 2026-08-08) */
     const editor = await waitForElement('textarea.message-input-textarea, textarea');
@@ -51,6 +56,7 @@ export async function injectQwen(prompt: string, model?: string): Promise<{ succ
     } else {
       throw new Error('Qwen editor is not a textarea element');
     }
+    onStage('sending');
 
     /** Wait for 1 to 1.5 seconds */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));

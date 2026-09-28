@@ -1,4 +1,5 @@
 import { insertEditorText } from '@/platform';
+import { InjectOptions, noopStageReporter } from '@/types';
 import { logger, waitForElement } from '@/utils';
 
 /*
@@ -57,8 +58,9 @@ const waitForEnabledSubmit = async (maxAttempts = 20, intervalMs = 500): Promise
   return button;
 };
 
-export async function injectChatGPT(promptText: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectChatGPT(promptText: string, { onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
+    onStage('pasting');
     const prompt = truncateForChatGPT(promptText);
     logger.debug('📕', '[ChatGPT.tsx]', '[injectChatGPT]', 'Injecting article into ChatGPT', prompt.length, 'of', promptText.length, 'characters');
 
@@ -90,6 +92,7 @@ export async function injectChatGPT(promptText: string): Promise<{ success: bool
       document.execCommand('delete', false);
       insertEditorText(prompt);
     }
+    onStage('sending');
 
     /** Wait for the submit button to accept a click */
     const submitButton = await waitForEnabledSubmit();
