@@ -36,6 +36,17 @@ describe('injectClaude', () => {
     return { onEnter };
   };
 
+  it('reports pasting, then sending', async () => {
+    mount('<button data-testid="chat-input-send"></button>');
+    const onStage = jest.fn();
+
+    const result = injectClaude(PROMPT, { onStage });
+    await jest.runAllTimersAsync();
+    await result;
+
+    expect(onStage.mock.calls.map(([stage]) => stage)).toEqual(['pasting', 'sending']);
+  });
+
   it('types the prompt through execCommand', async () => {
     mount('<button data-testid="chat-input-send"></button>');
 

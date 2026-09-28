@@ -1,138 +1,136 @@
 import clsx from 'clsx';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { IoCheckmarkCircle, IoCloseCircle, IoInformationCircle, IoWarning } from 'react-icons/io5';
 
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
+import { computeToastOffsets, ToastItem, ToastOptions, ToastQueue, ToastType } from '@/features/content/services/ToastQueue';
 
-export interface Toast {
-  id: string;
-  type: ToastType;
-  message: string;
-  visible: boolean;
+export type { ToastOptions, ToastType };
+
+/* One queue per extension context: the content script of a page, or the options page */
+const toastQueue = new ToastQueue();
+
+export const toast = {
+  success: (message: string, options?: ToastOptions) => toastQueue.show('success', message, options),
+  error: (message: string, options?: ToastOptions) => toastQueue.show('error', message, options),
+  info: (message: string, options?: ToastOptions) => toastQueue.show('info', message, options),
+  warning: (message: string, options?: ToastOptions) => toastQueue.show('warning', message, options),
+  loading: (message: string, options?: ToastOptions) => toastQueue.show('loading', message, options),
+  dismiss: (id: string) => toastQueue.dismiss(id),
+};
+
+/* sonner richColors; sizes in px so that neither the page root font size nor the 12px Chromium injects into extension pages scales them */
+const TYPE_CLASSES: Record<ToastType, string> = {
+  success:
+    'bg-[hsl(143,85%,96%)] border-[hsl(145,92%,87%)] text-[hsl(140,100%,27%)] dark:bg-[hsl(150,100%,6%)] dark:border-[hsl(147,100%,12%)] dark:text-[hsl(150,86%,65%)]',
+  info: 'bg-[hsl(208,100%,97%)] border-[hsl(221,91%,93%)] text-[hsl(210,92%,45%)] dark:bg-[hsl(215,100%,6%)] dark:border-[hsl(223,43%,17%)] dark:text-[hsl(216,87%,65%)]',
+  loading:
+    'bg-[hsl(208,100%,97%)] border-[hsl(221,91%,93%)] text-[hsl(210,92%,45%)] dark:bg-[hsl(215,100%,6%)] dark:border-[hsl(223,43%,17%)] dark:text-[hsl(216,87%,65%)]',
+  warning:
+    'bg-[hsl(49,100%,97%)] border-[hsl(49,91%,84%)] text-[hsl(31,92%,45%)] dark:bg-[hsl(64,100%,6%)] dark:border-[hsl(60,100%,9%)] dark:text-[hsl(46,87%,65%)]',
+  error:
+    'bg-[hsl(359,100%,97%)] border-[hsl(359,100%,94%)] text-[hsl(360,100%,45%)] dark:bg-[hsl(358,76%,10%)] dark:border-[hsl(357,89%,16%)] dark:text-[hsl(358,100%,81%)]',
+};
+
+const ToastIcon: React.FC<{ type: ToastType }> = ({ type }) => {
+  switch (type) {
+    case 'success':
+      return <IoCheckmarkCircle className="w-[20px] h-[20px]" />;
+    case 'error':
+      return <IoCloseCircle className="w-[20px] h-[20px]" />;
+    case 'info':
+      return <IoInformationCircle className="w-[20px] h-[20px]" />;
+    case 'warning':
+      return <IoWarning className="w-[20px] h-[20px]" />;
+    case 'loading':
+      return <span className="block w-[16px] h-[16px] rounded-full border-[2px] border-solid border-current border-r-transparent opacity-60 animate-spin" />;
+  }
+};
+
+interface ToastCardProps {
+  item: ToastItem;
+  offset: number;
+  onMeasure: (id: string, height: number) => void;
 }
 
-interface ToasterProps {
-  position?: 'top-center' | 'top-left' | 'top-right' | 'bottom-center' | 'bottom-left' | 'bottom-right';
-  duration?: number;
-}
+const ToastCard: React.FC<ToastCardProps> = ({ item, offset, onMeasure }) => {
+  const ref = useRef<HTMLDivElement>(null);
 
-export interface ToastOptions {
-  /* Keep the toast until toast.dismiss() is called with the id it returned */
-  persistent?: boolean;
-}
-
-interface ToastEventDetail {
-  id: string;
-  type: ToastType;
-  message: string;
-  persistent: boolean;
-}
-
-/* A counter rather than crypto.randomUUID(), which is missing on non-secure (http) pages */
-let lastToastId = 0;
-
-export const Toaster: React.FC<ToasterProps> = ({ position = 'top-center', duration = 2000 }) => {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  useEffect(() => {
-    const hideToast = (id: string) => {
-      setToasts(prev => prev.map(toast => (toast.id === id ? { ...toast, visible: false } : toast)));
-      setTimeout(() => {
-        setToasts(prev => prev.filter(toast => toast.id !== id));
-      }, 300);
-    };
-
-    const handleToast = (event: CustomEvent<ToastEventDetail>) => {
-      const { id, type, message, persistent } = event.detail;
-      setToasts(prev => [...prev, { id, type, message, visible: false }]);
-
-      /* Delay for the fade-in */
-      requestAnimationFrame(() => {
-        setToasts(prev => prev.map(toast => (toast.id === id ? { ...toast, visible: true } : toast)));
-      });
-
-      /* A persistent toast stays until toast.dismiss() */
-      if (!persistent) setTimeout(() => hideToast(id), duration);
-    };
-
-    const handleDismiss = (event: CustomEvent<{ id: string }>) => hideToast(event.detail.id);
-
-    window.addEventListener('toast' as any, handleToast as EventListener);
-    window.addEventListener('toast-dismiss' as any, handleDismiss as EventListener);
-    return () => {
-      window.removeEventListener('toast' as any, handleToast as EventListener);
-      window.removeEventListener('toast-dismiss' as any, handleDismiss as EventListener);
-    };
-  }, [duration]);
-
-  const getIcon = (type: ToastType) => {
-    switch (type) {
-      case 'success':
-        return <IoCheckmarkCircle className="w-5 h-5 text-green-500" />;
-      case 'error':
-        return <IoCloseCircle className="w-5 h-5 text-red-500" />;
-      case 'info':
-        return <IoInformationCircle className="w-5 h-5 text-blue-500" />;
-      case 'warning':
-        return <IoWarning className="w-5 h-5 text-yellow-500" />;
-    }
-  };
-
-  const getPositionClasses = () => {
-    switch (position) {
-      case 'top-center':
-        return 'top-4 left-1/2 -translate-x-1/2';
-      case 'top-left':
-        return 'top-4 left-4';
-      case 'top-right':
-        return 'top-4 right-4';
-      case 'bottom-center':
-        return 'bottom-4 left-1/2 -translate-x-1/2';
-      case 'bottom-left':
-        return 'bottom-4 left-4';
-      case 'bottom-right':
-        return 'bottom-4 right-4';
-    }
-  };
+  /* The text never changes, so one measurement before the first paint is enough */
+  useLayoutEffect(() => {
+    if (ref.current) onMeasure(item.id, ref.current.offsetHeight);
+  }, [item.id, onMeasure]);
 
   return (
-    <div className={clsx('fixed z-[777777777777]', getPositionClasses())}>
-      <div className="flex flex-col gap-2">
-        {toasts.map(toast => (
-          <div
-            key={toast.id}
+    <div
+      className="absolute inset-x-0 top-0 transition-transform duration-[400ms] ease-out motion-reduce:transition-none"
+      style={{ transform: `translateY(${offset}px)` }}
+    >
+      <div
+        ref={ref}
+        role={item.type === 'error' ? 'alert' : 'status'}
+        className={clsx(
+          'relative flex items-center gap-[10px] box-border w-full p-[18px] rounded-[8px] border border-solid',
+          'shadow-[0_4px_12px_rgba(0,0,0,0.1)] text-[15px] font-medium leading-[1.5] font-[system-ui,-apple-system,sans-serif] break-words',
+          'pointer-events-auto transition-[opacity,transform] duration-[400ms] motion-reduce:transition-none motion-reduce:animate-none',
+          TYPE_CLASSES[item.type],
+          item.phase === 'exiting' ? 'opacity-0 translate-y-[14px] scale-[0.96]' : 'opacity-100 animate-toast-enter'
+        )}
+      >
+        {item.type === 'error' && (
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => toast.dismiss(item.id)}
             className={clsx(
-              'flex items-center gap-2 ps-3 pe-4 py-2 rounded-full',
-              'text-zinc-900 dark:text-zinc-100',
-              'bg-white dark:bg-zinc-700',
-              'shadow-lg shadow-zinc-300 dark:shadow-zinc-900',
-              'transition-all duration-300 ease-in-out',
-              toast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
+              'absolute -left-[7px] -top-[7px] flex items-center justify-center w-[20px] h-[20px] p-0 rounded-full border border-solid cursor-pointer',
+              TYPE_CLASSES[item.type]
             )}
           >
-            {getIcon(toast.type)}
-            <span>{toast.message}</span>
-          </div>
-        ))}
+            {/* The thin stroked cross of sonner; the filled IoClose looked heavier and pushed out of the button */}
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
+        <span className="flex items-center justify-center shrink-0 w-[20px] h-[20px]">
+          <ToastIcon type={item.type} />
+        </span>
+        <span>{item.message}</span>
       </div>
     </div>
   );
 };
 
-const showToast = (type: ToastType, message: string, options: ToastOptions = {}): string => {
-  const id = String(++lastToastId);
-  window.dispatchEvent(new CustomEvent<ToastEventDetail>('toast', { detail: { id, type, message, persistent: options.persistent ?? false } }));
-  return id;
-};
+export const Toaster: React.FC = () => {
+  const toasts = useSyncExternalStore(toastQueue.subscribe, toastQueue.getToasts);
+  const [heights, setHeights] = useState<Record<string, number>>({});
+  const previousOffsets = useRef<Record<string, number>>({});
 
-export const toast = {
-  success: (message: string, options?: ToastOptions) => showToast('success', message, options),
-  error: (message: string, options?: ToastOptions) => showToast('error', message, options),
-  info: (message: string, options?: ToastOptions) => showToast('info', message, options),
-  warning: (message: string, options?: ToastOptions) => showToast('warning', message, options),
-  dismiss: (id: string) => {
-    window.dispatchEvent(new CustomEvent('toast-dismiss', { detail: { id } }));
-  },
+  const handleMeasure = useCallback((id: string, height: number) => {
+    setHeights(prev => (prev[id] === height ? prev : { ...prev, [id]: height }));
+  }, []);
+
+  const offsets = computeToastOffsets(toasts, heights, previousOffsets.current);
+  previousOffsets.current = offsets;
+
+  return (
+    <div aria-live="polite" className="fixed top-[24px] left-1/2 -translate-x-1/2 w-[356px] max-w-[calc(100vw-32px)] z-[777777777777] pointer-events-none">
+      {toasts.map(item => (
+        <ToastCard key={item.id} item={item} offset={offsets[item.id] ?? 0} onMeasure={handleMeasure} />
+      ))}
+    </div>
+  );
 };

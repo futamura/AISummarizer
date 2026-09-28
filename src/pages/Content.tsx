@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 
 import { ContentMain } from '@/features/content/components/main';
 import { ContentContextProvider } from '@/features/content/contexts/ContentContext';
+import { appendContentStyles } from '@/features/content/services/ContentStyles';
 import { logger } from '@/utils';
 
 logger.debug('📄🥡', '[Content.tsx]', 'Content script loaded');
@@ -17,30 +18,7 @@ const Content: React.FC = () => {
     /** Load globals.css content */
     fetch(chrome.runtime.getURL('globals.css'))
       .then(response => response.text())
-      .then(globalsCss => {
-        /** Create a style element for the shadow DOM */
-        const style = document.createElement('style');
-        style.textContent = `
-          :host {
-            all: initial;
-          }
-          #free-ai-summarizer-root {
-            all: initial;
-            font-family: system-ui, -apple-system, sans-serif;
-          }
-          #free-ai-summarizer-react-root {
-            all: initial;
-            font-family: system-ui, -apple-system, sans-serif;
-          }
-          ${globalsCss}
-        `;
-
-        /** Create a shadow root */
-        const shadowRoot = document.getElementById('free-ai-summarizer-root')?.shadowRoot;
-
-        /** Append elements to the shadow DOM */
-        shadowRoot?.prepend(style);
-      });
+      .then(globalsCss => appendContentStyles(shadowRoot, globalsCss));
   }, []);
 
   /**

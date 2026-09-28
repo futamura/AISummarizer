@@ -1,3 +1,4 @@
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
@@ -45,15 +46,19 @@ export function isPromptResidue(editorText: string | null | undefined, prompt: s
   return normalizedEditor !== normalizedPrompt;
 }
 
-export async function injectKimi(prompt: string, model?: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectKimi(prompt: string, { model, onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[Kimi.tsx]', '[injectKimi]', 'Injecting article into Kimi\n', prompt);
+    onStage(model ? 'selectingModel' : 'pasting');
 
     /** Wait for 2 to 3 seconds to ensure page is fully loaded */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
 
     /* Select the configured model first; failures are non-fatal */
-    if (model) await selectKimiModel(model);
+    if (model) {
+      await selectKimiModel(model);
+      onStage('pasting');
+    }
 
     /** Wait for the editor to be found. The chat box is a Lexical contenteditable div (verified live 2026-08-08) */
     const editor = await waitForElement('div[contenteditable="true"][data-lexical-editor="true"]');
@@ -68,6 +73,7 @@ export async function injectKimi(prompt: string, model?: string): Promise<{ succ
     if (!(editor instanceof HTMLElement)) throw new Error('Kimi editor is not an HTML element');
     editor.focus();
     document.execCommand('insertText', false, prompt);
+    onStage('sending');
 
     /** Wait for 1 to 1.5 seconds */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));

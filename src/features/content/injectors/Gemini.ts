@@ -1,3 +1,4 @@
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
@@ -45,12 +46,16 @@ async function selectGeminiModel(model: string): Promise<void> {
   }
 }
 
-export async function injectGemini(prompt: string, model?: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectGemini(prompt: string, { model, onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[Gemini.tsx]', '[injectGemini]', 'Injecting article into Gemini', prompt);
 
     /* Select the configured model first; failures are non-fatal */
-    if (model) await selectGeminiModel(model);
+    if (model) {
+      onStage('selectingModel');
+      await selectGeminiModel(model);
+    }
+    onStage('pasting');
 
     /** Wait for the editor to be found. Use a structural selector because the aria-label text changes with UI updates and locale */
     const editor = await waitForElement('rich-textarea div.ql-editor[contenteditable="true"]');
@@ -61,6 +66,7 @@ export async function injectGemini(prompt: string, model?: string): Promise<{ su
     const p = editor.querySelector('p') || editor.appendChild(document.createElement('p'));
     p.textContent = prompt;
     editor.dispatchEvent(new Event('input', { bubbles: true }));
+    onStage('sending');
 
     /** Wait for the submit button to be found */
     const submitButton = await waitForElement('button[aria-label="Send message"]');

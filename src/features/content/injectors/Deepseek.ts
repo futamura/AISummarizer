@@ -1,3 +1,4 @@
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
@@ -25,15 +26,19 @@ async function selectDeepSeekModel(model: string): Promise<void> {
   }
 }
 
-export async function injectDeepSeek(prompt: string, model?: string): Promise<{ success: boolean; error?: Error }> {
+export async function injectDeepSeek(prompt: string, { model, onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[DeepSeek.tsx]', '[injectDeepSeek]', 'Injecting article into DeepSeek\n', prompt);
+    onStage(model ? 'selectingModel' : 'pasting');
 
     /** Wait for 2 seconds to ensure page is fully loaded */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
 
     /* Select the configured model first; failures are non-fatal */
-    if (model) await selectDeepSeekModel(model);
+    if (model) {
+      await selectDeepSeekModel(model);
+      onStage('pasting');
+    }
 
     /** Wait for the editor to be found. DeepSeek removed the #chat-input id; the chat box is now the sole textarea on the page */
     const editor = await waitForElement('#chat-input, textarea');
@@ -49,6 +54,7 @@ export async function injectDeepSeek(prompt: string, model?: string): Promise<{ 
     } else {
       throw new Error('DeepSeek editor is not a textarea element');
     }
+    onStage('sending');
 
     /** Wait for 1 to 1.5 seconds */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
