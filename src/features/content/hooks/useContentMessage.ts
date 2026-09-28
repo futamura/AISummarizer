@@ -1,7 +1,14 @@
 import { useEffect, useRef } from 'react';
 
 import { toast } from '@/features/content/components/main';
-import { ArticleExtractionService, ArticleInjectionService, extractWithProgress } from '@/features/content/services';
+import {
+  ArticleExtractionService,
+  ArticleInjectionService,
+  EXTRACTION_MESSAGES,
+  EXTRACTION_TOAST_GROUP,
+  extractWithProgress,
+  getExtractionKind,
+} from '@/features/content/services';
 import { useSettingsStore } from '@/stores';
 import { AI_SERVICE_QUERY_KEY, ArticleExtractionResult, ArticleInjectionResult, getAIServiceForUrl, Message, MessageAction, MessageResponse } from '@/types';
 import { copyToClipboard, createPrompt, logger } from '@/utils';
@@ -57,12 +64,15 @@ export const useContentMessage = () => {
       }
 
       switch (message.action) {
-        case MessageAction.EXTRACT_ARTICLE:
+        case MessageAction.EXTRACT_ARTICLE: {
+          const messages = EXTRACTION_MESSAGES[getExtractionKind(message.payload.tabUrl)];
           /* extractWithProgress never rejects: a failure comes back as isSuccess: false after its toast */
           extractWithProgress(() => extractionService.current.execute(message.payload.tabUrl), {
-            showProgress: () => toast.loading('Extracting…'),
+            showProgress: () => toast.loading(messages.progress, { group: EXTRACTION_TOAST_GROUP }),
             dismissProgress: (id: string) => toast.dismiss(id),
-            showFailure: () => toast.error("Couldn't extract the content of this page"),
+            showFailure: () => {
+              toast.error(messages.failure, { group: EXTRACTION_TOAST_GROUP });
+            },
           }).then((article: ArticleExtractionResult) => {
             /** Respond to the service worker */
             sendResponse({
@@ -75,6 +85,7 @@ export const useContentMessage = () => {
             });
           });
           break;
+        }
 
         case MessageAction.INJECT_ARTICLE:
           try {

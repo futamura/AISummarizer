@@ -1,4 +1,5 @@
-import { extractPDF, extractReadability, extractX, extractYoutube, isXStatusUrl } from '@/features/content/extractors';
+import { extractPDF, extractReadability, extractX, extractYoutube } from '@/features/content/extractors';
+import { getExtractionKind } from '@/features/content/services/ExtractionKind';
 import { ArticleExtractionResult } from '@/types';
 import { getDesktopYoutubeUrl, isInvalidUrl, logger } from '@/utils';
 
@@ -35,10 +36,12 @@ export class ArticleExtractionService {
       };
     }
 
+    const kind = getExtractionKind(url);
+
     /**
      * YouTube
      */
-    if (/^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|shorts\/)?([a-zA-Z0-9_-]{11})/.test(url)) {
+    if (kind === 'youtube') {
       logger.debug('🧑‍🍳📖', '[ArticleExtractionService.tsx]', '[execute]', 'Extracting youtube video');
       try {
         return await extractYoutube(url);
@@ -57,7 +60,7 @@ export class ArticleExtractionService {
     /**
      * PDF
      */
-    if (url.endsWith('.pdf')) {
+    if (kind === 'pdf') {
       logger.debug('🧑‍🍳📖', '[ArticleExtractionService.tsx]', '[execute]', 'Extracting pdf');
       try {
         return await extractPDF(url);
@@ -76,7 +79,7 @@ export class ArticleExtractionService {
     /**
      * X (single post page)
      */
-    if (isXStatusUrl(url)) {
+    if (kind === 'x') {
       logger.debug('🧑‍🍳📖', '[ArticleExtractionService.tsx]', '[execute]', 'Extracting X post');
       try {
         const result = await extractX(document);
