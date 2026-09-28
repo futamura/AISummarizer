@@ -79,13 +79,17 @@ From `.cursor/rules/global.mdc` (binding for this repo):
 - Branch names follow Conventional Commit types: `feat/<name>`, `fix/<name>`, `docs/<name>`, `refactor/<name>`, `chore/<name>`, etc.
 - `main` is the production branch; it is only updated by merging `develop` as part of a release.
 
+### CI
+
+`.github/workflows/ci.yml` runs prettier / eslint / type-check / Jest on every branch push and on pull requests into `develop` / `main`. It uses the `pull_request` trigger with `permissions: contents: read` and no secrets, so fork pull requests run safely; keep it that way (never `pull_request_target`).
+
 ### Release
 
 Two stages: local Fastlane, then CI triggered by the version tag.
 
 1. `bundle exec fastlane release` (must run on `develop`; see `fastlane/Fastfile`):
    - Interactive version bump (patch / minor / major) — updates both `package.json` and `manifest.json`
-   - Runs prettier / eslint / type-check / `pnpm audit --audit-level high`
+   - Runs prettier / eslint / type-check / Jest (`unit_test` lane) / `pnpm audit --audit-level high`; any failure stops the lane before the commit and tag
    - Production build, then zips `dist/prod` into `free-ai-summarizer-<version>.zip`
    - Also builds and zips the Firefox version (`free-ai-summarizer-firefox-<version>.zip`) so Firefox-only build failures surface before tagging
    - Rebuilds `dist/dev` and `dist/firefox-dev` once (`build_dev` lane, no watch) so the unpacked dev builds show the new version
