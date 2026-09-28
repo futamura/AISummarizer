@@ -1,0 +1,46 @@
+# Page fixtures
+
+Injector and extractor tests run against sanitized snapshots of the live pages they target, stored in `src/features/content/__fixtures__/`. When a site changes its DOM, recapturing the fixture makes the affected tests fail (or pass again after the fix), instead of the tests checking hand-written markup that no longer matches the site.
+
+## What a fixture contains
+
+`capture.js` sanitizes the page inside the browser, so the raw HTML never leaves it:
+
+- `<head>`, scripts, styles, media, iframes, hidden inputs, comments and SVG paths are removed
+- Outside the fixture's "keep" regions (the composer, the post, the transcript panel, …), all text is removed and only structural attributes (`id`, `class`, `role`, `data-testid`, …) remain. This drops account names, avatars and conversation history
+- Inside the keep regions, text and most attributes remain, except URLs and inline styles. Texts longer than 200 characters are cut to a 120-character excerpt
+- Emails, UUIDs, JWTs, long token-like strings and site-specific account identifiers (such as X's `UserAvatar-Container-<handle>`) are replaced with `REDACTED`
+
+The first line records the fixture name, the source URL and the capture date:
+
+```html
+<!-- fixture: claude-composer | source: https://claude.ai/new | captured: 2026-09-28 | sanitized by scripts/fixtures/capture.js -->
+```
+
+## Capturing
+
+Use a browser profile that is signed in where the page requires it. Nothing is sent: composers are filled with a placeholder so their send buttons render, then cleared.
+
+1. Open the page listed for the fixture in `FIXTURES` in `capture.js`. For `youtube-watch`, the transcript panel is opened automatically. For `x-post`, scroll down once so the replies load
+2. Paste the whole of `capture.js` into the DevTools console (or run it through the Claude in Chrome javascript tool)
+3. Run `await captureFixture('<name>')`. It returns how many elements each keep region matched and the size; a keep region with no match throws
+4. Copy the result: in DevTools, `copy(lastFixture)`. When the page is driven remotely, run `armFixtureCopy()` and click an empty spot of the page, then check that `lastFixtureCopy` is `'copied'` (the first click after a navigation is sometimes not delivered; click again)
+5. Save it: `pbpaste > src/features/content/__fixtures__/<name>.html`
+
+To add a fixture, add an entry to `FIXTURES` in `capture.js` and its name to `FixtureName` in `src/features/content/__fixtures__/index.ts`.
+
+## Checking for leaks
+
+`src/features/content/__tests__/Fixtures.test.ts` runs with `pnpm test` (and in CI) and fails on emails, UUIDs, JWTs, token-like strings, scripts, inline styles, URL attributes, unredacted X avatar handles and texts longer than 200 characters.
+
+Account names cannot be listed in the repository, so check them locally before committing a new or updated fixture:
+
+```sh
+FIXTURE_DENYLIST="display name,handle,email local part" pnpm test src/features/content/__tests__/Fixtures.test.ts
+```
+
+Also read the texts that remain, since only the keep regions carry any:
+
+```sh
+grep -oE '>[^<]+<' src/features/content/__fixtures__/<name>.html
+```
