@@ -2,7 +2,21 @@ import { readdirSync, readFileSync } from 'fs';
 import path from 'path';
 
 /* Sanitized snapshots of live pages, captured with scripts/fixtures/capture.js */
-export type FixtureName = 'youtube-watch' | 'x-post' | 'x-article' | 'claude-composer' | 'deepseek-composer';
+export type FixtureName =
+  | 'youtube-watch'
+  | 'x-post'
+  | 'x-article'
+  | 'claude-composer'
+  | 'deepseek-composer'
+  | 'chatgpt-composer'
+  | 'chatgpt-guest-composer'
+  | 'gemini-composer'
+  | 'aistudio-composer'
+  | 'grok-textarea-composer'
+  | 'grok-tiptap-composer'
+  | 'perplexity-composer'
+  | 'kimi-composer'
+  | 'qwen-composer';
 
 export interface FixtureMeta {
   name: string;

@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { loadFixture } from '@/features/content/__fixtures__';
 import { injectKimi, isPromptResidue } from '@/features/content/injectors/Kimi';
 
 /* Multi-paragraph prompt mirroring the article + prompt text injectKimi sends */
@@ -50,25 +51,39 @@ describe('isPromptResidue', () => {
   });
 });
 
-describe('injectKimi stages', () => {
+describe('injectKimi', () => {
+  let execCommand: jest.Mock;
+
   beforeEach(() => {
     jest.useFakeTimers();
+    execCommand = jest.fn(() => true);
     /* jsdom does not implement execCommand */
-    Object.defineProperty(document, 'execCommand', { value: jest.fn(() => true), configurable: true });
-    document.body.innerHTML = '<div contenteditable="true" data-lexical-editor="true"></div><div class="send-button-container"></div>';
+    Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true });
+    /* The composer of www.kimi.ai, captured with text typed in and the model menu open */
+    loadFixture('kimi-composer');
   });
 
   afterEach(() => {
     jest.useRealTimers();
-    document.body.innerHTML = '';
   });
+
+  const run = async (options: { model?: string; onStage?: jest.Mock } = {}) => {
+    const result = injectKimi('Prompt', options);
+    await jest.runAllTimersAsync();
+    return result;
+  };
 
   const stagesOf = async (options: { model?: string }) => {
     const onStage = jest.fn();
-    const result = injectKimi('Prompt', { ...options, onStage });
-    await jest.runAllTimersAsync();
-    await expect(result).resolves.toEqual({ success: true });
+    await expect(run({ ...options, onStage })).resolves.toEqual({ success: true });
     return onStage.mock.calls.map(([stage]) => stage);
+  };
+
+  const watchModelItem = (name: string) => {
+    const item = Array.from(document.querySelectorAll('.model-item')).find(element => element.querySelector('.model-name')?.textContent?.trim() === name)!;
+    const onClick = jest.fn();
+    item.addEventListener('click', onClick);
+    return onClick;
   };
 
   it('reports selecting the model first when a model is given', async () => {
@@ -77,5 +92,23 @@ describe('injectKimi stages', () => {
 
   it('starts with pasting when no model is given', async () => {
     expect(await stagesOf({})).toEqual(['pasting', 'sending']);
+  });
+
+  it.each(['K3', 'Instant'])('clicks the %s item of the model menu', async model => {
+    const onClick = watchModelItem(model);
+
+    await run({ model });
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('types the prompt through execCommand and clicks the send button', async () => {
+    const onClick = jest.fn();
+    document.querySelector('div.send-button-container')!.addEventListener('click', onClick);
+
+    await expect(run()).resolves.toEqual({ success: true });
+
+    expect(execCommand).toHaveBeenCalledWith('insertText', false, 'Prompt');
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
