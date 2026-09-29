@@ -17,7 +17,7 @@ describe('injectDeepSeek', () => {
     jest.useRealTimers();
   });
 
-  const run = async (options: { model?: string; onStage?: jest.Mock } = {}) => {
+  const run = async (options: { model?: string; onStage?: jest.Mock; onModelUnavailable?: jest.Mock } = {}) => {
     const result = injectDeepSeek('Prompt', options);
     await jest.runAllTimersAsync();
     return result;
@@ -57,11 +57,14 @@ describe('injectDeepSeek', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('continues without selecting a model when the page has no model tabs', async () => {
+  it('reports the model and continues when the page has no model tabs', async () => {
     /* DeepSeek merged Instant / Expert / Vision into one model; the captured page has no model tabs */
     expect(document.querySelectorAll('[role="radio"]')).toHaveLength(0);
+    const onModelUnavailable = jest.fn();
 
-    await expect(run({ model: 'Expert' })).resolves.toEqual({ success: true });
+    await expect(run({ model: 'Expert', onModelUnavailable })).resolves.toEqual({ success: true });
+
+    expect(onModelUnavailable).toHaveBeenCalledWith('Expert');
   });
 
   it('fails when the send button stays disabled', async () => {

@@ -15,7 +15,7 @@ describe('injectQwen', () => {
     jest.useRealTimers();
   });
 
-  const run = async (options: { model?: string; onStage?: jest.Mock } = {}) => {
+  const run = async (options: { model?: string; onStage?: jest.Mock; onModelUnavailable?: jest.Mock } = {}) => {
     const result = injectQwen('Prompt', options);
     await jest.runAllTimersAsync();
     return result;
@@ -57,5 +57,26 @@ describe('injectQwen', () => {
     expect(textarea.value).toBe('Prompt');
     expect(onInput).toHaveBeenCalled();
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+  it('reports a model missing from the menu and still sends, leaving the menu open', async () => {
+    /* The signed-out menu no longer lists Qwen3.7-Max */
+    const onModelUnavailable = jest.fn();
+    const pressedKeys: string[] = [];
+    const onKeyDown = (event: KeyboardEvent) => pressedKeys.push(event.key);
+    document.addEventListener('keydown', onKeyDown);
+
+    await expect(run({ model: 'Qwen3.7-Max', onModelUnavailable })).resolves.toEqual({ success: true });
+    document.removeEventListener('keydown', onKeyDown);
+
+    expect(onModelUnavailable).toHaveBeenCalledWith('Qwen3.7-Max');
+    expect(pressedKeys).toEqual([]);
+  });
+
+  it('does not report a model found in the menu', async () => {
+    const onModelUnavailable = jest.fn();
+
+    await run({ model: 'Qwen3.8-Max', onModelUnavailable });
+
+    expect(onModelUnavailable).not.toHaveBeenCalled();
   });
 });
