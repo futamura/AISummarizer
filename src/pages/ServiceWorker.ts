@@ -188,19 +188,11 @@ class ServiceWorker {
 
     logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[handleContextMenuClicked]', info);
 
-    switch (info.menuItemId) {
-      case 'chatgpt':
-      case 'gemini':
-      case 'claude':
-      case 'grok':
-      case 'perplexity':
-      case 'deepseek':
-        this.openAIService(getAIServiceFromString(info.menuItemId), tab.id, tab.url);
-        break;
-
-      case 'copy':
-        this.readArticleForClipboard(tab.id, tab.url);
-        break;
+    /* Every AI service on the menu opens here, so a service added to MENU_ITEMS needs no change in this handler */
+    if (MENU_ITEMS.AI_SERVICES.some(service => service.id === info.menuItemId)) {
+      this.openAIService(getAIServiceFromString(String(info.menuItemId)), tab.id, tab.url);
+    } else if (info.menuItemId === MENU_ITEMS.COPY.id) {
+      this.readArticleForClipboard(tab.id, tab.url);
     }
   }
 
