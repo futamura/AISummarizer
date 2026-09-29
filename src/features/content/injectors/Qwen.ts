@@ -1,4 +1,4 @@
-import { InjectOptions, noopStageReporter } from '@/types';
+import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
@@ -6,9 +6,12 @@ import { getRandomInt, logger, waitForElement } from '@/utils';
  * The header trigger carries aria-label "Select Model" and the popup lists
  * div[role="option"] entries; module class names are hashed, so the picker is
  * located by aria-label and role instead (verified live 2026-08-08).
- * Any failure is logged and swallowed so the injection itself still proceeds.
+ * Any failure is logged and swallowed so the injection itself still proceeds. A picker left
+ * open does not keep the prompt from being pasted and sent, and neither Escape nor an
+ * outside click dispatched from script closes it, so it is left open (verified live 2026-09-29).
+ * Returns whether the model was selected.
  */
-async function selectQwenModel(model: string): Promise<void> {
+async function selectQwenModel(model: string): Promise<boolean> {
   try {
     const trigger = await waitForElement('[aria-label="Select Model"]');
     if (!(trigger instanceof HTMLElement)) throw new Error('Qwen model picker trigger not found');
@@ -23,12 +26,17 @@ async function selectQwenModel(model: string): Promise<void> {
 
     /* Wait for the model switch to settle */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
+    return true;
   } catch (error: unknown) {
     logger.warn('📕', '[Qwen.tsx]', '[selectQwenModel]', 'Model selection failed, continuing injection:', error);
+    return false;
   }
 }
 
-export async function injectQwen(prompt: string, { model, onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
+export async function injectQwen(
+  prompt: string,
+  { model, onStage = noopStageReporter, onModelUnavailable = noopModelUnavailableReporter }: InjectOptions = {}
+): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[Qwen.tsx]', '[injectQwen]', 'Injecting article into Qwen\n', prompt);
     onStage(model ? 'selectingModel' : 'pasting');
@@ -38,7 +46,7 @@ export async function injectQwen(prompt: string, { model, onStage = noopStageRep
 
     /* Select the configured model first; failures are non-fatal */
     if (model) {
-      await selectQwenModel(model);
+      if (!(await selectQwenModel(model))) onModelUnavailable(model);
       onStage('pasting');
     }
 

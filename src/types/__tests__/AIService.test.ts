@@ -1,4 +1,12 @@
-import { AIService, getAIServiceForUrl, getModelOptionsFor, getSummarizeUrl, supportsModelParam, supportsModelSelection } from '@/types/AIService';
+import {
+  AIService,
+  getAIServiceForUrl,
+  getModelOptionsFor,
+  getSummarizeUrl,
+  resolveModelFor,
+  supportsModelParam,
+  supportsModelSelection,
+} from '@/types/AIService';
 
 describe('supportsModelParam', () => {
   it('returns true only for URL-parameter services', () => {
@@ -46,6 +54,25 @@ describe('getModelOptionsFor', () => {
   it('returns DOM labels for Kimi and Qwen', () => {
     expect(getModelOptionsFor(AIService.KIMI).map(o => o.value)).toEqual(['Instant', 'K3']);
     expect(getModelOptionsFor(AIService.QWEN).map(o => o.value)).toEqual(['Qwen3.8-Max', 'Qwen3.7-Max', 'Qwen3.7-Plus']);
+  });
+});
+
+describe('resolveModelFor', () => {
+  it('keeps a model that is still offered', () => {
+    expect(resolveModelFor(AIService.QWEN, 'Qwen3.8-Max')).toBe('Qwen3.8-Max');
+  });
+
+  it.each([AIService.GEMINI, AIService.DEEPSEEK, AIService.KIMI, AIService.QWEN])('treats a %s model no longer offered as the default', service => {
+    expect(resolveModelFor(service, 'Removed-Model')).toBe('');
+  });
+
+  it('keeps a custom model id for the URL-parameter services', () => {
+    expect(resolveModelFor(AIService.CHATGPT, 'gpt-custom')).toBe('gpt-custom');
+    expect(resolveModelFor(AIService.CLAUDE, 'claude-custom')).toBe('claude-custom');
+  });
+
+  it('keeps the default', () => {
+    expect(resolveModelFor(AIService.QWEN, '')).toBe('');
   });
 });
 
