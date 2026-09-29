@@ -1,3 +1,6 @@
+import { MENU_ITEMS } from '@/models';
+import { AIService, getAIServiceForUrl, getAIServiceFromString } from '@/types';
+
 /*
  * Mock the stores so importing the service worker does not pull in the real
  * zustand persist store (its rehydrate reads chrome.storage on import) or
@@ -408,6 +411,57 @@ describe('ServiceWorker opening an AI service in a private tab', () => {
     await startServiceWorker(windows);
     await openAIService();
     expect(windows.create).toHaveBeenCalledWith({ url: expect.stringContaining('chatgpt.com'), incognito: true });
+    expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('ServiceWorker context menu', () => {
+  let chromeMock: ChromeMock;
+
+  const SETTINGS = { 'free-ai-summarizer-settings': { state: { tabBehavior: 'NEW_TAB' } } };
+
+  /* Click a menu item on the article tab through the listener the service worker registered */
+  const clickMenuItem = async (menuItemId: string) => {
+    const handleContextMenuClicked = chromeMock.contextMenus.onClicked.addListener.mock.calls[0][0] as (
+      info: { menuItemId: string },
+      tab: unknown
+    ) => Promise<void>;
+    await handleContextMenuClicked({ menuItemId }, ARTICLE_TAB);
+    await settle();
+  };
+
+  const openedServices = () => chromeMock.tabs.create.mock.calls.map(([options]: any[]) => getAIServiceForUrl(String(options?.url)));
+
+  beforeEach(async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    chromeMock = createChromeMock();
+    chromeMock.storage.local.get.mockImplementation(() => Promise.resolve(SETTINGS) as any);
+    chromeMock.tabs.get.mockImplementation(() => Promise.resolve(ARTICLE_TAB) as any);
+    (globalThis as any).chrome = chromeMock;
+    jest.resetModules();
+
+    await import('@/pages/ServiceWorker');
+    await flushPromises();
+    answerExtraction(chromeMock, { isSuccess: true });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    delete (globalThis as any).chrome;
+  });
+
+  it('offers every AI service', () => {
+    expect(MENU_ITEMS.AI_SERVICES.map(item => getAIServiceFromString(item.id))).toEqual(Object.values(AIService));
+  });
+
+  it.each(MENU_ITEMS.AI_SERVICES.map(item => item.id))('opens the AI service of the %s menu item', async menuItemId => {
+    await clickMenuItem(menuItemId);
+    expect(openedServices()).toEqual([getAIServiceFromString(menuItemId)]);
+  });
+
+  it('writes the article to the clipboard from the copy menu item', async () => {
+    await clickMenuItem(MENU_ITEMS.COPY.id);
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(ARTICLE_TAB.id, expect.objectContaining({ action: 'WRITE_ARTICLE_TO_CLIPBOARD' }));
     expect(chromeMock.tabs.create).not.toHaveBeenCalled();
   });
 });
