@@ -1,8 +1,13 @@
 /* Import the module directly: the services barrel pulls in the extractors (pdfjs-dist, Readability) */
-import { getInjectionFailureMessage, INJECTION_STAGE_MESSAGES, injectWithProgress } from '@/features/content/services/InjectionProgress';
+import {
+  getInjectionFailureMessage,
+  getModelUnavailableMessage,
+  INJECTION_STAGE_MESSAGES,
+  injectWithProgress,
+} from '@/features/content/services/InjectionProgress';
 import type { StageReporter } from '@/types';
 
-const createToasts = () => ({ loading: jest.fn(), success: jest.fn(), error: jest.fn() });
+const createToasts = () => ({ loading: jest.fn(), success: jest.fn(), error: jest.fn(), warning: jest.fn() });
 
 describe('injectWithProgress', () => {
   it('shows each stage, then Sent', async () => {
@@ -19,6 +24,34 @@ describe('injectWithProgress', () => {
     expect(toasts.loading.mock.calls).toEqual([['Selecting model…'], ['Pasting article…'], ['Sending article…']]);
     expect(toasts.success).toHaveBeenCalledWith('Article has been sent!');
     expect(toasts.error).not.toHaveBeenCalled();
+  });
+
+  it('warns that the model could not be selected, and still reports the result', async () => {
+    const toasts = createToasts();
+
+    const result = await injectWithProgress(async (onStage, onModelUnavailable) => {
+      onStage('selectingModel');
+      onModelUnavailable('Qwen3.7-Max');
+      onStage('pasting');
+      onStage('sending');
+      return { success: true };
+    }, toasts);
+
+    expect(result).toEqual({ success: true });
+    expect(toasts.warning).toHaveBeenCalledWith('Couldn\'t select "Qwen3.7-Max". Using the current model instead.');
+    expect(toasts.loading.mock.calls).toEqual([['Selecting model…'], ['Pasting article…'], ['Sending article…']]);
+    expect(toasts.success).toHaveBeenCalledWith('Article has been sent!');
+  });
+
+  it('does not warn when the model was selected', async () => {
+    const toasts = createToasts();
+
+    await injectWithProgress(async onStage => {
+      onStage('selectingModel');
+      return { success: true };
+    }, toasts);
+
+    expect(toasts.warning).not.toHaveBeenCalled();
   });
 
   it('shows a stage reported twice in a row once', async () => {
@@ -93,5 +126,6 @@ describe('injection messages', () => {
     expect(getInjectionFailureMessage('selectingModel')).toBe("Couldn't paste the article");
     expect(getInjectionFailureMessage('pasting')).toBe("Couldn't paste the article");
     expect(getInjectionFailureMessage('sending')).toBe("Couldn't send the message");
+    expect(getModelUnavailableMessage('K3')).toBe('Couldn\'t select "K3". Using the current model instead.');
   });
 });

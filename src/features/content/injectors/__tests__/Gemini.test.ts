@@ -42,7 +42,7 @@ describe('injectGemini', () => {
     jest.useRealTimers();
   });
 
-  const run = async (options: { model?: string; onStage?: jest.Mock } = {}) => {
+  const run = async (options: { model?: string; onStage?: jest.Mock; onModelUnavailable?: jest.Mock } = {}) => {
     const result = injectGemini('Prompt', options);
     await jest.runAllTimersAsync();
     return result;
@@ -93,5 +93,26 @@ describe('injectGemini', () => {
     expect(editor.querySelector('p')!.textContent).toBe('Prompt');
     expect(onInput).toHaveBeenCalled();
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+  it('reports a model missing from the menu, closes the menu and still sends', async () => {
+    /* The captured menu offers Flash-Lite / Flash / Pro */
+    const onModelUnavailable = jest.fn();
+    const pressedKeys: string[] = [];
+    const onKeyDown = (event: KeyboardEvent) => pressedKeys.push(event.key);
+    document.addEventListener('keydown', onKeyDown);
+
+    await expect(run({ model: 'Ultra', onModelUnavailable })).resolves.toEqual({ success: true });
+    document.removeEventListener('keydown', onKeyDown);
+
+    expect(onModelUnavailable).toHaveBeenCalledWith('Ultra');
+    expect(pressedKeys).toEqual(['Escape']);
+  });
+
+  it('does not report a model found in the menu', async () => {
+    const onModelUnavailable = jest.fn();
+
+    await run({ model: 'Pro', onModelUnavailable });
+
+    expect(onModelUnavailable).not.toHaveBeenCalled();
   });
 });

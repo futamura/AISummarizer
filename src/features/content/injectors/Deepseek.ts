@@ -1,4 +1,4 @@
-import { InjectOptions, noopStageReporter } from '@/types';
+import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
@@ -6,8 +6,9 @@ import { getRandomInt, logger, waitForElement } from '@/utils';
  * The tab labels are English regardless of locale (verified 2026-08-08); class names
  * are hashed, so the tab is located by role instead.
  * Any failure is logged and swallowed so the injection itself still proceeds.
+ * Returns whether the model was selected.
  */
-async function selectDeepSeekModel(model: string): Promise<void> {
+async function selectDeepSeekModel(model: string): Promise<boolean> {
   try {
     /*
      * The model switch is a radiogroup above the chat input (verified live 2026-08-08):
@@ -21,12 +22,17 @@ async function selectDeepSeekModel(model: string): Promise<void> {
 
     /* Wait for the tab switch to settle */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
+    return true;
   } catch (error: unknown) {
     logger.warn('📕', '[DeepSeek.tsx]', '[selectDeepSeekModel]', 'Model selection failed, continuing injection:', error);
+    return false;
   }
 }
 
-export async function injectDeepSeek(prompt: string, { model, onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
+export async function injectDeepSeek(
+  prompt: string,
+  { model, onStage = noopStageReporter, onModelUnavailable = noopModelUnavailableReporter }: InjectOptions = {}
+): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[DeepSeek.tsx]', '[injectDeepSeek]', 'Injecting article into DeepSeek\n', prompt);
     onStage(model ? 'selectingModel' : 'pasting');
@@ -36,7 +42,7 @@ export async function injectDeepSeek(prompt: string, { model, onStage = noopStag
 
     /* Select the configured model first; failures are non-fatal */
     if (model) {
-      await selectDeepSeekModel(model);
+      if (!(await selectDeepSeekModel(model))) onModelUnavailable(model);
       onStage('pasting');
     }
 

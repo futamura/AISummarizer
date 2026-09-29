@@ -1,4 +1,4 @@
-import { InjectOptions, noopStageReporter } from '@/types';
+import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
@@ -7,9 +7,12 @@ import { getRandomInt, logger, waitForElement } from '@/utils';
  * .model-item entries; the name is matched exactly so "K3" never hits "K3 Swarm"
  * (verified live 2026-08-08). Selecting K3 navigates to /agent, where the editor
  * and send button keep the same selectors.
- * Any failure is logged and swallowed so the injection itself still proceeds.
+ * Any failure is logged and swallowed so the injection itself still proceeds. A picker left
+ * open does not keep the prompt from being pasted and sent, and neither Escape nor an
+ * outside click dispatched from script closes it, so it is left open (verified live 2026-09-29).
+ * Returns whether the model was selected.
  */
-async function selectKimiModel(model: string): Promise<void> {
+async function selectKimiModel(model: string): Promise<boolean> {
   try {
     const trigger = await waitForElement('.current-model');
     if (!(trigger instanceof HTMLElement)) throw new Error('Kimi model picker trigger not found');
@@ -24,8 +27,10 @@ async function selectKimiModel(model: string): Promise<void> {
 
     /* Wait for the model switch (and a possible SPA navigation) to settle */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
+    return true;
   } catch (error: unknown) {
     logger.warn('📕', '[Kimi.tsx]', '[selectKimiModel]', 'Model selection failed, continuing injection:', error);
+    return false;
   }
 }
 
@@ -46,7 +51,10 @@ export function isPromptResidue(editorText: string | null | undefined, prompt: s
   return normalizedEditor !== normalizedPrompt;
 }
 
-export async function injectKimi(prompt: string, { model, onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
+export async function injectKimi(
+  prompt: string,
+  { model, onStage = noopStageReporter, onModelUnavailable = noopModelUnavailableReporter }: InjectOptions = {}
+): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[Kimi.tsx]', '[injectKimi]', 'Injecting article into Kimi\n', prompt);
     onStage(model ? 'selectingModel' : 'pasting');
@@ -56,7 +64,7 @@ export async function injectKimi(prompt: string, { model, onStage = noopStageRep
 
     /* Select the configured model first; failures are non-fatal */
     if (model) {
-      await selectKimiModel(model);
+      if (!(await selectKimiModel(model))) onModelUnavailable(model);
       onStage('pasting');
     }
 

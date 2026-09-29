@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { STORAGE_KEYS } from '@/constants';
-import { AIService, TabBehavior } from '@/types';
+import { AIService, resolveModelFor, TabBehavior } from '@/types';
 import { logger } from '@/utils';
 /* Import directly: DEFAULT_PROMPT calls it at module load, when the @/utils barrel may still be loading (utils/Text imports this store) */
 import { getBrowserLanguage } from '@/utils/i18n';
@@ -121,7 +121,8 @@ export const useSettingsStore = create<SettingsStore>()(
       },
       getModelFor: async (service: AIService) => {
         const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
-        return settings[STORAGE_KEYS.SETTINGS]?.state?.models?.[service] ?? DEFAULT_SETTINGS.models[service];
+        /* A model dropped from the options is read as the default but left in storage, so that adding it back restores it */
+        return resolveModelFor(service, settings[STORAGE_KEYS.SETTINGS]?.state?.models?.[service] ?? DEFAULT_SETTINGS.models[service]);
       },
       setServiceOnMenu: async (service: AIService, status: boolean) => {
         await get().updateSettings({

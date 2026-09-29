@@ -63,6 +63,18 @@ export const supportsModelParam = (service: AIService): boolean => MODEL_PARAM_S
 
 export const supportsModelSelection = (service: AIService): boolean => MODEL_PARAM_SERVICES.includes(service) || MODEL_DOM_SERVICES.includes(service);
 
+/**
+ * The model to use for a stored value
+ * @param service - The AI service
+ * @param model - The stored model, empty for the service's own default
+ * @returns The model; for the DOM-operated services, one no longer offered falls back to the default,
+ * since the options show no choice for it. The URL-parameter services keep it as a custom model id.
+ */
+export const resolveModelFor = (service: AIService, model: string): string => {
+  if (!model || !MODEL_DOM_SERVICES.includes(service)) return model;
+  return AI_SERVICE_MODEL_OPTIONS[service].some(option => option.value === model) ? model : '';
+};
+
 export const getSummarizeUrl = (service: AIService, summarizeId: string, model?: string) => {
   /* Model is applied via URL parameter only where the service supports it; DOM-operated services handle it in their injector */
   const modelParam = model && supportsModelParam(service) ? `&model=${encodeURIComponent(model)}` : '';

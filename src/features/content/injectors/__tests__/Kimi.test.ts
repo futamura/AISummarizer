@@ -67,7 +67,7 @@ describe('injectKimi', () => {
     jest.useRealTimers();
   });
 
-  const run = async (options: { model?: string; onStage?: jest.Mock } = {}) => {
+  const run = async (options: { model?: string; onStage?: jest.Mock; onModelUnavailable?: jest.Mock } = {}) => {
     const result = injectKimi('Prompt', options);
     await jest.runAllTimersAsync();
     return result;
@@ -110,5 +110,26 @@ describe('injectKimi', () => {
 
     expect(execCommand).toHaveBeenCalledWith('insertText', false, 'Prompt');
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+  it('reports a model missing from the menu and still sends, leaving the menu open', async () => {
+    /* The captured menu has no K2; the name must match exactly */
+    const onModelUnavailable = jest.fn();
+    const pressedKeys: string[] = [];
+    const onKeyDown = (event: KeyboardEvent) => pressedKeys.push(event.key);
+    document.addEventListener('keydown', onKeyDown);
+
+    await expect(run({ model: 'K2', onModelUnavailable })).resolves.toEqual({ success: true });
+    document.removeEventListener('keydown', onKeyDown);
+
+    expect(onModelUnavailable).toHaveBeenCalledWith('K2');
+    expect(pressedKeys).toEqual([]);
+  });
+
+  it('does not report a model found in the menu', async () => {
+    const onModelUnavailable = jest.fn();
+
+    await run({ model: 'K3', onModelUnavailable });
+
+    expect(onModelUnavailable).not.toHaveBeenCalled();
   });
 });
