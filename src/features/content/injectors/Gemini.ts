@@ -1,4 +1,4 @@
-import { InjectOptions, noopStageReporter } from '@/types';
+import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
@@ -17,13 +17,18 @@ export const matchGeminiModelLabel = (itemTexts: string[], model: string): numbe
  * Select the model via the mode picker before injecting text.
  * Selectors verified live on 2026-08-08: picker button under bard-mode-switcher,
  * menu items carry data-test-id="bard-mode-option-<hash>" (prefix is stable, hash is not).
- * Any failure is logged and swallowed so the injection itself still proceeds.
+ * Any failure is logged and swallowed so the injection itself still proceeds; a menu left
+ * open is closed with Escape (verified live 2026-09-29), although it would not keep the prompt
+ * from being pasted and sent.
+ * Returns whether the model was selected.
  */
-async function selectGeminiModel(model: string): Promise<void> {
+async function selectGeminiModel(model: string): Promise<boolean> {
+  let isMenuOpen = false;
   try {
     const picker = await waitForElement('bard-mode-switcher button');
     if (!(picker instanceof HTMLElement)) throw new Error('Gemini mode picker not found');
     picker.click();
+    isMenuOpen = true;
 
     /* Wait for the menu to render */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
@@ -41,19 +46,28 @@ async function selectGeminiModel(model: string): Promise<void> {
 
     /* Wait for the menu to close */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
+    return true;
   } catch (error: unknown) {
     logger.warn('📕', '[Gemini.tsx]', '[selectGeminiModel]', 'Model selection failed, continuing injection:', error);
+    if (isMenuOpen) {
+      const focused = document.activeElement ?? document.body;
+      focused.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true, cancelable: true }));
+    }
+    return false;
   }
 }
 
-export async function injectGemini(prompt: string, { model, onStage = noopStageReporter }: InjectOptions = {}): Promise<{ success: boolean; error?: Error }> {
+export async function injectGemini(
+  prompt: string,
+  { model, onStage = noopStageReporter, onModelUnavailable = noopModelUnavailableReporter }: InjectOptions = {}
+): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[Gemini.tsx]', '[injectGemini]', 'Injecting article into Gemini', prompt);
 
     /* Select the configured model first; failures are non-fatal */
     if (model) {
       onStage('selectingModel');
-      await selectGeminiModel(model);
+      if (!(await selectGeminiModel(model))) onModelUnavailable(model);
     }
     onStage('pasting');
 

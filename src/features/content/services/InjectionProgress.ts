@@ -1,10 +1,11 @@
-import type { ArticleInjectionResult, InjectionStage, StageReporter } from '@/types';
+import type { ArticleInjectionResult, InjectionStage, ModelUnavailableReporter, StageReporter } from '@/types';
 
 /* The toasts shown around an injection, passed in so that this logic runs without React */
 export interface InjectionToasts {
   loading: (message: string) => void;
   success: (message: string) => void;
   error: (message: string) => void;
+  warning: (message: string) => void;
 }
 
 export const INJECTION_STAGE_MESSAGES: Record<InjectionStage, string> = {
@@ -27,13 +28,20 @@ export const getInjectionFailureMessage = (lastStage: InjectionStage | null): st
   lastStage === 'sending' ? "Couldn't send the message" : "Couldn't paste the article";
 
 /**
+ * The warning for a model the page offers no choice for
+ * @param model - The model that could not be selected
+ * @returns The message; the injection goes on with the page's current model
+ */
+export const getModelUnavailableMessage = (model: string): string => `Couldn't select "${model}". Using the current model instead.`;
+
+/**
  * Run an injection, showing a toast for each stage it reports and one for the result
- * @param inject - The injection, given the callback to report its stages to
+ * @param inject - The injection, given the callbacks to report its stages and a model it could not select to
  * @param toasts - The toasts to show
  * @returns The injection result; an exception is turned into a failed result
  */
 export async function injectWithProgress(
-  inject: (onStage: StageReporter) => Promise<ArticleInjectionResult>,
+  inject: (onStage: StageReporter, onModelUnavailable: ModelUnavailableReporter) => Promise<ArticleInjectionResult>,
   toasts: InjectionToasts
 ): Promise<ArticleInjectionResult> {
   let lastStage: InjectionStage | null = null;
@@ -42,10 +50,11 @@ export async function injectWithProgress(
     lastStage = stage;
     toasts.loading(INJECTION_STAGE_MESSAGES[stage]);
   };
+  const onModelUnavailable: ModelUnavailableReporter = model => toasts.warning(getModelUnavailableMessage(model));
 
   let result: ArticleInjectionResult;
   try {
-    result = await inject(onStage);
+    result = await inject(onStage, onModelUnavailable);
   } catch (error: unknown) {
     result = { success: false, error: error instanceof Error ? error : new Error('Failed to inject article') };
   }

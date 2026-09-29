@@ -2,7 +2,7 @@ import { STORAGE_KEYS } from '@/constants';
 /* The store hydrates at module load, before the chrome mock below exists; persist swallows that first read and
    the assertion targets the write path instead */
 import { DEFAULT_SETTINGS, useSettingsStore } from '@/stores/SettingsStore';
-import { TabBehavior } from '@/types';
+import { AIService, TabBehavior } from '@/types';
 
 /* Firefox stores extension data with the structured clone algorithm, so a value holding functions throws DataCloneError.
    Chrome serializes to JSON instead and silently drops them, which is why the bug only shows up on Firefox. */
@@ -55,6 +55,21 @@ describe('SettingsStore persistence on Firefox', () => {
 
     expect(geckoStorage[STORAGE_KEYS.SETTINGS]?.state?.clipboardPrompt).toBe('Summarize in Japanese.\n{content}');
     await expect(useSettingsStore.getState().getClipboardPrompt()).resolves.toBe('Summarize in Japanese.\n{content}');
+  });
+
+  /* A model dropped from the options stays in storage, so that adding it back restores the choice */
+  it('reads a model no longer offered as the default without rewriting it', async () => {
+    await flushStorage();
+    geckoStorage[STORAGE_KEYS.SETTINGS] = {
+      state: {
+        ...geckoStorage[STORAGE_KEYS.SETTINGS]?.state,
+        models: { ...DEFAULT_SETTINGS.models, [AIService.QWEN]: 'Removed-Model', [AIService.CHATGPT]: 'gpt-custom' },
+      },
+    };
+
+    await expect(useSettingsStore.getState().getModelFor(AIService.QWEN)).resolves.toBe('');
+    await expect(useSettingsStore.getState().getModelFor(AIService.CHATGPT)).resolves.toBe('gpt-custom');
+    expect(geckoStorage[STORAGE_KEYS.SETTINGS].state.models[AIService.QWEN]).toBe('Removed-Model');
   });
 
   /* Backups exported before the extraction settings were removed still hold them */

@@ -122,11 +122,11 @@ export const useContentMessage = () => {
 
             /* Building the prompt and reading the model run inside, so that their failures get a toast too */
             injectWithProgress(
-              async onStage => {
+              async (onStage, onModelUnavailable) => {
                 const prompt = await createPrompt(service, useSettingsStore.getState(), message.payload.article);
                 /* Read the model via the async getter, which goes to chrome.storage: the store snapshot of the content script is taken before hydration */
                 const model = await useSettingsStore.getState().getModelFor(service);
-                return injectionService.current.execute(message.payload.tabUrl, prompt, { model, onStage });
+                return injectionService.current.execute(message.payload.tabUrl, prompt, { model, onStage, onModelUnavailable });
               },
               {
                 loading: text => {
@@ -137,6 +137,10 @@ export const useContentMessage = () => {
                 },
                 error: text => {
                   toast.error(text, { group: INJECTION_TOAST_GROUP });
+                },
+                /* Outside the group, so that the next stage does not replace it */
+                warning: text => {
+                  toast.warning(text);
                 },
               }
             ).then((result: ArticleInjectionResult) => {
