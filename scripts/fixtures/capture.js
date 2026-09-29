@@ -53,6 +53,49 @@
     await sleep(1000);
   };
 
+  /* Lexical ignores execCommand('delete'), but handles a beforeinput deletion over a full selection */
+  const clearLexical = selector => {
+    const editor = document.querySelector(selector);
+    if (!editor) return;
+    editor.focus();
+    getSelection().selectAllChildren(editor);
+    editor.dispatchEvent(new InputEvent('beforeinput', { inputType: 'deleteContentBackward', bubbles: true, cancelable: true }));
+  };
+
+  /* Set the paragraph of a Quill editor the way the Gemini injector does */
+  const setQuillText = async (selector, text) => {
+    const editor = await waitFor(selector);
+    const paragraph = editor.querySelector('p') || editor.appendChild(document.createElement('p'));
+    paragraph.textContent = text;
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    await sleep(1000);
+  };
+
+  /* Open a menu so its items are captured, unless they are already rendered */
+  const openMenu = async (triggerSelector, itemSelector) => {
+    if (!document.querySelector(itemSelector)) {
+      (await waitFor(triggerSelector)).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await waitFor(itemSelector);
+    }
+    await sleep(1000);
+  };
+
+  /* The innermost ancestor of the editor that also holds the send button: the composer */
+  const composerOf = (editorSelector, buttonSelector) => {
+    const keep = root => {
+      let element = root.querySelector(editorSelector);
+      while (element && !element.querySelector(buttonSelector)) element = element.parentElement;
+      return element ? [element] : [];
+    };
+    /* The capture report lists keep regions by name */
+    return Object.defineProperty(keep, 'name', { value: `composer of ${editorSelector}` });
+  };
+
+  /* grok.com serves a textarea or a Tiptap editor in its composer, varying between page loads */
+  const requireGrokEditor = selector => {
+    if (!document.querySelector(selector)) throw new Error(`This load serves the other Grok composer; reload until ${selector} appears`);
+  };
+
   /* X names avatars after the account, including the signed-in one: data-testid="UserAvatar-Container-<handle>" */
   const X_AVATAR_HANDLE = /(UserAvatar-Container-)[A-Za-z0-9_]+/g;
 
@@ -131,6 +174,102 @@
       keep: ['div:has(> div > textarea):has(div[role="button"].ds-button--primary)'],
       drop: [],
     },
+    'chatgpt-composer': {
+      match: /^https:\/\/chatgpt\.com\/(\?|$)/,
+      source: () => 'https://chatgpt.com/',
+      prepare: () => typeIntoEditor('#prompt-textarea'),
+      cleanup: () => clearEditor('#prompt-textarea'),
+      keep: ['form:has(#prompt-textarea)'],
+      drop: ['nav'],
+    },
+    /* Signed out (a private window): a plain textarea composer instead of ProseMirror */
+    'chatgpt-guest-composer': {
+      match: /^https:\/\/chatgpt\.com\/(\?|$)/,
+      source: () => 'https://chatgpt.com/',
+      prepare: () => setTextarea('form textarea[name="prompt"]', FILL_TEXT),
+      cleanup: () => setTextarea('form textarea[name="prompt"]', ''),
+      keep: ['form:has(textarea[name="prompt"])'],
+      drop: ['nav'],
+    },
+    'gemini-composer': {
+      match: /^https:\/\/gemini\.google\.com\/app(\?|$)/,
+      source: () => 'https://gemini.google.com/app',
+      prepare: async () => {
+        await setQuillText('rich-textarea div.ql-editor[contenteditable="true"]', FILL_TEXT);
+        await openMenu('bard-mode-switcher button', '[data-test-id^="bard-mode-option"]');
+      },
+      cleanup: () => setQuillText('rich-textarea div.ql-editor[contenteditable="true"]', ''),
+      /* The composer with the mode picker, and the open mode menu */
+      keep: ['fieldset:has(rich-textarea)', '.cdk-overlay-pane:has([data-test-id^="bard-mode-option"])'],
+      drop: [],
+    },
+    'aistudio-composer': {
+      match: /^https:\/\/aistudio\.google\.com\/prompts\/new_chat/,
+      source: () => 'https://aistudio.google.com/prompts/new_chat',
+      prepare: async () => {
+        await setTextarea('ms-prompt-box textarea', FILL_TEXT);
+        await waitFor('div[data-test-id="browseAsAToolTooltip"] button[role="switch"]');
+        await openMenu('ms-thinking-level-setting mat-select', 'mat-option');
+      },
+      cleanup: () => setTextarea('ms-prompt-box textarea', ''),
+      /* The prompt box, the run settings the injector touches, and the open thinking level menu */
+      keep: ['ms-prompt-box', 'ms-thinking-level-setting', 'ms-browse-as-a-tool', '.cdk-overlay-pane:has(mat-option)'],
+      drop: [],
+    },
+    'grok-textarea-composer': {
+      match: /^https:\/\/grok\.com\/(\?|$)/,
+      source: () => 'https://grok.com/',
+      prepare: () => {
+        requireGrokEditor('form textarea');
+        return setTextarea('form textarea', FILL_TEXT);
+      },
+      cleanup: () => setTextarea('form textarea', ''),
+      keep: ['form:has(textarea)'],
+      drop: ['nav'],
+    },
+    'grok-tiptap-composer': {
+      match: /^https:\/\/grok\.com\/(\?|$)/,
+      source: () => 'https://grok.com/',
+      prepare: () => {
+        requireGrokEditor('form div.tiptap.ProseMirror');
+        return typeIntoEditor('div.tiptap.ProseMirror[contenteditable="true"]');
+      },
+      cleanup: () => clearEditor('div.tiptap.ProseMirror[contenteditable="true"]'),
+      keep: ['form:has(div.tiptap)'],
+      drop: ['nav'],
+    },
+    'perplexity-composer': {
+      match: /^https:\/\/www\.perplexity\.ai\/(\?|$)/,
+      source: () => 'https://www.perplexity.ai/',
+      prepare: () => typeIntoEditor('#ask-input'),
+      cleanup: () => clearLexical('#ask-input'),
+      keep: [composerOf('#ask-input', 'button[aria-label="Submit"]')],
+      drop: [],
+    },
+    'kimi-composer': {
+      match: /^https:\/\/www\.kimi\.ai\/(\?|$)/,
+      source: () => 'https://www.kimi.ai/',
+      prepare: async () => {
+        await typeIntoEditor('div[contenteditable="true"][data-lexical-editor="true"]');
+        await openMenu('.current-model', '.model-item');
+      },
+      cleanup: () => clearLexical('div[contenteditable="true"][data-lexical-editor="true"]'),
+      /* The composer with the model chip, and the open model menu */
+      keep: [composerOf('div[data-lexical-editor="true"]', 'div.send-button-container'), '.kimi-menu:has(.model-item)'],
+      drop: [],
+    },
+    'qwen-composer': {
+      match: /^https:\/\/chat\.qwen\.ai\/(\?|$)/,
+      source: () => 'https://chat.qwen.ai/',
+      prepare: async () => {
+        await setTextarea('textarea.message-input-textarea', FILL_TEXT);
+        await openMenu('[aria-label="Select Model"]', '[role="option"]');
+      },
+      cleanup: () => setTextarea('textarea.message-input-textarea', ''),
+      /* The composer, the model picker in the header, and its open menu */
+      keep: [composerOf('textarea.message-input-textarea', 'button.send-button'), '[aria-label="Select Model"]', '[role="listbox"]:has([role="option"])'],
+      drop: [],
+    },
   };
 
   const REMOVED_ELEMENTS = [
@@ -153,7 +292,15 @@
     '#free-ai-summarizer-root',
     /* Injected by other extensions installed in the capturing browser */
     'plasmo-csui',
+    '.translatetweet',
   ].join(',');
+
+  /*
+   * Custom elements and attributes that other extensions (DeepL, Proton Pass, Dark Reader, ...) add to
+   * every page: they are not the site's markup, and they reveal which extensions the capturer uses
+   */
+  const EXTENSION_ELEMENT_PREFIXES = ['deepl-', 'protonpass-', 'plasmo-'];
+  const EXTENSION_ATTRIBUTE_PREFIXES = ['data-darkreader', 'data-dl-'];
 
   /* Attributes kept outside the keep regions: enough for selectors, nothing user-written */
   const STRUCTURAL_ATTRIBUTES = new Set([
@@ -202,13 +349,17 @@
   const TOKEN_PATTERN = /[A-Za-z0-9_-]{32,}/g;
   const isTokenLike = word => (word.match(/\d/g) ?? []).length >= 4;
 
+  /* A leading run of plain words is a name, not part of the token: bard-mode-option-<hash> keeps its prefix for selectors */
+  const WORD_PREFIX = /^(?:[A-Za-z]+-)*/;
+  const redactToken = word => `${word.match(WORD_PREFIX)[0]}REDACTED`;
+
   const scrub = (value, redact = []) =>
     redact
       .reduce(
         (result, pattern) => result.replace(pattern, '$1REDACTED'),
         SECRET_PATTERNS.reduce((result, pattern) => result.replace(pattern, 'REDACTED'), value)
       )
-      .replace(TOKEN_PATTERN, word => (isTokenLike(word) ? 'REDACTED' : word));
+      .replace(TOKEN_PATTERN, word => (isTokenLike(word) ? redactToken(word) : word));
 
   /* Long texts are cut so that fixtures carry excerpts of third-party content, not whole articles */
   const MAX_TEXT_LENGTH = 200;
@@ -216,12 +367,19 @@
   const excerpt = text => (text.length > MAX_TEXT_LENGTH ? `${text.slice(0, EXCERPT_LENGTH)}…` : text);
 
   const sanitize = (config, report) => {
-    /* Parse into an inert document: a clone in the live one upgrades custom elements, whose callbacks react to the edits */
-    const inert = new DOMParser().parseFromString(document.documentElement.outerHTML, 'text/html');
-    const root = inert.documentElement;
+    /*
+     * Copy into an inert document: a clone in the live one upgrades custom elements, whose callbacks react to the edits.
+     * Importing (rather than parsing outerHTML) also works on pages that enforce Trusted Types, such as Gemini
+     */
+    const inert = document.implementation.createHTMLDocument('');
+    const root = inert.importNode(document.documentElement, true);
+    inert.replaceChild(root, inert.documentElement);
 
     root.querySelector('head')?.replaceChildren();
     root.querySelectorAll(REMOVED_ELEMENTS).forEach(element => element.remove());
+    [...root.querySelectorAll('*')]
+      .filter(element => EXTENSION_ELEMENT_PREFIXES.some(prefix => element.localName.startsWith(prefix)))
+      .forEach(element => element.remove());
     config.drop.forEach(selector => root.querySelectorAll(selector).forEach(element => element.remove()));
     root.querySelectorAll('svg').forEach(svg => svg.replaceChildren());
 
@@ -251,7 +409,8 @@
       } else {
         const inKeep = kept.has(node);
         [...node.attributes].forEach(({ name, value }) => {
-          const allowed = inKeep ? !DROPPED_ATTRIBUTES.has(name) && !name.startsWith('on') : STRUCTURAL_ATTRIBUTES.has(name);
+          const fromExtension = EXTENSION_ATTRIBUTE_PREFIXES.some(prefix => name.startsWith(prefix));
+          const allowed = !fromExtension && (inKeep ? !DROPPED_ATTRIBUTES.has(name) && !name.startsWith('on') : STRUCTURAL_ATTRIBUTES.has(name));
           if (allowed) {
             node.setAttribute(name, scrub(value, config.redact));
           } else {

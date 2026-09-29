@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { loadFixture } from '@/features/content/__fixtures__';
 import { injectPerplexity } from '@/features/content/injectors/Perplexity';
 
 const PROMPT = 'Summarize the following article.\n\nFirst paragraph.\nSecond paragraph.';
@@ -37,15 +38,14 @@ describe('injectPerplexity', () => {
     execCommand = jest.fn(() => true);
     /* jsdom does not implement execCommand */
     Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true });
-    /* Lexical editor markup as observed on perplexity.ai (2026-09-13); an empty editor holds one empty paragraph */
-    document.body.innerHTML = '<div id="ask-input" contenteditable="true"><p><br></p></div><button aria-label="Submit"></button>';
+    /* The Lexical composer of perplexity.ai, captured with text typed in so that Submit is rendered */
+    loadFixture('perplexity-composer');
   });
 
   afterEach(() => {
     jest.useRealTimers();
     delete (globalThis as any).DataTransfer;
     delete (globalThis as any).ClipboardEvent;
-    document.body.innerHTML = '';
   });
 
   const run = async () => {
