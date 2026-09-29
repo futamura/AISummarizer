@@ -27,7 +27,7 @@ const AI_SERVICE_MODEL_OPTIONS: { [key in AIService]: AIServiceModelOption[] } =
     { label: 'Pro', value: 'Pro' },
   ],
   [AIService.AI_STUDIO]: [
-    { label: 'Gemini 3 Flash Preview', value: 'gemini-3-flash-preview' },
+    { label: 'Gemini 3.8 Flash', value: 'gemini-3.8-flash' },
     { label: 'Gemini 3.1 Pro Preview', value: 'gemini-3.1-pro-preview' },
   ],
   [AIService.CLAUDE]: [
@@ -57,6 +57,16 @@ const AI_SERVICE_MODEL_OPTIONS: { [key in AIService]: AIServiceModelOption[] } =
 const MODEL_PARAM_SERVICES: AIService[] = [AIService.CHATGPT, AIService.CLAUDE, AIService.AI_STUDIO];
 const MODEL_DOM_SERVICES: AIService[] = [AIService.GEMINI, AIService.DEEPSEEK, AIService.KIMI, AIService.QWEN];
 
+/* Model passed for the Default choice where the service's own default needs a paid plan */
+const DEFAULT_MODEL_PARAMS: { [key in AIService]?: string } = {
+  [AIService.AI_STUDIO]: 'gemini-flash-latest',
+};
+
+/* Stored URL-parameter models that a free plan can no longer run, read as the default */
+const RETIRED_MODEL_PARAMS: { [key in AIService]?: string[] } = {
+  [AIService.AI_STUDIO]: ['gemini-3-flash-preview'],
+};
+
 export const getModelOptionsFor = (service: AIService): AIServiceModelOption[] => AI_SERVICE_MODEL_OPTIONS[service];
 
 export const supportsModelParam = (service: AIService): boolean => MODEL_PARAM_SERVICES.includes(service);
@@ -68,16 +78,20 @@ export const supportsModelSelection = (service: AIService): boolean => MODEL_PAR
  * @param service - The AI service
  * @param model - The stored model, empty for the service's own default
  * @returns The model; for the DOM-operated services, one no longer offered falls back to the default,
- * since the options show no choice for it. The URL-parameter services keep it as a custom model id.
+ * since the options show no choice for it. The URL-parameter services keep it as a custom model id,
+ * unless a free plan can no longer run it.
  */
 export const resolveModelFor = (service: AIService, model: string): string => {
-  if (!model || !MODEL_DOM_SERVICES.includes(service)) return model;
+  if (!model) return model;
+  if (RETIRED_MODEL_PARAMS[service]?.includes(model)) return '';
+  if (!MODEL_DOM_SERVICES.includes(service)) return model;
   return AI_SERVICE_MODEL_OPTIONS[service].some(option => option.value === model) ? model : '';
 };
 
 export const getSummarizeUrl = (service: AIService, summarizeId: string, model?: string) => {
   /* Model is applied via URL parameter only where the service supports it; DOM-operated services handle it in their injector */
-  const modelParam = model && supportsModelParam(service) ? `&model=${encodeURIComponent(model)}` : '';
+  const paramModel = model || DEFAULT_MODEL_PARAMS[service];
+  const modelParam = paramModel && supportsModelParam(service) ? `&model=${encodeURIComponent(paramModel)}` : '';
   switch (service) {
     case AIService.CHATGPT:
       return `https://chatgpt.com/?${AI_SERVICE_QUERY_KEY}=${summarizeId}${modelParam}`;

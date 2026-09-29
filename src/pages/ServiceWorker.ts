@@ -288,7 +288,7 @@ class ServiceWorker {
       if (!articleId) return false;
       const settings = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
       const tabBehavior = settings[STORAGE_KEYS.SETTINGS]?.state?.tabBehavior ?? DEFAULT_SETTINGS.tabBehavior;
-      const model = settings[STORAGE_KEYS.SETTINGS]?.state?.models?.[service] ?? DEFAULT_SETTINGS.models[service];
+      const model = await useSettingsStore.getState().getModelFor(service);
       const summarizeUrl = getSummarizeUrl(service, articleId, model);
       switch (tabBehavior) {
         case TabBehavior.CURRENT_TAB:

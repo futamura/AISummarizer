@@ -11,6 +11,7 @@ jest.mock('@/stores', () => ({
     getState: () => ({
       getServiceOnMenu: jest.fn(() => Promise.resolve(true)),
       getClipboardPrompt: jest.fn(() => Promise.resolve('{title}\n{content}')),
+      getModelFor: jest.fn(() => Promise.resolve('')),
     }),
   },
 }));
@@ -457,6 +458,11 @@ describe('ServiceWorker context menu', () => {
   it.each(MENU_ITEMS.AI_SERVICES.map(item => item.id))('opens the AI service of the %s menu item', async menuItemId => {
     await clickMenuItem(menuItemId);
     expect(openedServices()).toEqual([getAIServiceFromString(menuItemId)]);
+  });
+
+  it('opens AI Studio with the free Flash model for the Default choice', async () => {
+    await clickMenuItem('aistudio');
+    expect(chromeMock.tabs.create).toHaveBeenCalledWith({ url: expect.stringContaining('&model=gemini-flash-latest') });
   });
 
   it('writes the article to the clipboard from the copy menu item', async () => {
