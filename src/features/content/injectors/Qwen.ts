@@ -2,7 +2,9 @@ import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
 /*
- * Select the model (Qwen3.8-Max / Qwen3.7-Max / Qwen3.7-Plus) before injecting text.
+ * Select the model (Qwen3.7-Plus / Qwen3.8-Max / Qwen3.8-Omni-Flash) before injecting text.
+ * These are the entries the menu lists both signed in and signed out; the older models behind the
+ * signed-in "Expand more models" entry are not offered (verified live 2026-09-29).
  * The header trigger carries aria-label "Select Model" and the popup lists
  * div[role="option"] entries; module class names are hashed, so the picker is
  * located by aria-label and role instead (verified live 2026-08-08).

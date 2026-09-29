@@ -48,9 +48,9 @@ const AI_SERVICE_MODEL_OPTIONS: { [key in AIService]: AIServiceModelOption[] } =
     { label: 'K3', value: 'K3' },
   ],
   [AIService.QWEN]: [
-    { label: 'Qwen3.8-Max', value: 'Qwen3.8-Max' },
-    { label: 'Qwen3.7-Max', value: 'Qwen3.7-Max' },
     { label: 'Qwen3.7-Plus', value: 'Qwen3.7-Plus' },
+    { label: 'Qwen3.8-Max', value: 'Qwen3.8-Max' },
+    { label: 'Qwen3.8-Omni-Flash', value: 'Qwen3.8-Omni-Flash' },
   ],
 };
 
