@@ -35,7 +35,7 @@ describe('injectQwen', () => {
     expect(await stagesOf({})).toEqual(['pasting', 'sending']);
   });
 
-  it.each(['Qwen3.8-Max', 'Qwen3.7-Plus'])('clicks the %s option of the model menu', async model => {
+  it.each(['Qwen3.7-Plus', 'Qwen3.8-Max', 'Qwen3.8-Omni-Flash'])('clicks the %s option of the model menu', async model => {
     const option = Array.from(document.querySelectorAll('[role="option"]')).find(element => element.textContent?.includes(model))!;
     const onClick = jest.fn();
     option.addEventListener('click', onClick);

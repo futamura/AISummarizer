@@ -53,7 +53,7 @@ describe('getModelOptionsFor', () => {
 
   it('returns DOM labels for Kimi and Qwen', () => {
     expect(getModelOptionsFor(AIService.KIMI).map(o => o.value)).toEqual(['Instant', 'K3']);
-    expect(getModelOptionsFor(AIService.QWEN).map(o => o.value)).toEqual(['Qwen3.8-Max', 'Qwen3.7-Max', 'Qwen3.7-Plus']);
+    expect(getModelOptionsFor(AIService.QWEN).map(o => o.value)).toEqual(['Qwen3.7-Plus', 'Qwen3.8-Max', 'Qwen3.8-Omni-Flash']);
   });
 });
 
@@ -64,6 +64,10 @@ describe('resolveModelFor', () => {
 
   it.each([AIService.GEMINI, AIService.DEEPSEEK, AIService.KIMI, AIService.QWEN])('treats a %s model no longer offered as the default', service => {
     expect(resolveModelFor(service, 'Removed-Model')).toBe('');
+  });
+
+  it('treats the removed Qwen3.7-Max as the default', () => {
+    expect(resolveModelFor(AIService.QWEN, 'Qwen3.7-Max')).toBe('');
   });
 
   it('keeps a custom model id for the URL-parameter services', () => {
