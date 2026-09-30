@@ -61,6 +61,21 @@ interface XUser {
 }
 
 /**
+ * Tell whether an element sits among text, like the divs X wraps links in.
+ * X lays those divs out inline, so they must not break the line their text belongs to.
+ * @param element - The element to test
+ * @returns True when a sibling of the element carries inline text
+ */
+const isAmongInlineText = (element: Element): boolean =>
+  [...(element.parentNode?.childNodes ?? [])].some(sibling => {
+    if (sibling === element) return false;
+    if (sibling.nodeType === Node.TEXT_NODE) return (sibling.textContent ?? '').trim() !== '';
+    if (sibling.nodeType !== Node.ELEMENT_NODE) return false;
+    const tagName = (sibling as Element).tagName.toUpperCase();
+    return !BLOCK_TAGS.has(tagName) && !SKIP_TAGS.has(tagName) && (sibling.textContent ?? '').trim() !== '';
+  });
+
+/**
  * Collect the text of an element, keeping the line breaks its block elements imply.
  * textContent alone would glue paragraphs and headings together.
  * @param node - The node to collect text from
@@ -81,7 +96,7 @@ const collectText = (node: Node, parts: string[]): void => {
     return;
   }
 
-  const isBlock = BLOCK_TAGS.has(tagName);
+  const isBlock = BLOCK_TAGS.has(tagName) && !(tagName === 'DIV' && isAmongInlineText(element));
   if (isBlock) parts.push('\n');
   element.childNodes.forEach(child => collectText(child, parts));
   if (isBlock) parts.push('\n');
