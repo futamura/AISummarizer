@@ -3,6 +3,7 @@
  */
 import { loadFixture } from '@/features/content/__fixtures__';
 import { injectQwen } from '@/features/content/injectors/Qwen';
+import { AIService, getModelOptionsFor } from '@/types';
 
 describe('injectQwen', () => {
   beforeEach(() => {
@@ -27,6 +28,8 @@ describe('injectQwen', () => {
     return onStage.mock.calls.map(([stage]) => stage);
   };
 
+  const modelOptions = () => Array.from(document.querySelectorAll('[role="option"]'));
+
   it('reports selecting the model first when a model is given', async () => {
     expect(await stagesOf({ model: 'Qwen3.8-Max' })).toEqual(['selectingModel', 'pasting', 'sending']);
   });
@@ -35,14 +38,26 @@ describe('injectQwen', () => {
     expect(await stagesOf({})).toEqual(['pasting', 'sending']);
   });
 
-  it.each(['Qwen3.7-Plus', 'Qwen3.8-Max', 'Qwen3.8-Omni-Flash'])('clicks the %s option of the model menu', async model => {
-    const option = Array.from(document.querySelectorAll('[role="option"]')).find(element => element.textContent?.includes(model))!;
-    const onClick = jest.fn();
-    option.addEventListener('click', onClick);
+  /* Driven by the options so that a model the site dropped fails here when the fixture is recaptured */
+  it.each(getModelOptionsFor(AIService.QWEN).map(option => option.value))('selects the offered %s model from the model menu', async model => {
+    const clicked: string[] = [];
+    modelOptions().forEach(option => option.addEventListener('click', () => clicked.push(option.textContent ?? '')));
+    const onModelUnavailable = jest.fn();
 
-    await run({ model });
+    await run({ model, onModelUnavailable });
 
-    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onModelUnavailable).not.toHaveBeenCalled();
+    expect(clicked).toEqual([expect.stringContaining(model)]);
+  });
+
+  /* A model the site added shows up here; offer it in the options or list it as not offered */
+  it('has no model menu entry missing from the model options', () => {
+    const offered = getModelOptionsFor(AIService.QWEN).map(option => option.value);
+    const unknown = modelOptions()
+      .map(option => option.textContent ?? '')
+      .filter(text => !offered.some(model => text.includes(model)));
+
+    expect(unknown).toEqual([]);
   });
 
   it('sets the textarea through the native setter and clicks Send', async () => {
