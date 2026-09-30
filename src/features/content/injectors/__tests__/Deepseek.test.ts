@@ -29,11 +29,7 @@ describe('injectDeepSeek', () => {
     return onStage.mock.calls.map(([stage]) => stage);
   };
 
-  it('reports selecting the model first when a model is given', async () => {
-    expect(await stagesOf({ model: 'Expert' })).toEqual(['selectingModel', 'pasting', 'sending']);
-  });
-
-  it('starts with pasting when no model is given', async () => {
+  it('starts with pasting', async () => {
     expect(await stagesOf({})).toEqual(['pasting', 'sending']);
   });
 
@@ -57,14 +53,16 @@ describe('injectDeepSeek', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('reports the model and continues when the page has no model tabs', async () => {
+  it('ignores a model, since DeepSeek has no model to choose', async () => {
     /* DeepSeek merged Instant / Expert / Vision into one model; the captured page has no model tabs */
     expect(document.querySelectorAll('[role="radio"]')).toHaveLength(0);
+    const onStage = jest.fn();
     const onModelUnavailable = jest.fn();
 
-    await expect(run({ model: 'Expert', onModelUnavailable })).resolves.toEqual({ success: true });
+    await expect(run({ model: 'Expert', onStage, onModelUnavailable })).resolves.toEqual({ success: true });
 
-    expect(onModelUnavailable).toHaveBeenCalledWith('Expert');
+    expect(onStage.mock.calls.map(([stage]) => stage)).toEqual(['pasting', 'sending']);
+    expect(onModelUnavailable).not.toHaveBeenCalled();
   });
 
   it('fails when the send button stays disabled', async () => {
