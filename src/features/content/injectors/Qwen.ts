@@ -1,3 +1,4 @@
+import { QWEN_SELECTORS } from '@/constants';
 import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
@@ -15,14 +16,14 @@ import { getRandomInt, logger, waitForElement } from '@/utils';
  */
 async function selectQwenModel(model: string): Promise<boolean> {
   try {
-    const trigger = await waitForElement('[aria-label="Select Model"]');
+    const trigger = await waitForElement(QWEN_SELECTORS.modelPicker);
     if (!(trigger instanceof HTMLElement)) throw new Error('Qwen model picker trigger not found');
     trigger.click();
 
     /* Wait for the picker popup to open */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
 
-    const target = [...document.querySelectorAll('[role="option"]')].find(el => el.textContent?.includes(model));
+    const target = [...document.querySelectorAll(QWEN_SELECTORS.modelOption)].find(el => el.textContent?.includes(model));
     if (!(target instanceof HTMLElement)) throw new Error(`Qwen model option not found: ${model}`);
     target.click();
 
@@ -53,7 +54,7 @@ export async function injectQwen(
     }
 
     /** Wait for the editor to be found. The chat box is the sole textarea on the page (verified live 2026-08-08) */
-    const editor = await waitForElement('textarea.message-input-textarea, textarea');
+    const editor = await waitForElement(QWEN_SELECTORS.editor);
     if (!editor) throw new Error('Qwen container not found');
     logger.debug('📕', '[Qwen.tsx]', '[injectQwen]', 'Qwen editor found', editor);
 
@@ -72,7 +73,7 @@ export async function injectQwen(
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
 
     /** Wait for the submit button to be found. The button replaces the voice-mode button once text is entered (verified live 2026-08-08) */
-    const submitButton = await waitForElement('button.send-button:not([disabled])');
+    const submitButton = await waitForElement(QWEN_SELECTORS.submit);
     if (!submitButton) throw new Error('Qwen submit button not found');
     logger.debug('📕', '[Qwen.tsx]', '[injectQwen]', 'Qwen submit button found', submitButton);
 

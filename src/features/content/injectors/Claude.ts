@@ -1,3 +1,4 @@
+import { CLAUDE_SELECTORS } from '@/constants';
 import { insertEditorText } from '@/platform';
 import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
@@ -8,7 +9,7 @@ export async function injectClaude(prompt: string, { onStage = noopStageReporter
     logger.debug('📕', '[Claude.tsx]', '[injectClaude]', 'Injecting article into Claude', prompt);
 
     /** Wait for the editor to be found */
-    const editor = await waitForElement('div.ProseMirror[contenteditable="true"]');
+    const editor = await waitForElement(CLAUDE_SELECTORS.editor);
     if (!editor) throw new Error('Claude container not found');
     logger.debug('📕', '[Claude.tsx]', '[injectClaude]', 'Claude editor found', editor);
 
@@ -33,7 +34,7 @@ export async function injectClaude(prompt: string, { onStage = noopStageReporter
      * synthetic Enter keydown handled by the ProseMirror keymap when the button is missing
      * or still disabled.
      */
-    const sendButton = document.querySelector('button[data-testid="chat-input-send"]');
+    const sendButton = document.querySelector(CLAUDE_SELECTORS.submit);
     if (sendButton instanceof HTMLButtonElement && !sendButton.disabled) {
       logger.debug('📕', '[Claude.tsx]', '[injectClaude]', 'Claude send button found', sendButton);
       sendButton.click();
