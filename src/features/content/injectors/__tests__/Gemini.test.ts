@@ -3,6 +3,7 @@
  */
 import { loadFixture } from '@/features/content/__fixtures__';
 import { injectGemini, matchGeminiModelLabel } from '@/features/content/injectors/Gemini';
+import { AIService, getModelOptionsFor } from '@/types';
 
 /* Menu item texts as observed on gemini.google.com (2026-08-08) */
 const MENU = ['3.5 Flash-Lite すばやく回答を得るのに最適', '3.6 Flash あらゆる場面でサポート', '3.1 Pro 高度な数学とコーディングに最適'];
@@ -56,6 +57,8 @@ describe('injectGemini', () => {
 
   const modeOptions = () => Array.from(document.querySelectorAll<HTMLElement>(MODE_OPTION));
 
+  const menuTextOf = (option: Element) => option.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
   it('reports selecting the model first when a model is given', async () => {
     expect(await stagesOf({ model: 'Pro' })).toEqual(['selectingModel', 'pasting', 'sending']);
   });
@@ -64,21 +67,26 @@ describe('injectGemini', () => {
     expect(await stagesOf({})).toEqual(['pasting', 'sending']);
   });
 
-  it.each([
-    ['Flash-Lite', 0],
-    ['Flash', 1],
-    ['Pro', 2],
-  ])('clicks the %s option of the mode menu', async (model, index) => {
-    expect(modeOptions()).toHaveLength(3);
-    const onClicks = modeOptions().map(option => {
-      const onClick = jest.fn();
-      option.addEventListener('click', onClick);
-      return onClick;
-    });
+  /* Driven by the options so that a model the site dropped fails here when the fixture is recaptured */
+  it.each(getModelOptionsFor(AIService.GEMINI).map(option => option.value))('selects the offered %s model from the mode menu', async model => {
+    const clicked: string[] = [];
+    modeOptions().forEach(option => option.addEventListener('click', () => clicked.push(menuTextOf(option))));
+    const onModelUnavailable = jest.fn();
 
-    await run({ model });
+    await run({ model, onModelUnavailable });
 
-    expect(onClicks.map(onClick => onClick.mock.calls.length)).toEqual([0, 1, 2].map(i => (i === index ? 1 : 0)));
+    expect(onModelUnavailable).not.toHaveBeenCalled();
+    expect(clicked).toEqual([expect.stringContaining(model)]);
+  });
+
+  /* A model the site added shows up here; offer it in the options or list it as not offered */
+  it('has no mode menu entry missing from the model options', () => {
+    const offered = getModelOptionsFor(AIService.GEMINI).map(option => option.value);
+    const unknown = modeOptions()
+      .map(menuTextOf)
+      .filter(text => !offered.some(model => matchGeminiModelLabel([text], model) === 0));
+
+    expect(unknown).toEqual([]);
   });
 
   it('writes the prompt into the editor paragraph and clicks Send', async () => {

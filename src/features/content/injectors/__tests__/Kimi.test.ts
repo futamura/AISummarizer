@@ -3,9 +3,13 @@
  */
 import { loadFixture } from '@/features/content/__fixtures__';
 import { injectKimi, isPromptResidue } from '@/features/content/injectors/Kimi';
+import { AIService, getModelOptionsFor } from '@/types';
 
 /* Multi-paragraph prompt mirroring the article + prompt text injectKimi sends */
 const PROMPT = 'First paragraph text.\n\nSecond paragraph text.\n\nThird paragraph tail chunk text.';
+
+/* Model menu entries the options leave out on purpose; the name keeps the badge text, as the injector reads it */
+const NOT_OFFERED_MODELS = ['K2.8Preview'];
 
 describe('isPromptResidue', () => {
   it('returns false for an empty string', () => {
@@ -79,12 +83,9 @@ describe('injectKimi', () => {
     return onStage.mock.calls.map(([stage]) => stage);
   };
 
-  const watchModelItem = (name: string) => {
-    const item = Array.from(document.querySelectorAll('.model-item')).find(element => element.querySelector('.model-name')?.textContent?.trim() === name)!;
-    const onClick = jest.fn();
-    item.addEventListener('click', onClick);
-    return onClick;
-  };
+  const modelItems = () => Array.from(document.querySelectorAll('.model-item'));
+
+  const modelNameOf = (item: Element) => item.querySelector('.model-name')?.textContent?.trim() ?? '';
 
   it('reports selecting the model first when a model is given', async () => {
     expect(await stagesOf({ model: 'K3' })).toEqual(['selectingModel', 'pasting', 'sending']);
@@ -94,12 +95,26 @@ describe('injectKimi', () => {
     expect(await stagesOf({})).toEqual(['pasting', 'sending']);
   });
 
-  it.each(['K3', 'Instant'])('clicks the %s item of the model menu', async model => {
-    const onClick = watchModelItem(model);
+  /* Driven by the options so that a model the site dropped fails here when the fixture is recaptured */
+  it.each(getModelOptionsFor(AIService.KIMI).map(option => option.value))('selects the offered %s model from the model menu', async model => {
+    const clicked: string[] = [];
+    modelItems().forEach(item => item.addEventListener('click', () => clicked.push(modelNameOf(item))));
+    const onModelUnavailable = jest.fn();
 
-    await run({ model });
+    await run({ model, onModelUnavailable });
 
-    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(onModelUnavailable).not.toHaveBeenCalled();
+    expect(clicked).toEqual([model]);
+  });
+
+  /* A model the site added shows up here; offer it in the options or add it to NOT_OFFERED_MODELS */
+  it('has no model menu entry missing from the model options', () => {
+    const offered = getModelOptionsFor(AIService.KIMI).map(option => option.value);
+    const unknown = modelItems()
+      .map(modelNameOf)
+      .filter(name => !offered.includes(name) && !NOT_OFFERED_MODELS.includes(name));
+
+    expect(unknown).toEqual([]);
   });
 
   it('types the prompt through execCommand and clicks the send button', async () => {
