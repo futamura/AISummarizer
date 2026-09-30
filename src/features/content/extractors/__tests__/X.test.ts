@@ -32,7 +32,7 @@ const articleView = `
   <div data-testid="twitterArticleReadView">
     <h1 data-testid="twitter-article-title">Article title</h1>
     <div data-testid="twitterArticleRichTextView">
-      <div><span>First paragraph.</span></div>
+      <div><span>First paragraph with </span><div><a><span>a link</span></a></div><span> in it.</span></div>
       <h2><span>A heading</span></h2>
       <div><span>Second paragraph.</span></div>
       <button>Show more</button>
@@ -141,6 +141,8 @@ describe('extractX', () => {
     expect(result.title).toBe('X achieves TAG Brand Safety Certification');
     expect(result.content).toMatch(/^X achieves TAG Brand Safety Certification\nSafety \(@Safety\)\nOver the past 18 months, /);
     expect(result.content).toContain('\nFor our customers, we have deployed every single brand control');
+    /* Links in the body are wrapped in divs laid out inline, which must not break the sentence */
+    expect(result.content).toContain('we are now TAG Brand Safety Certified. We will work closely with @tag_today and industry leaders');
     /* Engagement counts and the upgrade prompt of the read view are interface, not content */
     expect(result.content).not.toMatch(/プレミアム|件の表示/);
   });
@@ -152,7 +154,9 @@ describe('extractX', () => {
 
     expect(result.isSuccess).toBe(true);
     expect(result.title).toBe('Article title');
-    expect(result.content).toBe(['Article title', 'Article Author (@article_author)', 'First paragraph.', 'A heading', 'Second paragraph.'].join('\n'));
+    expect(result.content).toBe(
+      ['Article title', 'Article Author (@article_author)', 'First paragraph with a link in it.', 'A heading', 'Second paragraph.'].join('\n')
+    );
     /* Buttons carry interface labels rather than content */
     expect(result.content).not.toContain('Show more');
   });
