@@ -1,50 +1,17 @@
-import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '@/types';
+import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
-
-/*
- * Select the model tab (Instant / Expert / Vision) before injecting text.
- * The tab labels are English regardless of locale (verified 2026-08-08); class names
- * are hashed, so the tab is located by role instead.
- * Any failure is logged and swallowed so the injection itself still proceeds.
- * Returns whether the model was selected.
- */
-async function selectDeepSeekModel(model: string): Promise<boolean> {
-  try {
-    /*
-     * The model switch is a radiogroup above the chat input (verified live 2026-08-08):
-     * div[role="radio"] elements whose text contains the label (Instant / Expert / Vision),
-     * with aria-checked reflecting the current selection. Scoping to role="radio" avoids
-     * clicking unrelated elements that merely contain the same text.
-     */
-    const target = [...document.querySelectorAll('[role="radio"]')].find(el => el.textContent?.includes(model));
-    if (!(target instanceof HTMLElement)) throw new Error(`DeepSeek model tab not found: ${model}`);
-    target.click();
-
-    /* Wait for the tab switch to settle */
-    await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
-    return true;
-  } catch (error: unknown) {
-    logger.warn('📕', '[DeepSeek.tsx]', '[selectDeepSeekModel]', 'Model selection failed, continuing injection:', error);
-    return false;
-  }
-}
 
 export async function injectDeepSeek(
   prompt: string,
-  { model, onStage = noopStageReporter, onModelUnavailable = noopModelUnavailableReporter }: InjectOptions = {}
+  /* DeepSeek has a single model since it removed the model tabs, so the model option is not used */
+  { onStage = noopStageReporter }: InjectOptions = {}
 ): Promise<{ success: boolean; error?: Error }> {
   try {
     logger.debug('📕', '[DeepSeek.tsx]', '[injectDeepSeek]', 'Injecting article into DeepSeek\n', prompt);
-    onStage(model ? 'selectingModel' : 'pasting');
+    onStage('pasting');
 
     /** Wait for 2 seconds to ensure page is fully loaded */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
-
-    /* Select the configured model first; failures are non-fatal */
-    if (model) {
-      if (!(await selectDeepSeekModel(model))) onModelUnavailable(model);
-      onStage('pasting');
-    }
 
     /** Wait for the editor to be found. DeepSeek removed the #chat-input id; the chat box is now the sole textarea on the page */
     const editor = await waitForElement('#chat-input, textarea');

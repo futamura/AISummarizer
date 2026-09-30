@@ -38,11 +38,8 @@ const AI_SERVICE_MODEL_OPTIONS: { [key in AIService]: AIServiceModelOption[] } =
   ],
   [AIService.GROK]: [],
   [AIService.PERPLEXITY]: [],
-  [AIService.DEEPSEEK]: [
-    { label: 'Instant', value: 'Instant' },
-    { label: 'Expert', value: 'Expert' },
-    { label: 'Vision', value: 'Vision' },
-  ],
+  /* DeepSeek merged Instant / Expert / Vision into one model and removed the model tabs (2026-09-28) */
+  [AIService.DEEPSEEK]: [],
   [AIService.KIMI]: [
     { label: 'Instant', value: 'Instant' },
     { label: 'K3', value: 'K3' },
@@ -55,7 +52,7 @@ const AI_SERVICE_MODEL_OPTIONS: { [key in AIService]: AIServiceModelOption[] } =
 };
 
 const MODEL_PARAM_SERVICES: AIService[] = [AIService.CHATGPT, AIService.CLAUDE, AIService.AI_STUDIO];
-const MODEL_DOM_SERVICES: AIService[] = [AIService.GEMINI, AIService.DEEPSEEK, AIService.KIMI, AIService.QWEN];
+const MODEL_DOM_SERVICES: AIService[] = [AIService.GEMINI, AIService.KIMI, AIService.QWEN];
 
 /* Model passed for the Default choice where the service's own default needs a paid plan */
 const DEFAULT_MODEL_PARAMS: { [key in AIService]?: string } = {
@@ -79,10 +76,10 @@ export const supportsModelSelection = (service: AIService): boolean => MODEL_PAR
  * @param model - The stored model, empty for the service's own default
  * @returns The model; for the DOM-operated services, one no longer offered falls back to the default,
  * since the options show no choice for it. The URL-parameter services keep it as a custom model id,
- * unless a free plan can no longer run it.
+ * unless a free plan can no longer run it. A service without model selection always uses its default.
  */
 export const resolveModelFor = (service: AIService, model: string): string => {
-  if (!model) return model;
+  if (!model || !supportsModelSelection(service)) return '';
   if (RETIRED_MODEL_PARAMS[service]?.includes(model)) return '';
   if (!MODEL_DOM_SERVICES.includes(service)) return model;
   return AI_SERVICE_MODEL_OPTIONS[service].some(option => option.value === model) ? model : '';

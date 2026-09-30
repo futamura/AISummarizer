@@ -28,9 +28,9 @@ describe('supportsModelSelection', () => {
     expect(supportsModelSelection(AIService.CLAUDE)).toBe(true);
     expect(supportsModelSelection(AIService.AI_STUDIO)).toBe(true);
     expect(supportsModelSelection(AIService.GEMINI)).toBe(true);
-    expect(supportsModelSelection(AIService.DEEPSEEK)).toBe(true);
     expect(supportsModelSelection(AIService.KIMI)).toBe(true);
     expect(supportsModelSelection(AIService.QWEN)).toBe(true);
+    expect(supportsModelSelection(AIService.DEEPSEEK)).toBe(false);
     expect(supportsModelSelection(AIService.GROK)).toBe(false);
     expect(supportsModelSelection(AIService.PERPLEXITY)).toBe(false);
   });
@@ -46,9 +46,12 @@ describe('getModelOptionsFor', () => {
     expect(getModelOptionsFor(AIService.CHATGPT)).toEqual([]);
   });
 
-  it('returns DOM labels for Gemini and DeepSeek', () => {
+  it('returns DOM labels for Gemini', () => {
     expect(getModelOptionsFor(AIService.GEMINI).map(o => o.value)).toEqual(['Flash-Lite', 'Flash', 'Pro']);
-    expect(getModelOptionsFor(AIService.DEEPSEEK).map(o => o.value)).toEqual(['Instant', 'Expert', 'Vision']);
+  });
+
+  it('returns no presets for DeepSeek, which merged its models into one', () => {
+    expect(getModelOptionsFor(AIService.DEEPSEEK)).toEqual([]);
   });
 
   it('returns DOM labels for Kimi and Qwen', () => {
@@ -66,8 +69,12 @@ describe('resolveModelFor', () => {
     expect(resolveModelFor(AIService.QWEN, 'Qwen3.8-Max')).toBe('Qwen3.8-Max');
   });
 
-  it.each([AIService.GEMINI, AIService.DEEPSEEK, AIService.KIMI, AIService.QWEN])('treats a %s model no longer offered as the default', service => {
+  it.each([AIService.GEMINI, AIService.KIMI, AIService.QWEN])('treats a %s model no longer offered as the default', service => {
     expect(resolveModelFor(service, 'Removed-Model')).toBe('');
+  });
+
+  it.each(['Instant', 'Expert', 'Vision'])('treats the removed DeepSeek model %s as the default', model => {
+    expect(resolveModelFor(AIService.DEEPSEEK, model)).toBe('');
   });
 
   it('treats the removed Qwen3.7-Max as the default', () => {
