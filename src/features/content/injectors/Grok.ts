@@ -1,3 +1,4 @@
+import { GROK_SELECTORS } from '@/constants';
 import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
@@ -10,7 +11,7 @@ export async function injectGrok(prompt: string, { onStage = noopStageReporter }
      * Wait for the editor to be found. Grok went back from a Tiptap (ProseMirror) contenteditable to a
      * textarea in the composer form; the aria-hidden autosize textarea outside the form is not matched
      */
-    const editor = await waitForElement('form textarea, div.tiptap.ProseMirror[contenteditable="true"]');
+    const editor = await waitForElement(GROK_SELECTORS.editor);
     if (!editor) throw new Error('Grok container not found');
     logger.debug('📕', '[Grok.tsx]', '[injectGrok]', 'Grok editor found', editor);
 
@@ -35,7 +36,7 @@ export async function injectGrok(prompt: string, { onStage = noopStageReporter }
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
 
     /** Wait for the submit button to be found */
-    const submitButton = await waitForElement('button[aria-label="Submit"]');
+    const submitButton = await waitForElement(GROK_SELECTORS.submit);
     if (!submitButton) throw new Error('Grok submit button not found');
     logger.debug('📕', '[Grok.tsx]', '[injectGrok]', 'Grok submit button found', submitButton);
 
