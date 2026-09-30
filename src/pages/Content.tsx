@@ -41,8 +41,9 @@ document.body.appendChild(rootContainer);
 const reactContainer = document.createElement('div');
 reactContainer.id = 'free-ai-summarizer-react-root';
 
-const shadowRoot = rootContainer.attachShadow({ mode: process.env.NODE_ENV === 'development' ? 'open' : 'closed' });
-shadowRoot?.appendChild(reactContainer);
+/** Closed in every build so the page's scripts cannot reach into the UI, and dev behaves like production */
+const shadowRoot = rootContainer.attachShadow({ mode: 'closed' });
+shadowRoot.appendChild(reactContainer);
 
 /** Render the React app */
 const root = createRoot(reactContainer);
