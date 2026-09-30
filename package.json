@@ -9,13 +9,15 @@
     "start": "NODE_ENV=development node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=development",
     "dev:firefox": "TARGET=firefox NODE_ENV=development node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=development --watch",
     "build:firefox": "TARGET=firefox NODE_ENV=production node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=production",
-    "prettier-check": "prettier --config prettier.config.js --check \"src/**/*.{js,jsx,ts,tsx,css,scss,json}\" \"build/**/*.ts\"",
-    "prettier-fix": "prettier --config prettier.config.js --write \"src/**/*.{js,jsx,ts,tsx,css,scss,json}\" \"build/**/*.ts\"",
-    "eslint-check": "eslint \"src/**/*.{ts,tsx,js,jsx}\" \"build/**/*.ts\"",
-    "eslint-fix": "eslint --fix \"src/**/*.{ts,tsx,js,jsx}\" \"build/**/*.ts\"",
+    "prettier-check": "prettier --config prettier.config.js --check \"src/**/*.{js,jsx,ts,tsx,css,scss,json}\" \"build/**/*.ts\" \"scripts/**/*.ts\"",
+    "prettier-fix": "prettier --config prettier.config.js --write \"src/**/*.{js,jsx,ts,tsx,css,scss,json}\" \"build/**/*.ts\" \"scripts/**/*.ts\"",
+    "eslint-check": "eslint \"src/**/*.{ts,tsx,js,jsx}\" \"build/**/*.ts\" \"scripts/**/*.ts\"",
+    "eslint-fix": "eslint --fix \"src/**/*.{ts,tsx,js,jsx}\" \"build/**/*.ts\" \"scripts/**/*.ts\"",
     "type-check": "tsc --noEmit",
     "clean-install-modules": "rm -rf node_modules && pnpm install",
-    "test": "jest"
+    "test": "jest",
+    "canary:login": "node --loader ts-node/esm scripts/canary/login.ts",
+    "canary:probe": "node --loader ts-node/esm scripts/canary/probe.ts"
   },
   "keywords": [
     "open-source",
@@ -62,6 +64,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
+    "@playwright/test": "^1.63.0",
     "@trivago/prettier-plugin-sort-imports": "^5.2.2",
     "@types/chrome": "^0.0.326",
     "@types/html-webpack-plugin": "^3.2.9",
