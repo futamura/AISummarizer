@@ -85,6 +85,14 @@ Check security
 
 Run type check
 
+### unit_test
+
+```sh
+[bundle exec] fastlane unit_test
+```
+
+Run unit tests
+
 ### bump_version
 
 ```sh
