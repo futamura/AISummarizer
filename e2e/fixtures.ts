@@ -86,9 +86,16 @@ export const test = base.extend<ExtensionFixtures & ExtensionOptions, WorkerFixt
           `--load-extension=${extensionDir}`,
           /*
            * Every request of the browser, including the tabs the extension opens, which context.route
-           * does not catch, goes to the fixture server or fails to resolve. Nothing reaches a live site
+           * does not catch, goes to the fixture server or fails to resolve. Nothing reaches a live site.
+           * One exception lies below these rules: when the system DNS server is a known DNS-over-HTTPS
+           * provider, Secure DNS may check that provider for an upgrade. It carries no test data
            */
           `--host-resolver-rules=${fixtureServer.resolverRules}`,
+          /*
+           * ignoreHTTPSErrors reaches a tab the extension opens only once Playwright attaches to it, which
+           * may be after its first load: without this flag, that load sometimes stops at the certificate
+           * error page
+           */
           '--ignore-certificate-errors',
         ],
       });
@@ -247,8 +254,9 @@ export const readComposer = (page: Page, selector: string): Promise<string | nul
   }, selector);
 
 /**
- * Check that the article of e2e/pages/article.html was injected. The fixture has no site script, so
- * the send click changes nothing and the composer keeps the prompt
+ * Check that the article of e2e/pages/article.html was injected. The fixture has no site script and
+ * the fixture server cancels form submission, so the send click changes nothing and the composer
+ * keeps the prompt
  * @param page - The AI service page
  * @param editorSelector - The editor selector of the service
  */

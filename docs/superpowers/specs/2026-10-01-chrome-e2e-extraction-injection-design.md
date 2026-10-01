@@ -15,7 +15,7 @@ Extend the Chrome E2E suite from an ordinary article page to the rest of the use
 | Pages | Reuse the captured fixtures in `src/features/content/__fixtures__/`, served at their real host names by a local HTTPS server | They are the sanitized live DOM the Jest tests already use; serving them at the real host makes the extension take its real code path (`isAIServiceUrl`, `getAIServiceForUrl`, extractor choice) |
 | Network | None, enforced by Chromium's resolver: `--host-resolver-rules` maps every test host to the local server and every other host to `~NOTFOUND`. `context.route` is no longer used | `context.route` missed the first navigation of tabs opened by the service worker (see "Network leak" below); the resolver applies to every request of the browser, whoever starts it |
 | Subresources | The server answers a request whose `Sec-Fetch-Dest` is `document` with the page, anything else with 404 | The fixtures keep the original image and asset URLs |
-| Injection check | The composer contains the article title and body, and the toast "Article has been sent!" appears | A static fixture has no site script, so a click on its send button does nothing. The click itself is covered by the injector Jest tests |
+| Injection check | The composer contains the article title and body, and the toast "Article has been sent!" appears | A static fixture has no site script, so a click on its send button does nothing, except inside a `<form>`, where it submits the form natively and reloads the page with the composer emptied. The server adds a script to the fixture's `<head>` that cancels form submission, standing in for the site's submit handler. The click itself is covered by the injector Jest tests |
 | Context menu | A hook on the service worker global, defined only when `process.env.NODE_ENV === 'development'`. Its tests run in the `dev` project only | No tool can click a native context menu or fire `chrome.contextMenus.onClicked`. Same guard as `Logger.ts` and `Browser.ts`; production mode removes it |
 | Hook absence | A test greps every `.js` file of `dist/prod` for the hook name | Done-when of FUT-192 |
 | Projects | Every new spec runs in `prod` and `dev`, except the context menu spec (`dev` only) and the build check (`prod` only) | Same rule as FUT-191 |
@@ -63,7 +63,7 @@ A table maps each fixture host to its default fixture:
 | `www.kimi.ai` | `kimi-composer` |
 | `chat.qwen.ai` | `qwen-composer` |
 
-The AI service hosts are the ones `getSummarizeUrl` opens. Fixture files are read with `fs` from `src/features/content/__fixtures__/<name>.html`; `__fixtures__/index.ts` is not imported, since it relies on `__dirname`, which the ESM test files do not have. The capture header is an HTML comment and is served as is.
+The AI service hosts are the ones `getSummarizeUrl` opens. Fixture files are read with `fs` from `src/features/content/__fixtures__/<name>.html`; `__fixtures__/index.ts` is not imported, since it relies on `__dirname`, which the ESM test files do not have. The capture header is an HTML comment and is served as is; the only change to a fixture is the submit-cancelling script at the start of its `<head>`.
 
 ## Helpers (`e2e/fixtures.ts`)
 
