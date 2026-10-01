@@ -27,6 +27,7 @@ Everything is kept outside the repository, in `~/Library/Application Support/ai-
 - `profile/`: the Chromium profile with the signed-in sessions. Playwright's Chromium encrypts cookies with a fixed key rather than the macOS keychain, so anyone who can read this folder can take over the sessions. Sign in with accounts made for the canary only, never personal ones
 - `runs/<time>/`: `result.json`, and the DOM and screenshot of each failed page. Runs older than 30 days are removed
 - `launchd.log`: the output of the scheduled runs
+- `repo/` and `run.sh`: the clone of the repository and the copy of `run.sh` that the scheduled runs use (see below)
 
 Never commit or upload any of it.
 
@@ -36,5 +37,7 @@ Never commit or upload any of it.
 2. Sign in: `pnpm canary:login` opens the profile with a tab per service, in the same Chromium started as a plain browser (Google refuses to sign in to a browser under automation, and Cloudflare challenges it). Sign in on each with the canary accounts, then quit the browser with Cmd+Q
 3. Try a run: `pnpm canary:probe` (`--only=claude,x-post` for some pages, `--no-notify` to skip the notification)
 4. Schedule it: `scripts/canary/install-launchd.sh` runs it every day at 9:00 (`CANARY_HOUR` / `CANARY_MINUTE` to change it; `--uninstall` to remove it)
+
+The scheduled runs do not use your working copy. macOS does not let a launchd job read `~/Documents` (the job fails with `Operation not permitted`), and the working copy may be on any branch. So `install-launchd.sh` clones the repository into `repo/` and copies `run.sh` next to it; each run pulls `develop` and installs its dependencies before probing. Run `install-launchd.sh` again after changing `run.sh`. If anything before the probe fails, a notification points to `launchd.log`.
 
 The probe opens a browser window: headless Chromium is turned away by the bot protection of ChatGPT, Claude, Perplexity, DeepSeek and X (`--headless` to try it anyway).
