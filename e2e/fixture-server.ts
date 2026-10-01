@@ -49,7 +49,7 @@ const SUBMIT_GUARD = "<script>document.addEventListener('submit', event => event
  * @param html - The fixture HTML
  * @returns The HTML to serve
  */
-const withSubmitGuard = (html: string): string => html.replace(/<head[^>]*>/i, head => `${head}${SUBMIT_GUARD}`);
+export const withSubmitGuard = (html: string): string => html.replace(/<head(?:\s[^>]*)?>/i, head => `${head}${SUBMIT_GUARD}`);
 
 export interface CapturedFixture {
   html: string;

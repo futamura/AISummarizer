@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 import { test as base, type BrowserContext, chromium, expect, type Page, type Worker } from '@playwright/test';
 
-import { fixtureForUrl, type FixtureServer, PAGE_ORIGIN, readFixture, startFixtureServer } from './fixture-server';
+import { fixtureForUrl, type FixtureServer, PAGE_ORIGIN, readFixture, startFixtureServer, withSubmitGuard } from './fixture-server';
 
-export { expect, PAGE_ORIGIN, readFixture };
+export { expect, PAGE_ORIGIN, readFixture, withSubmitGuard };
 
 const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.dirname(E2E_DIR);
