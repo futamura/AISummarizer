@@ -123,3 +123,41 @@ export const test = base.extend<ExtensionFixtures & ExtensionOptions>({
     });
   },
 });
+
+/**
+ * Wait for a toast of the content script. Its shadow root is closed in every build, so Playwright's
+ * locators cannot see inside it; the accessibility tree of the page includes it.
+ * @param page - The page showing the toast
+ * @param text - Text the toast contains
+ * @param timeout - How long to wait in ms
+ */
+export const waitForToast = async (page: Page, text: string, timeout = 5000): Promise<void> => {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await expect
+      .poll(
+        async () => {
+          const { nodes } = await cdp.send('Accessibility.getFullAXTree');
+          return nodes.some(node => String(node.name?.value ?? '').includes(text));
+        },
+        { message: `toast containing "${text}"`, timeout, intervals: [100] }
+      )
+      .toBe(true);
+  } finally {
+    await cdp.detach();
+  }
+};
+
+/**
+ * Read the clipboard from a page. The page must be in the active tab
+ * @param page - A page in the active tab
+ * @returns The clipboard text
+ */
+export const readClipboard = (page: Page): Promise<string> => page.evaluate(() => navigator.clipboard.readText());
+
+/**
+ * Write to the clipboard from a page. The page must be in the active tab
+ * @param page - A page in the active tab
+ * @param text - The text to write
+ */
+export const writeClipboard = (page: Page, text: string): Promise<void> => page.evaluate(value => navigator.clipboard.writeText(value), text);
