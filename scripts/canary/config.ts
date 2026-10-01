@@ -35,13 +35,22 @@ export interface ProbePage {
   transcript?: { button: string; segment: string };
   /* A final URL matching this means the session was lost */
   loginUrl?: RegExp;
+  /*
+   * An element shown only while signed in. Several services fall back to a guest page instead of
+   * redirecting to a sign-in page, so a lost session would otherwise go unnoticed
+   */
+  signedIn?: string;
 }
+
+/* Signed out, X serves a different page without the data-testid attributes the extractor reads */
+const X_SIGNED_IN = '[data-testid="SideNav_AccountSwitcher_Button"]';
 
 /*
  * The pages the canary opens once a day. It only loads them and counts the selectors: nothing is typed
  * or sent, because the services forbid automated use. Send buttons are therefore not checked, since
  * most composers render theirs only once text is entered. The YouTube and X pages are the fixture
- * sources (see the first line of each fixture in src/features/content/__fixtures__/).
+ * sources (see the first line of each fixture in src/features/content/__fixtures__/). The signed-in
+ * markers were checked to be absent from the guest pages (2026-10-01).
  */
 export const PROBE_PAGES: ProbePage[] = [
   {
@@ -55,30 +64,35 @@ export const PROBE_PAGES: ProbePage[] = [
     url: 'https://x.com/XDevelopers/status/2102535041532186709',
     required: { mainPost: X_SELECTORS.mainPost, postText: X_SELECTORS.postText, userName: X_SELECTORS.userName },
     loginUrl: /\/i\/flow\/login/,
+    signedIn: X_SIGNED_IN,
   },
   {
     name: 'x-article',
     url: 'https://x.com/Safety/status/1801282137921871887',
     required: { articleView: X_SELECTORS.articleView, articleTitle: X_SELECTORS.articleTitle, articleBody: X_SELECTORS.articleBody },
     loginUrl: /\/i\/flow\/login/,
+    signedIn: X_SIGNED_IN,
   },
   {
     name: 'chatgpt',
     url: 'https://chatgpt.com/',
     required: { editor: CHATGPT_SELECTORS.editor },
     loginUrl: /\/auth\/login/,
+    signedIn: '[data-testid="accounts-profile-button"]',
   },
   {
     name: 'claude',
     url: 'https://claude.ai/new',
     required: { editor: CLAUDE_SELECTORS.editor },
     loginUrl: /claude\.ai\/login/,
+    signedIn: '[data-testid="user-menu-button"]',
   },
   {
     name: 'gemini',
     url: 'https://gemini.google.com/app',
     required: { editor: GEMINI_SELECTORS.editor, modelPicker: GEMINI_SELECTORS.modelPicker },
     loginUrl: /accounts\.google\.com/,
+    signedIn: 'a[href*="accounts.google.com/SignOutOptions"]',
   },
   {
     name: 'aistudio',
@@ -86,17 +100,20 @@ export const PROBE_PAGES: ProbePage[] = [
     required: { editor: AISTUDIO_SELECTORS.editor, submit: AISTUDIO_SELECTORS.submit },
     optional: { thinkingLevel: AISTUDIO_SELECTORS.thinkingLevel, urlContextToggle: AISTUDIO_SELECTORS.urlContextToggle },
     loginUrl: /accounts\.google\.com/,
+    signedIn: '#account-switcher-button',
   },
   {
     name: 'grok',
     url: 'https://grok.com/',
     required: { editor: GROK_SELECTORS.editor },
+    signedIn: 'img[alt="pfp"]',
   },
   {
     name: 'perplexity',
     url: 'https://www.perplexity.ai/',
     required: { editor: PERPLEXITY_SELECTORS.editor },
     optional: { submit: PERPLEXITY_SELECTORS.submit },
+    signedIn: 'img[alt="Profile avatar"]',
   },
   {
     name: 'deepseek',
@@ -108,11 +125,13 @@ export const PROBE_PAGES: ProbePage[] = [
     name: 'kimi',
     url: 'https://www.kimi.ai/',
     required: { editor: KIMI_SELECTORS.editor, modelPicker: KIMI_SELECTORS.modelPicker },
+    signedIn: '[data-testid="sidebar-user-menu-trigger"]',
   },
   {
     name: 'qwen',
     url: 'https://chat.qwen.ai/',
     required: { editor: QWEN_SELECTORS.editor, modelPicker: QWEN_SELECTORS.modelPicker },
+    signedIn: '.user-menu-btn',
   },
 ];
 

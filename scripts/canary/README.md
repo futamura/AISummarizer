@@ -14,11 +14,11 @@ Each page ends with one of these statuses:
 | ------------ | -------------------------------------------------------------------------------------------- |
 | `ok`         | Every required selector matched                                                              |
 | `missing`    | A required selector matched nothing: the DOM probably changed                                |
-| `signed-out` | The page went to its sign-in page: sign in again with `pnpm canary:login`                    |
+| `signed-out` | The page went to its sign-in page, or shows its guest page (the page's `signedIn` marker is missing): sign in again with `pnpm canary:login` |
 | `blocked`    | The site's bot protection answered (an HTTP error or a Cloudflare challenge): says nothing about the selectors |
 | `error`      | The page did not load                                                                        |
 
-When a page is not `ok`, a macOS notification is shown and the page's DOM and a screenshot are saved next to `result.json`.
+When a page is not `ok`, a macOS notification says what to do for each status, and the page's DOM and a screenshot are saved next to `result.json`. `result.json` also records, per page, whether the signed-in marker was found, which shows how long each session lasts.
 
 ## Where the data lives
 
@@ -33,7 +33,7 @@ Never commit or upload any of it.
 ## Setup
 
 1. Install the browser once: `pnpm exec playwright install chromium`
-2. Sign in: `pnpm canary:login` opens the profile with a tab per service. Sign in on each with the canary accounts, then close the window
+2. Sign in: `pnpm canary:login` opens the profile with a tab per service, in the same Chromium started as a plain browser (Google refuses to sign in to a browser under automation, and Cloudflare challenges it). Sign in on each with the canary accounts, then quit the browser with Cmd+Q
 3. Try a run: `pnpm canary:probe` (`--only=claude,x-post` for some pages, `--no-notify` to skip the notification)
 4. Schedule it: `scripts/canary/install-launchd.sh` runs it every day at 9:00 (`CANARY_HOUR` / `CANARY_MINUTE` to change it; `--uninstall` to remove it)
 
