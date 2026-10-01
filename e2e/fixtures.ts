@@ -94,7 +94,9 @@ export const test = base.extend<ExtensionFixtures & ExtensionOptions>({
   openPage: async ({ context }, use) => {
     await use(async (name: string) => {
       const page = await context.newPage();
-      await page.goto(`${PAGE_ORIGIN}/${name}`);
+      const response = await page.goto(`${PAGE_ORIGIN}/${name}`);
+      /* A missing page would otherwise load the 404 text, which also fails to extract */
+      if (!response?.ok()) throw new Error(`${PAGE_ORIGIN}/${name} answered ${response?.status()}: add e2e/pages/${name}.html`);
       /* The content script appends its root to the body once it runs */
       await page.locator('#free-ai-summarizer-root').waitFor({ state: 'attached' });
       return page;
