@@ -34,6 +34,7 @@
     "src/**/*.tsx",
     "build/**/*.ts",
     "scripts/**/*.ts",
+    "e2e/**/*.ts",
     "webpack.config.ts"
   ],
   "exclude": [

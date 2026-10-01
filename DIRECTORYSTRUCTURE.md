@@ -29,6 +29,7 @@ Please follow the directory structure below for implementation:
 │   └── utils/                    # Utility functions
 ├── build/                        # Build-time scripts (manifest transforms)
 ├── scripts/                      # Developer scripts outside the build (fixture capture, local canary)
+├── e2e/                          # Playwright end-to-end tests of the built Chrome extension
 ├── public/                       # Static assets
 ├── dist/                         # Output directory (dev/prod: Chrome, firefox-dev/firefox-prod: Firefox)
 ├── node_modules/                 # Dependency packages
@@ -94,6 +95,7 @@ Please follow the directory structure below for implementation:
 #### Build and Dependencies
 - `build/`: Build-time scripts used by webpack (manifest transforms for development and Firefox builds)
 - `scripts/`: Developer scripts, not part of the build (`fixtures/`: capturing page fixtures; `canary/`: the daily local check of the live pages against the selectors; see their READMEs)
+- `e2e/`: Playwright end-to-end tests that load `dist/prod` and `dist/dev` into headless Chromium (`pnpm test:e2e`, after `pnpm build` and `pnpm start`); `pages/` holds the hand-written pages they open
 - `dist/`: Compiled output files (`dev` / `prod` for Chrome, `firefox-dev` / `firefox-prod` for Firefox)
 - `public/`: Static assets
 - `node_modules/`: Third-party dependencies
