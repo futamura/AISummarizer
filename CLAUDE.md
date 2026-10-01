@@ -16,7 +16,7 @@ Package manager is pnpm (required; version pinned in `packageManager` field and 
 - `pnpm test` — run all Jest tests
 - `pnpm test src/utils/__tests__/Logger.test.ts` — run a single test file
 - `pnpm test -- -t "name"` — run tests matching a name
-- `pnpm test:e2e` — Playwright end-to-end tests (`e2e/`) of `dist/prod` and `dist/dev` in headless Chromium. Build both first (`pnpm build`, `pnpm start`): a build left from another branch is tested as is. One-time setup: `pnpm exec playwright install chromium`
+- `pnpm test:e2e` — Playwright end-to-end tests (`e2e/`) of `dist/prod` and `dist/dev` in headless Chromium, offline: `e2e/fixture-server.ts` serves the hand-written pages of `e2e/pages/` and the captured fixtures of `src/features/content/__fixtures__/` at their real host names over local HTTPS, and `--host-resolver-rules` sends every other host nowhere. Do not use `context.route` to keep tests offline: it misses tabs the extension opens, which then reach the live sites. The context menu is driven through `__aiSummarizerE2E`, a hook only development builds define; a test checks that `dist/prod` leaves it out. Build both first (`pnpm build`, `pnpm start`): a build left from another branch is tested as is. One-time setup: `pnpm exec playwright install chromium`
 - `pnpm type-check` — `tsc --noEmit`
 - `pnpm eslint-check` / `pnpm eslint-fix`
 - `pnpm prettier-check` / `pnpm prettier-fix`

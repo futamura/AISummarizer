@@ -28,6 +28,11 @@ interface PendingAIService {
 
 const getPendingAIServiceKey = (tabId: number): string => `pending-ai-service-${tabId}`;
 
+declare global {
+  /* Test hook of development builds, defined in ServiceWorker.initialize() */
+  var __aiSummarizerE2E: { clickContextMenu: (menuItemId: string, tabId: number) => Promise<void> } | undefined;
+}
+
 class ServiceWorker {
   themeService = new ServiceWorkerThemeService();
   contextMenuService = new ContextMenuService(this.handleContextMenuClicked.bind(this));
@@ -56,6 +61,17 @@ class ServiceWorker {
 
     this.themeService.initialize();
     this.cleanupService.startCleanup();
+
+    /*
+     * Test hook: no test tool can click a native context menu (e2e/context-menu.spec.ts). Kept inline:
+     * production builds drop this whole block, while a method would stay in the bundle
+     */
+    if (process.env.NODE_ENV === 'development') {
+      globalThis.__aiSummarizerE2E = {
+        clickContextMenu: async (menuItemId: string, tabId: number) =>
+          this.handleContextMenuClicked({ menuItemId, editable: false }, await chrome.tabs.get(tabId)),
+      };
+    }
 
     this.isInitialized = true;
     logger.debug('🧑‍🍳📃', '[ServiceWorker.ts]', '[initialize]', '✅️', 'ServiceWorker: Initialized');
