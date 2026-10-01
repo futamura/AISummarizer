@@ -67,11 +67,18 @@ export const test = base.extend<ExtensionFixtures & ExtensionOptions>({
 
     await use(context);
 
-    /* Playwright does not capture pages of a persistent context on failure, so attach them here */
+    /*
+     * Playwright does not capture pages of a persistent context on failure, so attach them here. Saved
+     * as files in test-results/, since only the HTML reporter writes attachments given as a body
+     */
     if (testInfo.status !== testInfo.expectedStatus) {
       for (const [index, page] of context.pages().entries()) {
-        const screenshot = await page.screenshot().catch(() => null);
-        if (screenshot) await testInfo.attach(`page-${index}.png`, { body: screenshot, contentType: 'image/png' });
+        const file = testInfo.outputPath(`page-${index}.png`);
+        const saved = await page.screenshot({ path: file }).then(
+          () => true,
+          () => false
+        );
+        if (saved) await testInfo.attach(`page-${index}.png`, { path: file, contentType: 'image/png' });
       }
     }
     await context.close();
