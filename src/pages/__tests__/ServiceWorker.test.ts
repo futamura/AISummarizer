@@ -117,13 +117,13 @@ const answerExtraction = (chromeMock: Pick<ChromeMock, 'tabs'>, ...results: Arra
 };
 
 /* The theme service registers its own listener from a class field, so the service worker's is the last one */
-const sendToServiceWorker = async (chromeMock: Pick<ChromeMock, 'runtime'>, message: unknown) => {
+const sendToServiceWorker = async (chromeMock: Pick<ChromeMock, 'runtime'>, message: unknown, sender: unknown = {}) => {
   const listener = chromeMock.runtime.onMessage.addListener.mock.calls.at(-1)![0] as (
     message: unknown,
     sender: unknown,
     sendResponse: unknown
   ) => Promise<void>;
-  await listener(message, {}, jest.fn());
+  await listener(message, sender, jest.fn());
   await settle();
 };
 
@@ -301,6 +301,50 @@ describe('ServiceWorker summarizing a page', () => {
     });
     await settle();
     expect(isAnswered).toBe(true);
+  });
+});
+
+/*
+ * Firefox can fire the 'complete' tab update before the content script listens,
+ * so the content script of an AI service tab also asks for the article itself
+ */
+describe('ServiceWorker injecting into an AI service tab', () => {
+  let chromeMock: ChromeMock;
+  let db: { addArticle: jest.Mock };
+
+  const AI_SERVICE_TAB = { id: 5, windowId: 1, url: 'https://chatgpt.com/?aismid=article-id' };
+
+  const injectionRequests = () => chromeMock.tabs.sendMessage.mock.calls.filter(([, message]: any[]) => message?.action === 'INJECT_ARTICLE');
+
+  beforeEach(async () => {
+    jest.useFakeTimers({ doNotFake: ['setImmediate'] });
+    chromeMock = createChromeMock();
+    (globalThis as any).chrome = chromeMock;
+    jest.resetModules();
+
+    await import('@/pages/ServiceWorker');
+    await flushPromises();
+    db = (await import('@/db')).db as any;
+    await db.addArticle({ url: ARTICLE_TAB.url, title: 'title', content: 'content' });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    delete (globalThis as any).chrome;
+  });
+
+  it('sends the stored article when the content script of the AI service tab asks for it', async () => {
+    await sendToServiceWorker(chromeMock, { action: 'REQUEST_INJECTION' }, { tab: AI_SERVICE_TAB });
+    expect(injectionRequests()).toHaveLength(1);
+    expect(injectionRequests()[0]).toEqual([
+      AI_SERVICE_TAB.id,
+      { action: 'INJECT_ARTICLE', payload: { tabId: AI_SERVICE_TAB.id, tabUrl: AI_SERVICE_TAB.url, article: expect.objectContaining({ id: 'article-id' }) } },
+    ]);
+  });
+
+  it('does not send the article to a page that is not an AI service', async () => {
+    await sendToServiceWorker(chromeMock, { action: 'REQUEST_INJECTION' }, { tab: { ...ARTICLE_TAB, url: `${ARTICLE_TAB.url}?aismid=article-id` } });
+    expect(injectionRequests()).toHaveLength(0);
   });
 });
 
