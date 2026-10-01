@@ -67,13 +67,12 @@ Two minor issues left from FUT-191 are fixed while `fixtures.ts` is open: a fail
 if (process.env.NODE_ENV === 'development') {
   /* E2E hook: tests cannot click a native context menu (e2e/context-menu.spec.ts) */
   globalThis.__aiSummarizerE2E = {
-    clickContextMenu: async (menuItemId: string, tabId: number) =>
-      this.handleContextMenuClicked({ menuItemId, editable: false, pageUrl: '' }, await chrome.tabs.get(tabId)),
+    clickContextMenu: async (menuItemId: string, tabId: number) => this.handleContextMenuClicked({ menuItemId, editable: false }, await chrome.tabs.get(tabId)),
   };
 }
 ```
 
-The type of `__aiSummarizerE2E` is declared with `declare global`. The tests call it with `serviceWorker.evaluate`.
+The block is written inline in `initialize()`, not as a method: a method would stay in the production bundle with the hook name in it, while a dead `if` block is removed whole. The type of `__aiSummarizerE2E` is declared with `declare global`. The tests call it with `serviceWorker.evaluate`.
 
 ## Scenarios
 
@@ -81,7 +80,7 @@ The type of `__aiSummarizerE2E` is declared with `declare global`. The tests cal
 
 For `youtube-watch`, `x-post` and `x-article`: open the fixture page, press "Copy to clipboard" in the popup, then check the success toast "Article copied to clipboard" and the clipboard:
 
-- YouTube: the video title and a transcript line in the `[0:00](https://youtu.be/jNQXAC9IVRw?t=0s) …` format. The progress toast "Extracting transcript…" is checked as well: extraction waits 4 s before reading the transcript, so the toast (shown after 500 ms) always appears
+- YouTube: the video title and the transcript line `[0:01](https://youtu.be/jNQXAC9IVRw?t=1s) All right, so here we are, …`, as the Jest test in `extractors/__tests__/Youtube.test.ts` expects from the same fixture. The progress toast "Extracting transcript…" is checked as well: extraction waits 4 s before reading the transcript, so the toast (shown after 500 ms) always appears
 - X post and X article: the title and body text the Jest tests in `extractors/__tests__/X.test.ts` expect from the same fixtures
 
 ### `injection.spec.ts`
@@ -103,7 +102,7 @@ A fixture page loads fast and `tabs.onUpdated` reports `complete` once, while a 
 
 ## CI
 
-`.github/workflows/ci.yml` is unchanged: `testMatch: '*.spec.ts'` picks up the new specs. The e2e job is expected to take 3 to 4 minutes longer (about 2 to 12 s per injection, up to 12 s for ChatGPT, which waits for its send button before falling back to Enter). The default Playwright timeout of 30 s per test stays.
+`.github/workflows/ci.yml` is unchanged: `testMatch: '*.spec.ts'` picks up the new specs. The e2e job is expected to take 2 to 4 minutes longer (about 2 to 6 s per injection; every composer fixture has an enabled send button, so ChatGPT does not spend its 10 s wait for one). The default Playwright timeout of 30 s per test stays.
 
 ## Error handling
 
