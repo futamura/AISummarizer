@@ -1,38 +1,16 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { test as base, type BrowserContext, chromium, expect, type Page, type Route, type Worker } from '@playwright/test';
+import { test as base, type BrowserContext, chromium, expect, type Page, type Worker } from '@playwright/test';
 
-export { expect };
+import { fixtureForUrl, type FixtureServer, PAGE_ORIGIN, readFixture, startFixtureServer } from './fixture-server';
+
+export { expect, PAGE_ORIGIN, readFixture };
 
 const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.dirname(E2E_DIR);
-const PAGES_DIR = path.join(E2E_DIR, 'pages');
-/* Sanitized snapshots of live pages, shared with the Jest tests */
-const FIXTURES_DIR = path.join(REPO_DIR, 'src', 'features', 'content', '__fixtures__');
-
-/* .test is reserved for testing (RFC 6761), so a routing mistake cannot reach a real site */
-const PAGE_HOST_SUFFIX = '.e2e.test';
-export const PAGE_ORIGIN = 'https://news.e2e.test';
-
-/* The fixture each live host answers with. The AI service hosts are the ones getSummarizeUrl opens */
-const FIXTURE_HOSTS: Record<string, string> = {
-  'www.youtube.com': 'youtube-watch',
-  'chatgpt.com': 'chatgpt-composer',
-  'gemini.google.com': 'gemini-composer',
-  'aistudio.google.com': 'aistudio-composer',
-  'claude.ai': 'claude-composer',
-  'grok.com': 'grok-tiptap-composer',
-  'www.perplexity.ai': 'perplexity-composer',
-  'chat.deepseek.com': 'deepseek-composer',
-  'www.kimi.ai': 'kimi-composer',
-  'chat.qwen.ai': 'qwen-composer',
-};
-
-/* x.com serves posts and long-form articles on the same path pattern */
-const X_ARTICLE_PATH = '/Safety/status/1801282137921871887';
 
 /* The article of e2e/pages/article.html, as a prompt carries it */
 export const ARTICLE_TITLE = "The Lighthouse Keeper's Log";
@@ -54,65 +32,9 @@ interface ExtensionFixtures {
   waitForServicePage: (host: string) => Promise<Page>;
 }
 
-export interface CapturedFixture {
-  html: string;
-  /* The URL the fixture was captured from */
-  source: string;
+interface WorkerFixtures {
+  fixtureServer: FixtureServer;
 }
-
-/**
- * Read a captured fixture
- * @param name - The fixture name, its file name without .html
- * @returns The HTML and the URL it was captured from
- */
-export const readFixture = (name: string): CapturedFixture => {
-  const file = path.join(FIXTURES_DIR, `${name}.html`);
-  const html = existsSync(file) ? readFileSync(file, 'utf8') : '';
-  const header = html.match(/^<!-- fixture: (\S+) \| source: (\S+) \|/);
-  if (!header || header[1] !== name) throw new Error(`No captured fixture ${name} with a valid header in src/features/content/__fixtures__/`);
-  return { html, source: header[2] };
-};
-
-/**
- * The fixture a live URL is answered with
- * @param url - The requested URL
- * @returns The fixture name, or undefined for a host without one
- */
-const fixtureForUrl = (url: URL): string | undefined => {
-  if (url.hostname === 'x.com') return url.pathname === X_ARTICLE_PATH ? 'x-article' : 'x-post';
-  return FIXTURE_HOSTS[url.hostname];
-};
-
-/**
- * Answer a page with a fixture, and keep its images, scripts and API calls off the network
- * @param route - The intercepted request
- * @param name - The fixture name
- */
-const answerWithFixture = (route: Route, name: string): Promise<void> => {
-  if (route.request().resourceType() !== 'document') return route.abort();
-  return route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: readFixture(name).html });
-};
-
-/**
- * Answer the test pages and the fixture hosts, and keep everything else off the network
- * @param route - The intercepted request
- */
-const routeRequest = async (route: Route): Promise<void> => {
-  const url = new URL(route.request().url());
-  /* chrome-extension:// and data: requests are the extension's own files */
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return route.continue();
-  if (url.hostname.endsWith(PAGE_HOST_SUFFIX)) {
-    const file = path.join(PAGES_DIR, `${url.pathname.slice(1)}.html`);
-    if (path.dirname(file) === PAGES_DIR && existsSync(file)) {
-      return route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: readFileSync(file, 'utf8') });
-    }
-    return route.fulfill({ status: 404, contentType: 'text/plain', body: 'Not found' });
-  }
-  const fixture = fixtureForUrl(url);
-  if (fixture) return answerWithFixture(route, fixture);
-  console.warn(`[e2e] Aborted a request outside the test pages and fixture hosts: ${url.href}`);
-  return route.abort();
-};
 
 /**
  * Open a URL in a new tab and wait for the content script
@@ -131,10 +53,20 @@ const openUrl = async (context: BrowserContext, url: string, hint: string): Prom
   return page;
 };
 
-export const test = base.extend<ExtensionFixtures & ExtensionOptions>({
+export const test = base.extend<ExtensionFixtures & ExtensionOptions, WorkerFixtures>({
   distDir: ['dist/prod', { option: true }],
 
-  context: async ({ distDir }, use, testInfo) => {
+  fixtureServer: [
+    /* eslint-disable-next-line no-empty-pattern */
+    async ({}, use) => {
+      const server = await startFixtureServer();
+      await use(server);
+      await server.close();
+    },
+    { scope: 'worker' },
+  ],
+
+  context: async ({ distDir, fixtureServer }, use, testInfo) => {
     const extensionDir = path.resolve(REPO_DIR, distDir);
     if (!existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`Build ${distDir} first (pnpm build / pnpm start)`);
 
@@ -147,9 +79,19 @@ export const test = base.extend<ExtensionFixtures & ExtensionOptions>({
         /* The default clipboard prompt names the browser language */
         locale: 'en-US',
         permissions: ['clipboard-read', 'clipboard-write'],
-        args: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`],
+        /* The fixture server's certificate is self-signed */
+        ignoreHTTPSErrors: true,
+        args: [
+          `--disable-extensions-except=${extensionDir}`,
+          `--load-extension=${extensionDir}`,
+          /*
+           * Every request of the browser, including the tabs the extension opens, which context.route
+           * does not catch, goes to the fixture server or fails to resolve. Nothing reaches a live site
+           */
+          `--host-resolver-rules=${fixtureServer.resolverRules}`,
+          '--ignore-certificate-errors',
+        ],
       });
-      await context.route('**/*', routeRequest);
 
       await use(context);
 
@@ -169,6 +111,7 @@ export const test = base.extend<ExtensionFixtures & ExtensionOptions>({
       }
       await context.close();
     } finally {
+      fixtureServer.reset();
       /* Also when the launch or the close throws, so no profile is left behind */
       rmSync(userDataDir, { recursive: true, force: true });
     }
@@ -194,21 +137,14 @@ export const test = base.extend<ExtensionFixtures & ExtensionOptions>({
   openFixturePage: async ({ context }, use) => {
     await use(async (name: string) => {
       const { source } = readFixture(name);
-      if (fixtureForUrl(new URL(source)) !== name) throw new Error(`${source} is not answered with ${name}: add its host to FIXTURE_HOSTS in e2e/fixtures.ts`);
-      return openUrl(context, source, `check the routing of ${name}`);
+      if (fixtureForUrl(new URL(source)) !== name)
+        throw new Error(`${source} is not answered with ${name}: add its host to FIXTURE_HOSTS in e2e/fixture-server.ts`);
+      return openUrl(context, source, `check the fixture server's answer for ${name}`);
     });
   },
 
-  serveFixture: async ({ context }, use) => {
-    await use(async (host: string, name: string) => {
-      /* Fail now on an unknown name, rather than on the first request */
-      readFixture(name);
-      /* Routes added later run first, so this one overrides the host's default for the rest of the test */
-      await context.route(
-        url => url.hostname === host,
-        route => answerWithFixture(route, name)
-      );
-    });
+  serveFixture: async ({ fixtureServer }, use) => {
+    await use(async (host: string, name: string) => fixtureServer.override(host, name));
   },
 
   tabIdFor: async ({ serviceWorker }, use) => {
