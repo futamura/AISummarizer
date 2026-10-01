@@ -1,7 +1,7 @@
 # Chrome E2E Foundation Design
 
 Date: 2026-10-01
-Status: Draft
+Status: Approved (2026-10-01)
 Issue: FUT-191 (first half of FUT-158; the second half is FUT-192)
 
 ## Purpose
