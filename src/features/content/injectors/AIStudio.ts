@@ -1,3 +1,4 @@
+import { AISTUDIO_SELECTORS } from '@/constants';
 import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
@@ -14,17 +15,17 @@ export async function injectAIStudio(prompt: string, { onStage = noopStageReport
      * was replaced by a "Thinking level" mat-select whose options are ordered lowest first.
      * Missing control is not fatal because availability depends on the selected model.
      */
-    const thinkingSelect = await waitForElement('ms-thinking-level-setting mat-select', 3);
+    const thinkingSelect = await waitForElement(AISTUDIO_SELECTORS.thinkingLevel, 3);
     if (thinkingSelect instanceof HTMLElement) {
       logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio thinking level select found', thinkingSelect);
       thinkingSelect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
-      const lowestOption = document.querySelector('mat-option');
+      const lowestOption = document.querySelector(AISTUDIO_SELECTORS.thinkingLevelOption);
       if (lowestOption instanceof HTMLElement) {
         lowestOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       } else {
         /** Close the dropdown overlay so it cannot block later clicks */
-        const backdrop = document.querySelector('.cdk-overlay-backdrop');
+        const backdrop = document.querySelector(AISTUDIO_SELECTORS.overlayBackdrop);
         if (backdrop instanceof HTMLElement) {
           backdrop.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         }
@@ -36,7 +37,7 @@ export async function injectAIStudio(prompt: string, { onStage = noopStageReport
      * Enable the url context tool if present. The auto-numbered mat-mdc-slide-toggle ids shifted,
      * so locate the toggle via its stable data-test-id wrapper. Missing toggle is not fatal.
      */
-    const urlContextButton = await waitForElement('div[data-test-id="browseAsAToolTooltip"] button[role="switch"]', 3);
+    const urlContextButton = await waitForElement(AISTUDIO_SELECTORS.urlContextToggle, 3);
     if (urlContextButton instanceof HTMLElement) {
       logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio url context button found', urlContextButton);
       const isUrlContextButtonChecked = urlContextButton.getAttribute('aria-checked') === 'true';
@@ -48,7 +49,7 @@ export async function injectAIStudio(prompt: string, { onStage = noopStageReport
     }
 
     /** Wait for the editor to be found. The ms-autosize-textarea wrapper was replaced by ms-prompt-box */
-    const editor = await waitForElement('ms-prompt-box textarea');
+    const editor = await waitForElement(AISTUDIO_SELECTORS.editor);
     if (!editor) throw new Error('AIStudio container not found');
     logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio editor found', editor);
 
@@ -67,7 +68,7 @@ export async function injectAIStudio(prompt: string, { onStage = noopStageReport
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
 
     /** Wait for the submit button to be found. button.run-button was replaced by ms-run-button */
-    const submitButton = await waitForElement('ms-run-button button');
+    const submitButton = await waitForElement(AISTUDIO_SELECTORS.submit);
     if (!submitButton) throw new Error('AIStudio submit button not found');
     logger.debug('📕', '[AIStudio.tsx]', '[injectAIStudio]', 'AIStudio submit button found', submitButton);
 

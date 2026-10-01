@@ -1,13 +1,7 @@
+import { CHATGPT_SELECTORS } from '@/constants';
 import { insertEditorText } from '@/platform';
 import { InjectOptions, noopStageReporter } from '@/types';
 import { logger, waitForElement } from '@/utils';
-
-/*
- * The logged-in composer exposes #composer-submit-button / data-testid="send-button";
- * the guest composer has neither and is only reachable via its aria-label, which stays
- * English regardless of browser locale (verified live 2026-08-13).
- */
-const SUBMIT_SELECTOR = '#composer-submit-button, button[data-testid="send-button"], form button[aria-label="Send message"]';
 
 /*
  * chatgpt.com refuses a prompt past a length of its own: the send button keeps its
@@ -51,7 +45,7 @@ export const isSubmitEnabled = (button: Element | null): boolean => {
 const waitForEnabledSubmit = async (maxAttempts = 20, intervalMs = 500): Promise<Element | null> => {
   let button: Element | null = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    button = document.querySelector(SUBMIT_SELECTOR);
+    button = document.querySelector(CHATGPT_SELECTORS.submit);
     if (isSubmitEnabled(button)) return button;
     await new Promise(resolve => setTimeout(resolve, intervalMs));
   }
@@ -70,7 +64,7 @@ export async function injectChatGPT(promptText: string, { onStage = noopStageRep
      * plain React-controlled textarea (name="prompt", seen in incognito windows;
      * verified live 2026-08-13).
      */
-    const editor = await waitForElement('#prompt-textarea, form textarea[name="prompt"]');
+    const editor = await waitForElement(CHATGPT_SELECTORS.editor);
     if (!editor) throw new Error('ChatGPT container not found');
     logger.debug('📕', '[ChatGPT.tsx]', '[injectChatGPT]', 'ChatGPT editor found', editor);
 

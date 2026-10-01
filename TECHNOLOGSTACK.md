@@ -28,6 +28,7 @@
 - Jest: ^29.7.0 (Testing Framework)
 - ts-jest: ^29.4.0 (TypeScript support for Jest)
 - jest-environment-jsdom: ^29.7.0 (DOM environment for injector tests)
+- @playwright/test: ^1.63.0 (drives Chromium for the local canary, scripts/canary/)
 
 ### Build System
 

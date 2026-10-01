@@ -1,3 +1,4 @@
+import { GEMINI_SELECTORS } from '@/constants';
 import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
@@ -25,7 +26,7 @@ export const matchGeminiModelLabel = (itemTexts: string[], model: string): numbe
 async function selectGeminiModel(model: string): Promise<boolean> {
   let isMenuOpen = false;
   try {
-    const picker = await waitForElement('bard-mode-switcher button');
+    const picker = await waitForElement(GEMINI_SELECTORS.modelPicker);
     if (!(picker instanceof HTMLElement)) throw new Error('Gemini mode picker not found');
     picker.click();
     isMenuOpen = true;
@@ -33,7 +34,7 @@ async function selectGeminiModel(model: string): Promise<boolean> {
     /* Wait for the menu to render */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
 
-    const items = [...document.querySelectorAll('[data-test-id^="bard-mode-option"]')];
+    const items = [...document.querySelectorAll(GEMINI_SELECTORS.modelOption)];
     const index = matchGeminiModelLabel(
       items.map(el => el.textContent ?? ''),
       model
@@ -72,7 +73,7 @@ export async function injectGemini(
     onStage('pasting');
 
     /** Wait for the editor to be found. Use a structural selector because the aria-label text changes with UI updates and locale */
-    const editor = await waitForElement('rich-textarea div.ql-editor[contenteditable="true"]');
+    const editor = await waitForElement(GEMINI_SELECTORS.editor);
     if (!editor) throw new Error('Gemini container not found');
     logger.debug('📕', '[Gemini.tsx]', '[injectGemini]', 'Gemini editor found', editor);
 
@@ -83,7 +84,7 @@ export async function injectGemini(
     onStage('sending');
 
     /** Wait for the submit button to be found */
-    const submitButton = await waitForElement('button[aria-label="Send message"]');
+    const submitButton = await waitForElement(GEMINI_SELECTORS.submit);
     if (!submitButton) throw new Error('Gemini submit button not found');
     logger.debug('📕', '[Gemini.tsx]', '[injectGemini]', 'Gemini submit button found', submitButton);
 

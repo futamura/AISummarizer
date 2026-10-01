@@ -1,3 +1,4 @@
+import { DEEPSEEK_SELECTORS } from '@/constants';
 import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
@@ -14,7 +15,7 @@ export async function injectDeepSeek(
     await new Promise(resolve => setTimeout(resolve, getRandomInt(2000, 3000)));
 
     /** Wait for the editor to be found. DeepSeek removed the #chat-input id; the chat box is now the sole textarea on the page */
-    const editor = await waitForElement('#chat-input, textarea');
+    const editor = await waitForElement(DEEPSEEK_SELECTORS.editor);
     if (!editor) throw new Error('DeepSeek container not found');
     logger.debug('📕', '[DeepSeek.tsx]', '[injectDeepSeek]', 'DeepSeek editor found', editor);
 
@@ -33,7 +34,7 @@ export async function injectDeepSeek(
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
 
     /** Wait for the submit button to be found. Disabled state is now expressed via the ds-button--disabled class */
-    const submitButton = await waitForElement('div[role="button"].ds-button--primary.ds-button--filled.ds-button--circle:not(.ds-button--disabled)');
+    const submitButton = await waitForElement(DEEPSEEK_SELECTORS.submit);
     if (!submitButton) throw new Error('DeepSeek submit button not found');
     logger.debug('📕', '[DeepSeek.tsx]', '[injectDeepSeek]', 'DeepSeek submit button found', submitButton);
 
