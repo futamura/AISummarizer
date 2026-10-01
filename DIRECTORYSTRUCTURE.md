@@ -10,7 +10,7 @@ Please follow the directory structure below for implementation:
 │   ├── db/                       # Database related implementations
 │   ├── features/                 # Feature-specific implementations
 │   │   ├── content/             # Content script feature
-│   │   │   └── __fixtures__/       # Sanitized snapshots of live pages for injector / extractor tests
+│   │   │   └── __fixtures__/       # Sanitized snapshots of live pages for injector / extractor tests and E2E
 │   │   ├── offscreen/           # Offscreen feature
 │   │   ├── options/             # Options page feature
 │   │   ├── popup/               # Popup feature
@@ -65,7 +65,7 @@ Please follow the directory structure below for implementation:
 - `db/`: Database related implementations and migrations
 - `features/`: Feature-specific implementations
   - `content/`: Content script feature implementation
-    - `__fixtures__/`: Sanitized snapshots of live pages that injector and extractor tests run against, captured with `scripts/fixtures/`
+    - `__fixtures__/`: Sanitized snapshots of live pages that injector and extractor tests run against, captured with `scripts/fixtures/`. The E2E tests serve them too
   - `offscreen/`: Offscreen feature implementation
   - `options/`: Options page feature implementation
   - `popup/`: Popup feature implementation
@@ -95,7 +95,7 @@ Please follow the directory structure below for implementation:
 #### Build and Dependencies
 - `build/`: Build-time scripts used by webpack (manifest transforms for development and Firefox builds)
 - `scripts/`: Developer scripts, not part of the build (`fixtures/`: capturing page fixtures; `canary/`: the daily local check of the live pages against the selectors; see their READMEs)
-- `e2e/`: Playwright end-to-end tests that load `dist/prod` and `dist/dev` into headless Chromium (`pnpm test:e2e`, after `pnpm build` and `pnpm start`); `pages/` holds the hand-written pages they open
+- `e2e/`: Playwright end-to-end tests that load `dist/prod` and `dist/dev` into headless Chromium (`pnpm test:e2e`, after `pnpm build` and `pnpm start`); `pages/` holds the hand-written pages they open, and `fixture-server.ts` serves those pages and the captured fixtures at their real host names over local HTTPS, so no request reaches a live site
 - `dist/`: Compiled output files (`dev` / `prod` for Chrome, `firefox-dev` / `firefox-prod` for Firefox)
 - `public/`: Static assets
 - `node_modules/`: Third-party dependencies
