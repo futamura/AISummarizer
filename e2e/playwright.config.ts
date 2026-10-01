@@ -14,8 +14,14 @@ export default defineConfig<ExtensionOptions>({
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never', outputFolder: '../playwright-report' }]] : 'list',
   outputDir: '../test-results',
+  /*
+   * routing.spec.ts proves that no request leaves the machine, so it runs first, as a dependency: when it
+   * fails, no other spec runs, and none can send a test article to a live site
+   */
   projects: [
-    { name: 'prod', use: { distDir: 'dist/prod' } },
-    { name: 'dev', use: { distDir: 'dist/dev' } },
+    { name: 'prod-offline', testMatch: 'routing.spec.ts', use: { distDir: 'dist/prod' } },
+    { name: 'dev-offline', testMatch: 'routing.spec.ts', use: { distDir: 'dist/dev' } },
+    { name: 'prod', testIgnore: 'routing.spec.ts', dependencies: ['prod-offline'], use: { distDir: 'dist/prod' } },
+    { name: 'dev', testIgnore: 'routing.spec.ts', dependencies: ['dev-offline'], use: { distDir: 'dist/dev' } },
   ],
 });
