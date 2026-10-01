@@ -1,7 +1,7 @@
 # Chrome E2E Extraction, Injection and Context Menu Design
 
 Date: 2026-10-01
-Status: Approved (2026-10-01); routing revised after the network leak below, pending approval
+Status: Approved (2026-10-01); routing revised after the network leak below, approved (2026-10-01)
 Issue: FUT-192 (second half of FUT-158; the first half is FUT-191, see `2026-10-01-chrome-e2e-foundation-design.md`)
 
 ## Purpose

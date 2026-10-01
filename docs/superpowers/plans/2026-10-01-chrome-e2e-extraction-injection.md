@@ -4,7 +4,7 @@
 
 **Goal:** Extend the Chrome E2E suite to YouTube / X extraction, injection into all AI service composers, and the context menu (through a development-only hook), still offline and in CI.
 
-**Architecture:** `e2e/fixtures.ts` gains a host table that serves the captured fixtures of `src/features/content/__fixtures__/` at their real host names (documents only; subresources are aborted). New helpers open a fixture page, override a host's fixture, look up a tab ID by exact URL and wait for the AI service tab the service worker opens. A hook on the service worker global, defined only in development builds, calls the real context menu handler.
+**Architecture:** A local HTTPS server (`e2e/fixture-server.ts`) serves the hand-written pages and the captured fixtures of `src/features/content/__fixtures__/` at their real host names (page loads only; other requests get 404), and Chromium's `--host-resolver-rules` sends those hosts to it and every other host nowhere, so no request of the browser or the extension reaches a live site. Task 1 first used `context.route`, which leaked (spec, "Network leak"); Task 2 replaces it. New helpers open a fixture page, override a host's fixture, look up a tab ID by exact URL and wait for the AI service tab the service worker opens. A hook on the service worker global, defined only in development builds, calls the real context menu handler.
 
 **Tech Stack:** `@playwright/test` 1.63.0 (locked), bundled Chromium (`channel: 'chromium'`), webpack production mode for dead-code removal, GitHub Actions (unchanged).
 
@@ -13,7 +13,9 @@
 ## Global Constraints
 
 - No new dependencies and no version changes
-- No network: `*.e2e.test` is answered from `e2e/pages/`; the fixture hosts are answered from `src/features/content/__fixtures__/` for `document` requests only, other requests on them are aborted silently; any other http(s) request is aborted with a warning
+- No network, enforced by Chromium's resolver (from Task 2 on): `--host-resolver-rules` maps `news.e2e.test` and the fixture hosts to the local HTTPS server and every other host to `~NOTFOUND`. `context.route` is not used for this: it missed the first navigation of tabs opened by the service worker and let them reach the live sites (spec, "Network leak")
+- The server answers only `Sec-Fetch-Dest: document` requests with HTML (`e2e/pages/` for `news.e2e.test`, fixtures for the fixture hosts); everything else gets 404
+- No injection or context menu spec runs before Task 2's routing tests pass
 - Fixture hosts: `www.youtube.com`, `x.com` (by path), `chatgpt.com`, `gemini.google.com`, `aistudio.google.com`, `claude.ai`, `grok.com`, `www.perplexity.ai`, `chat.deepseek.com`, `www.kimi.ai`, `chat.qwen.ai`
 - Hook name: `__aiSummarizerE2E`, defined only inside `if (process.env.NODE_ENV === 'development') { … }` in `ServiceWorker.initialize()`; never in a method or helper that survives in production
 - Context menu specs run in the `dev` project only; the build check runs in `prod` only; every other spec runs in both
@@ -26,7 +28,8 @@
 
 ## Review Focus
 
-- A fixture page asking for its own images, scripts or API (`https://chatgpt.com/backend-api/…`): expected to be aborted, never answered with the fixture HTML and never sent to the site. Task 1 adds a routing test that fetches from a fixture host
+- A request the extension itself starts (a tab from `chrome.tabs.create`, a `fetch` in the service worker): expected to stay on the machine. Task 2 adds routing tests for both
+- A fixture page asking for its own images, scripts or API (`https://chatgpt.com/backend-api/…`): expected to get 404 from the local server, never the fixture HTML and never the site. Task 1 adds a routing test that fetches from a fixture host; Task 2 keeps it
 - A misspelled fixture name in `serveFixture` / `openFixturePage`: expected to fail at once naming the fixture, not as a later 404 or empty page. Task 1 adds a test for `readFixture` with an unknown name
 - A target page whose URL has a query string (`watch?v=…`): expected to be found by `openPopupFor`. Covered by the YouTube scenario (Task 1), which also checks `# URL` with the query string
 - The AI service tab not opening (popup click lost, service worker failure): expected to fail within 10 s naming the host, not after the 30 s test timeout. `waitForServicePage` (Task 1) polls with its own 10 s timeout and message
@@ -38,7 +41,8 @@
 
 | File | Responsibility |
 |---|---|
-| `e2e/fixtures.ts` | Routing (test pages and captured fixtures), `readFixture`, fixtures `openPage`, `openFixturePage`, `serveFixture`, `tabIdFor`, `openPopupFor`, `waitForServicePage`; helpers `waitForToast`, `readClipboard`, `writeClipboard`, `readComposer`, `expectArticleInjected` |
+| `e2e/fixture-server.ts` | (Task 2) HTTPS server for the test pages and fixtures, self-signed certificate, resolver rules, per-test overrides, request log |
+| `e2e/fixtures.ts` | Browser context with the resolver rules, `readFixture`, fixtures `openPage`, `openFixturePage`, `serveFixture`, `tabIdFor`, `openPopupFor`, `waitForServicePage`; helpers `waitForToast`, `readClipboard`, `writeClipboard`, `readComposer`, `expectArticleInjected` |
 | `e2e/routing.spec.ts` | Adds: fixture host serves its fixture and aborts subresources; unknown fixture name fails clearly |
 | `e2e/extraction.spec.ts` | YouTube, X post, X article copied through the popup |
 | `e2e/injection.spec.ts` | Eleven composers filled through the popup |
@@ -536,19 +540,509 @@ git commit -m "test: check YouTube and X extraction end to end on captured fixtu
 
 ---
 
-### Task 2: Injection into every composer
+### Task 2: Local fixture server behind Chromium's resolver
+
+Added after the network leak (spec, "Network leak"). Task 1's `context.route` routing is replaced; its specs must still pass.
+
+**Files:**
+- Create: `e2e/fixture-server.ts`
+- Modify: `e2e/fixtures.ts` (replace the whole file)
+- Modify: `e2e/routing.spec.ts` (replace the whole file)
+
+**Interfaces:**
+- Consumes (from Task 1): the fixture API of `e2e/fixtures.ts` (kept unchanged for the specs)
+- Produces:
+  - `e2e/fixture-server.ts`: `PAGE_ORIGIN`, `readFixture(name)`, `fixtureForUrl(url: URL): string | undefined`, `startFixtureServer(): Promise<FixtureServer>` with `FixtureServer { resolverRules: string; requests: string[]; override(host: string, name: string): void; reset(): void; close(): Promise<void> }`
+  - `e2e/fixtures.ts`: everything Task 1 produced, plus the worker fixture `fixtureServer: FixtureServer`. `serveFixture(host, name)` now calls `fixtureServer.override`
+  - `fixtureServer.requests` entries look like `chatgpt.com/?opened-by=extension document` (`<hostname><path><query> <Sec-Fetch-Dest>`)
+
+- [ ] **Step 1: Put the safety net in first**
+
+`e2e/injection.spec.ts` is in the working tree, uncommitted, from the stopped first attempt. Do not run it until Step 8.
+
+In `e2e/fixtures.ts`, in the `context` fixture's `args`, add `'--host-resolver-rules=MAP * ~NOTFOUND'` after the `--load-extension` entry. This alone keeps every request of the browser off the network (the `.e2e.test` pages still come from `context.route`, which fulfills without resolving).
+
+Run: `pnpm test:e2e routing extraction.spec copy popup`
+Expected: PASS except `never reaches a site outside the test pages`, which now fails with `net::ERR_NAME_NOT_RESOLVED` instead of `ERR_FAILED` (it is rewritten in Step 2)
+
+- [ ] **Step 2: Write the failing routing tests**
+
+Replace `e2e/routing.spec.ts` with:
+
+```ts
+import { CHATGPT_SELECTORS } from '../src/constants/Selectors';
+import { expect, PAGE_ORIGIN, readFixture, test } from './fixtures';
+
+test('never reaches a site outside the test pages', async ({ context }) => {
+  const page = await context.newPage();
+  await expect(page.goto('https://example.com/')).rejects.toThrow(/net::ERR_NAME_NOT_RESOLVED/);
+});
+
+test('answers a missing test page with 404', async ({ context }) => {
+  const page = await context.newPage();
+  const response = await page.goto(`${PAGE_ORIGIN}/no-such-page`);
+  expect(response?.status()).toBe(404);
+});
+
+test('serves a fixture host its fixture and nothing else', async ({ context }) => {
+  const page = await context.newPage();
+  const response = await page.goto('https://chatgpt.com/');
+  expect(await response?.text()).toContain('<!-- fixture: chatgpt-composer |');
+
+  /* A fixture keeps the site's own URLs for images, scripts and API calls */
+  const status = await page.evaluate(() => fetch('https://chatgpt.com/backend-api/me').then(answer => answer.status));
+  expect(status).toBe(404);
+});
+
+test('answers a tab the extension opens from the local server', async ({ serviceWorker, fixtureServer, waitForServicePage }) => {
+  /* The first navigation of such a tab is the one context.route missed */
+  await serviceWorker.evaluate(() => chrome.tabs.create({ url: 'https://chatgpt.com/?opened-by=extension' }));
+
+  const page = await waitForServicePage('chatgpt.com');
+  await expect(page.locator(CHATGPT_SELECTORS.editor).first()).toBeAttached();
+  expect(fixtureServer.requests).toContain('chatgpt.com/?opened-by=extension document');
+});
+
+test('keeps requests of the extension off the network', async ({ serviceWorker }) => {
+  const result = await serviceWorker.evaluate(() =>
+    fetch('https://example.com/').then(
+      () => 'answered',
+      () => 'failed'
+    )
+  );
+  expect(result).toBe('failed');
+});
+
+test('names a fixture that does not exist', () => {
+  expect(() => readFixture('no-such-fixture')).toThrow('No captured fixture no-such-fixture');
+});
+```
+
+- [ ] **Step 3: Run it to see it fail**
+
+Run: `pnpm test:e2e routing`
+Expected: FAIL — `Test has unknown parameter "fixtureServer"` for the extension tab test; `serves a fixture host its fixture and nothing else` fails because the `fetch` is aborted (rejects) instead of answering 404. With the safety net in place, no request leaves the machine.
+
+- [ ] **Step 4: Create `e2e/fixture-server.ts`**
+
+```ts
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createServer } from 'node:https';
+import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_DIR = path.dirname(E2E_DIR);
+const PAGES_DIR = path.join(E2E_DIR, 'pages');
+/* Sanitized snapshots of live pages, shared with the Jest tests */
+const FIXTURES_DIR = path.join(REPO_DIR, 'src', 'features', 'content', '__fixtures__');
+
+/* .test is reserved for testing (RFC 6761), so even a resolver mistake cannot reach a real site */
+const PAGE_HOST = 'news.e2e.test';
+export const PAGE_ORIGIN = `https://${PAGE_HOST}`;
+
+/* The fixture each live host answers with. The AI service hosts are the ones getSummarizeUrl opens */
+const FIXTURE_HOSTS: Record<string, string> = {
+  'www.youtube.com': 'youtube-watch',
+  'chatgpt.com': 'chatgpt-composer',
+  'gemini.google.com': 'gemini-composer',
+  'aistudio.google.com': 'aistudio-composer',
+  'claude.ai': 'claude-composer',
+  'grok.com': 'grok-tiptap-composer',
+  'www.perplexity.ai': 'perplexity-composer',
+  'chat.deepseek.com': 'deepseek-composer',
+  'www.kimi.ai': 'kimi-composer',
+  'chat.qwen.ai': 'qwen-composer',
+};
+
+/* x.com serves posts and long-form articles on the same path pattern */
+const X_HOST = 'x.com';
+const X_ARTICLE_PATH = '/Safety/status/1801282137921871887';
+
+/* Every host the browser resolves to the server; any other host does not resolve */
+const SERVED_HOSTS = [PAGE_HOST, X_HOST, ...Object.keys(FIXTURE_HOSTS)];
+
+export interface CapturedFixture {
+  html: string;
+  /* The URL the fixture was captured from */
+  source: string;
+}
+
+export interface FixtureServer {
+  /* Value for Chromium's --host-resolver-rules: the served hosts to this server, every other host to nowhere */
+  resolverRules: string;
+  /* Every request received since the last reset, as "<hostname><path><query> <Sec-Fetch-Dest>" */
+  requests: string[];
+  /* Answer a served host with another fixture until the next reset */
+  override: (host: string, name: string) => void;
+  /* Drop the overrides and the request log, between tests */
+  reset: () => void;
+  close: () => Promise<void>;
+}
+
+/**
+ * Read a captured fixture
+ * @param name - The fixture name, its file name without .html
+ * @returns The HTML and the URL it was captured from
+ */
+export const readFixture = (name: string): CapturedFixture => {
+  const file = path.join(FIXTURES_DIR, `${name}.html`);
+  const html = existsSync(file) ? readFileSync(file, 'utf8') : '';
+  const header = html.match(/^<!-- fixture: (\S+) \| source: (\S+) \|/);
+  if (!header || header[1] !== name) throw new Error(`No captured fixture ${name} with a valid header in src/features/content/__fixtures__/`);
+  return { html, source: header[2] };
+};
+
+/**
+ * The fixture a live URL is answered with by default
+ * @param url - The requested URL
+ * @returns The fixture name, or undefined for a host without one
+ */
+export const fixtureForUrl = (url: URL): string | undefined => {
+  if (url.hostname === X_HOST) return url.pathname === X_ARTICLE_PATH ? 'x-article' : 'x-post';
+  return FIXTURE_HOSTS[url.hostname];
+};
+
+/**
+ * Read a hand-written test page of e2e/pages/
+ * @param pathname - The URL path, the file name without .html
+ * @returns The HTML, or undefined when there is no such page
+ */
+const readTestPage = (pathname: string): string | undefined => {
+  const file = path.join(PAGES_DIR, `${pathname.slice(1)}.html`);
+  return path.dirname(file) === PAGES_DIR && existsSync(file) ? readFileSync(file, 'utf8') : undefined;
+};
+
+/**
+ * Create a self-signed certificate for the server; the browser is started to accept it
+ * @returns The private key and the certificate, in PEM
+ */
+const createCertificate = (): { key: Buffer; cert: Buffer } => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'ai-summarizer-e2e-cert-'));
+  const keyFile = path.join(dir, 'key.pem');
+  const certFile = path.join(dir, 'cert.pem');
+  try {
+    execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=ai-summarizer-e2e', '-keyout', keyFile, '-out', certFile], {
+      stdio: 'pipe',
+    });
+    return { key: readFileSync(keyFile), cert: readFileSync(certFile) };
+  } catch (error) {
+    throw new Error(`openssl is needed to create the test certificate: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
+/**
+ * Start the HTTPS server that answers every served host. Only page loads get HTML; images, scripts
+ * and API calls get 404, since the fixtures keep the site's own URLs for them
+ * @returns The running server
+ */
+export const startFixtureServer = async (): Promise<FixtureServer> => {
+  const overrides = new Map<string, string>();
+  const requests: string[] = [];
+
+  const server = createServer(createCertificate(), (request, response) => {
+    const url = new URL(request.url ?? '/', `https://${request.headers.host ?? 'unknown.invalid'}`);
+    const destination = String(request.headers['sec-fetch-dest'] ?? '');
+    requests.push(`${url.hostname}${url.pathname}${url.search} ${destination}`);
+
+    let html: string | undefined;
+    if (destination === 'document') {
+      if (url.hostname === PAGE_HOST) {
+        html = readTestPage(url.pathname);
+      } else {
+        const name = overrides.get(url.hostname) ?? fixtureForUrl(url);
+        if (name) html = readFixture(name).html;
+      }
+    }
+    if (html === undefined) {
+      response.writeHead(404, { 'content-type': 'text/plain' });
+      response.end('Not found');
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end(html);
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address() as AddressInfo;
+
+  return {
+    resolverRules: [...SERVED_HOSTS.map(host => `MAP ${host} 127.0.0.1:${port}`), 'MAP * ~NOTFOUND'].join(', '),
+    requests,
+    override: (host: string, name: string) => {
+      if (!SERVED_HOSTS.includes(host)) throw new Error(`${host} is not served: add it to FIXTURE_HOSTS in e2e/fixture-server.ts`);
+      /* Fail now on an unknown name, rather than on the first request */
+      readFixture(name);
+      overrides.set(host, name);
+    },
+    reset: () => {
+      overrides.clear();
+      requests.length = 0;
+    },
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.closeAllConnections();
+        server.close(error => (error ? reject(error) : resolve()));
+      }),
+  };
+};
+```
+
+- [ ] **Step 5: Replace `e2e/fixtures.ts`**
+
+```ts
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { test as base, type BrowserContext, chromium, expect, type Page, type Worker } from '@playwright/test';
+
+import { fixtureForUrl, type FixtureServer, PAGE_ORIGIN, readFixture, startFixtureServer } from './fixture-server';
+
+export { expect, PAGE_ORIGIN, readFixture };
+
+const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_DIR = path.dirname(E2E_DIR);
+
+/* The article of e2e/pages/article.html, as a prompt carries it */
+export const ARTICLE_TITLE = "The Lighthouse Keeper's Log";
+export const ARTICLE_SENTENCE = 'a page that described a ship nobody else had seen';
+
+export interface ExtensionOptions {
+  /* The unpacked build to load, relative to the repository root */
+  distDir: string;
+}
+
+interface ExtensionFixtures {
+  serviceWorker: Worker;
+  extensionId: string;
+  openPage: (name: string) => Promise<Page>;
+  openFixturePage: (name: string) => Promise<Page>;
+  serveFixture: (host: string, name: string) => Promise<void>;
+  tabIdFor: (page: Page) => Promise<number>;
+  openPopupFor: (target: Page) => Promise<Page>;
+  waitForServicePage: (host: string) => Promise<Page>;
+}
+
+interface WorkerFixtures {
+  fixtureServer: FixtureServer;
+}
+
+/**
+ * Open a URL in a new tab and wait for the content script
+ * @param context - The browser context
+ * @param url - The URL to open
+ * @param hint - What to do when the URL is not answered
+ * @returns The page
+ */
+const openUrl = async (context: BrowserContext, url: string, hint: string): Promise<Page> => {
+  const page = await context.newPage();
+  const response = await page.goto(url);
+  /* A missing page would otherwise load the 404 text, which also fails to extract */
+  if (!response?.ok()) throw new Error(`${url} answered ${response?.status()}: ${hint}`);
+  /* The content script appends its root to the body once it runs */
+  await page.locator('#free-ai-summarizer-root').waitFor({ state: 'attached' });
+  return page;
+};
+
+export const test = base.extend<ExtensionFixtures & ExtensionOptions, WorkerFixtures>({
+  distDir: ['dist/prod', { option: true }],
+
+  fixtureServer: [
+    /* eslint-disable-next-line no-empty-pattern */
+    async ({}, use) => {
+      const server = await startFixtureServer();
+      await use(server);
+      await server.close();
+    },
+    { scope: 'worker' },
+  ],
+
+  context: async ({ distDir, fixtureServer }, use, testInfo) => {
+    const extensionDir = path.resolve(REPO_DIR, distDir);
+    if (!existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`Build ${distDir} first (pnpm build / pnpm start)`);
+
+    /* A fresh profile per test, so no storage or tab carries over */
+    const userDataDir = mkdtempSync(path.join(tmpdir(), 'ai-summarizer-e2e-'));
+    try {
+      const context = await chromium.launchPersistentContext(userDataDir, {
+        channel: 'chromium',
+        headless: true,
+        /* The default clipboard prompt names the browser language */
+        locale: 'en-US',
+        permissions: ['clipboard-read', 'clipboard-write'],
+        /* The fixture server's certificate is self-signed */
+        ignoreHTTPSErrors: true,
+        args: [
+          `--disable-extensions-except=${extensionDir}`,
+          `--load-extension=${extensionDir}`,
+          /*
+           * Every request of the browser, including the tabs the extension opens, which context.route
+           * does not catch, goes to the fixture server or fails to resolve. Nothing reaches a live site
+           */
+          `--host-resolver-rules=${fixtureServer.resolverRules}`,
+          '--ignore-certificate-errors',
+        ],
+      });
+
+      await use(context);
+
+      /*
+       * Playwright does not capture pages of a persistent context on failure, so attach them here. Saved
+       * as files in test-results/, since only the HTML reporter writes attachments given as a body
+       */
+      if (testInfo.status !== testInfo.expectedStatus) {
+        for (const [index, page] of context.pages().entries()) {
+          const file = testInfo.outputPath(`page-${index}.png`);
+          const saved = await page.screenshot({ path: file }).then(
+            () => true,
+            () => false
+          );
+          if (saved) await testInfo.attach(`page-${index}.png`, { path: file, contentType: 'image/png' });
+        }
+      }
+      await context.close();
+    } finally {
+      fixtureServer.reset();
+      /* Also when the launch or the close throws, so no profile is left behind */
+      rmSync(userDataDir, { recursive: true, force: true });
+    }
+  },
+
+  serviceWorker: async ({ context, distDir }, use) => {
+    const worker =
+      context.serviceWorkers()[0] ??
+      (await context.waitForEvent('serviceworker', { timeout: 10_000 }).catch(() => {
+        throw new Error(`The service worker of ${distDir} did not start within 10 s`);
+      }));
+    await use(worker);
+  },
+
+  extensionId: async ({ serviceWorker }, use) => {
+    await use(new URL(serviceWorker.url()).host);
+  },
+
+  openPage: async ({ context }, use) => {
+    await use((name: string) => openUrl(context, `${PAGE_ORIGIN}/${name}`, `add e2e/pages/${name}.html`));
+  },
+
+  openFixturePage: async ({ context }, use) => {
+    await use(async (name: string) => {
+      const { source } = readFixture(name);
+      if (fixtureForUrl(new URL(source)) !== name) throw new Error(`${source} is not answered with ${name}: add its host to FIXTURE_HOSTS in e2e/fixture-server.ts`);
+      return openUrl(context, source, `check the fixture server's answer for ${name}`);
+    });
+  },
+
+  serveFixture: async ({ fixtureServer }, use) => {
+    await use(async (host: string, name: string) => fixtureServer.override(host, name));
+  },
+
+  tabIdFor: async ({ serviceWorker }, use) => {
+    await use(async (page: Page) => {
+      const url = page.url();
+      /* tabs.query({ url }) takes a match pattern, which a URL with a query string such as ?v= does not match */
+      const tabId = await serviceWorker.evaluate(async target => (await chrome.tabs.query({})).find(tab => tab.url === target)?.id, url);
+      if (tabId === undefined) throw new Error(`No tab found for ${url}`);
+      return tabId;
+    });
+  },
+
+  openPopupFor: async ({ context, serviceWorker, extensionId, tabIdFor }, use) => {
+    await use(async (target: Page) => {
+      const tabId = await tabIdFor(target);
+
+      /*
+       * The popup acts on the active tab of its window, read once when it renders. A popup opened from
+       * the toolbar cannot be driven by Playwright, so popup.html is opened in a tab, the target tab is
+       * made active again, and the popup is reloaded to read it.
+       */
+      const popup = await context.newPage();
+      await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+      await serviceWorker.evaluate(async id => {
+        await chrome.tabs.update(id, { active: true });
+      }, tabId);
+      await popup.reload();
+      await popup.getByText('Summarize this page').waitFor();
+      return popup;
+    });
+  },
+
+  waitForServicePage: async ({ context }, use) => {
+    await use(async (host: string) => {
+      const find = (): Page | undefined =>
+        context.pages().find(page => {
+          try {
+            return new URL(page.url()).hostname === host;
+          } catch {
+            return false;
+          }
+        });
+      await expect.poll(() => find() !== undefined, { message: `a tab on ${host} opened by the extension`, timeout: 10_000, intervals: [100] }).toBe(true);
+      const page = find();
+      if (!page) throw new Error(`The tab on ${host} closed while it was found`);
+      return page;
+    });
+  },
+});
+```
+
+Then append, unchanged from Task 1's version, the helpers `waitForToast`, `readClipboard`, `writeClipboard`, `readComposer` and `expectArticleInjected` (copy them from the current file before replacing it).
+
+- [ ] **Step 6: Run the routing spec**
+
+Run: `pnpm test:e2e routing`
+Expected: PASS — 6 tests × 2 projects = 12 passed
+
+- [ ] **Step 7: See the routing tests detect a failure**
+
+Temporarily change `if (destination === 'document')` in `e2e/fixture-server.ts` to `if (destination === 'iframe')` and run `pnpm test:e2e routing --project prod`.
+Expected: FAIL in `serves a fixture host its fixture and nothing else` and `answers a tab the extension opens from the local server` (404 instead of the fixture). No request leaves the machine: the resolver rules are unchanged.
+
+Revert. Run `git diff e2e/fixture-server.ts` — expected: nothing beyond the new file (it is untracked; compare with Step 4 instead).
+
+- [ ] **Step 8: Run every spec except injection**
+
+Run: `pnpm test:e2e --grep-invert "injects the article"`
+Expected: PASS — routing, extraction, popup, options, copy and extraction-failure in both projects (28 passed)
+
+- [ ] **Step 9: Lint, format, type-check**
+
+Run: `pnpm prettier-fix`
+Run: `pnpm eslint-check`
+Run: `pnpm type-check`
+Expected: no errors
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add e2e/fixture-server.ts e2e/fixtures.ts e2e/routing.spec.ts
+git commit -m "test: serve E2E pages from a local HTTPS server behind the resolver"
+git show --stat HEAD
+```
+
+Expected: exactly the three files; `e2e/injection.spec.ts` and `.superpowers/` stay out
+
+---
+
+### Task 3: Injection into every composer
 
 **Files:**
 - Create: `e2e/injection.spec.ts`
 
 **Interfaces:**
-- Consumes (from Task 1, `e2e/fixtures.ts`): `test` fixtures `openPage`, `openPopupFor`, `serveFixture(host, name)`, `waitForServicePage(host)`; `expectArticleInjected(page, editorSelector)`
+- Consumes (from Tasks 1 and 2, `e2e/fixtures.ts`): `test` fixtures `openPage`, `openPopupFor`, `serveFixture(host, name)`, `waitForServicePage(host)`; `expectArticleInjected(page, editorSelector)`
 - Consumes: editor selectors from `src/constants/Selectors.ts` (that file imports nothing, so it loads outside the extension)
 - Produces: nothing for later tasks
 
 - [ ] **Step 1: Write the spec**
 
-Create `e2e/injection.spec.ts`:
+`e2e/injection.spec.ts` is already in the working tree from the stopped first attempt; make sure it matches this content:
 
 ```ts
 import {
@@ -641,7 +1135,7 @@ git commit -m "test: check injection into every AI service composer end to end"
 
 ---
 
-### Task 3: Context menu hook, its specs and the production build check
+### Task 4: Context menu hook, its specs and the production build check
 
 **Files:**
 - Modify: `src/pages/ServiceWorker.ts` (imports block end: `declare global`; `initialize()`: the dev-only block before `this.isInitialized = true;`)
@@ -649,7 +1143,7 @@ git commit -m "test: check injection into every AI service composer end to end"
 - Create: `e2e/prod-build.spec.ts`
 
 **Interfaces:**
-- Consumes (from Task 1): `test` fixtures `distDir`, `openPage`, `serviceWorker`, `tabIdFor`, `waitForServicePage`; helpers `expectArticleInjected`, `readClipboard`, `waitForToast`, `expect`, `PAGE_ORIGIN`
+- Consumes (from Tasks 1 and 2): `test` fixtures `distDir`, `openPage`, `serviceWorker`, `tabIdFor`, `waitForServicePage`; helpers `expectArticleInjected`, `readClipboard`, `waitForToast`, `expect`, `PAGE_ORIGIN`
 - Produces: `globalThis.__aiSummarizerE2E?: { clickContextMenu(menuItemId: string, tabId: number): Promise<void> }` in development builds; menu item IDs come from `src/models/ContextMenuItems.ts` (`'copy'`, `'claude'`)
 
 - [ ] **Step 1: Write the failing specs**
@@ -797,13 +1291,13 @@ git commit -m "test: drive the context menu through a development-only hook"
 
 ---
 
-### Task 4: Documentation, final verification and pull request
+### Task 5: Documentation, final verification and pull request
 
 **Files:**
 - Modify: `CLAUDE.md` (the `pnpm test:e2e` line under "Commands")
 
 **Interfaces:**
-- Consumes: Tasks 1–3
+- Consumes: Tasks 1–4
 - Produces: the pull request
 
 - [ ] **Step 1: Update CLAUDE.md**
