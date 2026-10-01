@@ -10,6 +10,7 @@ import {
   getExtractionKind,
   INJECTION_TOAST_GROUP,
   injectWithProgress,
+  requestInjectionOnLoad,
 } from '@/features/content/services';
 import { useSettingsStore } from '@/stores';
 import { AI_SERVICE_QUERY_KEY, ArticleExtractionResult, ArticleInjectionResult, getAIServiceForUrl, Message, MessageAction, MessageResponse } from '@/types';
@@ -20,7 +21,9 @@ import { copyToClipboard, createPrompt, logger } from '@/utils';
  * INJECT_ARTICLE more than once for the same article because tabs.onUpdated fires
  * 'complete' repeatedly while the aismid URL is still current during the AI
  * service's SPA boot; a second run would re-select the model and re-fill the
- * editor after the first send (observed live on Kimi 2026-08-09). Module scope
+ * editor after the first send (observed live on Kimi 2026-08-09). It also sends
+ * the article again when this content script asks for it (REQUEST_INJECTION),
+ * which Firefox needs because its 'complete' can come before this listener. Module scope
  * makes the guard survive re-renders; a real page reload starts a fresh document
  * and legitimately allows injecting again.
  */
@@ -189,6 +192,9 @@ export const useContentMessage = () => {
 
     chrome.runtime.onMessage.addListener(handleMessage);
     isListenerRegistered.current = true;
+
+    /* Ask for the article only now that INJECT_ARTICLE can be received */
+    requestInjectionOnLoad(location.href);
 
     return () => {
       chrome.runtime.onMessage.removeListener(handleMessage);

@@ -152,6 +152,11 @@ class ServiceWorker {
         this.readArticleForClipboard(message.payload.tabId, message.payload.tabUrl);
         break;
 
+      case MessageAction.REQUEST_INJECTION:
+        /* Firefox can fire the 'complete' tab update before the content script listens, so the content script asks again once it does */
+        if (sender.tab?.id && sender.tab.url) this.executeInjection(sender.tab.id, sender.tab.url);
+        break;
+
       case MessageAction.OPEN_SETTINGS:
         chrome.tabs.query({ active: true, currentWindow: true }, async ([tab]) => {
           /** Check if the tab exists before proceeding */
