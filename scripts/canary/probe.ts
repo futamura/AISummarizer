@@ -16,7 +16,7 @@ const RETENTION_DAYS = 30;
 
 /*
  * ok: every required selector matched. missing: a selector matched nothing, the sign of a DOM change.
- * signed-out: the page went to its sign-in page. blocked: the site's bot protection answered instead
+ * signed-out: the page went to its sign-in page, or shows the guest page without the signed-in marker. blocked: the site's bot protection answered instead
  * of the page (an HTTP error or a Cloudflare challenge), which says nothing about the selectors
  */
 type PageStatus = 'ok' | 'missing' | 'signed-out' | 'blocked' | 'error';
@@ -26,6 +26,8 @@ interface PageResult {
   url: string;
   finalUrl: string;
   httpStatus: number | null;
+  /* Whether the signed-in marker was found; null for pages that have none */
+  signedIn: boolean | null;
   status: PageStatus;
   counts: Record<string, number>;
   optionalCounts: Record<string, number>;
@@ -104,6 +106,7 @@ const probePage = async (page: Page, config: ProbePage): Promise<PageResult> => 
     counts: {},
     optionalCounts: {},
     missing: [],
+    signedIn: null,
   };
   try {
     const response = await page.goto(config.url, { waitUntil: 'domcontentloaded', timeout: REQUIRED_TIMEOUT_MS });
@@ -113,12 +116,13 @@ const probePage = async (page: Page, config: ProbePage): Promise<PageResult> => 
       result.counts.segment = await countTranscriptSegments(page, config.transcript);
     }
     result.optionalCounts = config.optional ? await countAll(page, config.optional, OPTIONAL_TIMEOUT_MS) : {};
+    if (config.signedIn) result.signedIn = (await countAfterWait(page, config.signedIn, OPTIONAL_TIMEOUT_MS)) > 0;
     result.finalUrl = page.url();
     result.missing = Object.entries(result.counts)
       .filter(([, count]) => count === 0)
       .map(([key]) => key);
     if (isBlocked(page, result.httpStatus)) result.status = 'blocked';
-    else if (config.loginUrl?.test(result.finalUrl)) result.status = 'signed-out';
+    else if (config.loginUrl?.test(result.finalUrl) || result.signedIn === false) result.status = 'signed-out';
     else if (result.missing.length > 0) result.status = 'missing';
   } catch (error: unknown) {
     result.finalUrl = page.url();
@@ -154,6 +158,25 @@ const notify = (message: string): Promise<void> =>
     execFile('osascript', ['-e', script], () => resolve());
   });
 
+const ADVICE: Record<Exclude<PageStatus, 'ok'>, string> = {
+  missing: 'Selectors missing, the DOM may have changed',
+  'signed-out': 'Signed out, run pnpm canary:login',
+  blocked: 'Blocked by bot protection',
+  error: 'Did not load',
+};
+
+/**
+ * Word the notification by what to do about each kind of failure
+ * @param failed - The pages that were not ok
+ * @returns One line per status, naming its pages
+ */
+const describeFailures = (failed: PageResult[]): string =>
+  (Object.keys(ADVICE) as (keyof typeof ADVICE)[])
+    .map(status => [status, failed.filter(result => result.status === status).map(result => result.name)] as const)
+    .filter(([, names]) => names.length > 0)
+    .map(([status, names]) => `${ADVICE[status]}: ${names.join(', ')}`)
+    .join('\n');
+
 const main = async (): Promise<void> => {
   const options = parseOptions(process.argv.slice(2));
   const pages = options.only ? PROBE_PAGES.filter(config => options.only?.includes(config.name)) : PROBE_PAGES;
@@ -177,7 +200,7 @@ const main = async (): Promise<void> => {
         await saveSnapshot(page, runDir, config.name).catch((error: unknown) => console.warn(`Could not save the snapshot of ${config.name}:`, error));
       results.push(result);
       console.log(
-        `${result.status.padEnd(10)} ${config.name} ${JSON.stringify({ ...result.counts, ...result.optionalCounts })}${result.error ? ` ${result.error}` : ''}`
+        `${result.status.padEnd(10)} ${config.name} ${JSON.stringify({ ...result.counts, ...result.optionalCounts, signedIn: result.signedIn })}${result.error ? ` ${result.error}` : ''}`
       );
       await page.close();
       /* A pause between sites, so the run does not look like a burst of requests */
@@ -200,7 +223,7 @@ const main = async (): Promise<void> => {
   console.log(`Results: ${runDir}`);
 
   if (failed.length > 0) {
-    if (options.notify) await notify(`${failed.length} failed: ${failed.map(result => `${result.name} (${result.status})`).join(', ')}`);
+    if (options.notify) await notify(describeFailures(failed));
     process.exitCode = 1;
   }
 };
