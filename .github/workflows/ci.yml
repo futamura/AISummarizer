@@ -111,7 +111,7 @@ jobs:
       - name: E2E
         run: pnpm test:e2e
 
-      # Hand-written test pages and the extension's own UI only: no account data or secrets
+      # Hand-written test pages, the sanitized fixtures already in the repository and the extension's own UI only: no account data or secrets
       - name: Upload report
         if: failure()
         uses: actions/upload-artifact@v4

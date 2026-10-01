@@ -1,5 +1,5 @@
 import { CHATGPT_SELECTORS } from '../src/constants/Selectors';
-import { expect, PAGE_ORIGIN, readFixture, test } from './fixtures';
+import { expect, PAGE_ORIGIN, readFixture, test, withSubmitGuard } from './fixtures';
 
 test('never reaches a site outside the test pages', async ({ context }) => {
   const page = await context.newPage();
@@ -59,4 +59,9 @@ test('keeps requests of the extension off the network', async ({ serviceWorker }
 
 test('names a fixture that does not exist', () => {
   expect(() => readFixture('no-such-fixture')).toThrow('No captured fixture no-such-fixture');
+});
+
+test('puts the submit guard in the head, not in a header', () => {
+  const html = withSubmitGuard('<header>Site</header><head lang="en"><title>Page</title></head>');
+  expect(html).toMatch(/^<header>Site<\/header><head lang="en"><script>.+<\/script><title>Page<\/title><\/head>$/);
 });
