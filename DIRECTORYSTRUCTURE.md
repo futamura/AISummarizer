@@ -28,7 +28,7 @@ Please follow the directory structure below for implementation:
 │   ├── types/                    # TypeScript type definitions
 │   └── utils/                    # Utility functions
 ├── build/                        # Build-time scripts (manifest transforms)
-├── scripts/                      # Developer scripts run by hand (fixture capture)
+├── scripts/                      # Developer scripts outside the build (fixture capture, local canary)
 ├── public/                       # Static assets
 ├── dist/                         # Output directory (dev/prod: Chrome, firefox-dev/firefox-prod: Firefox)
 ├── node_modules/                 # Dependency packages
@@ -60,7 +60,7 @@ Please follow the directory structure below for implementation:
 
 #### Source Code (`src/`)
 - `components/`: Shared UI component implementations
-- `constants/`: Constant values and configuration definitions
+- `constants/`: Constant values and configuration definitions (`Selectors.ts`: the DOM selectors of the pages the extension reads and writes, shared with the canary)
 - `db/`: Database related implementations and migrations
 - `features/`: Feature-specific implementations
   - `content/`: Content script feature implementation
@@ -93,7 +93,7 @@ Please follow the directory structure below for implementation:
 
 #### Build and Dependencies
 - `build/`: Build-time scripts used by webpack (manifest transforms for development and Firefox builds)
-- `scripts/`: Developer scripts run by hand, not part of the build (`fixtures/`: capturing page fixtures; see its README)
+- `scripts/`: Developer scripts, not part of the build (`fixtures/`: capturing page fixtures; `canary/`: the daily local check of the live pages against the selectors; see their READMEs)
 - `dist/`: Compiled output files (`dev` / `prod` for Chrome, `firefox-dev` / `firefox-prod` for Firefox)
 - `public/`: Static assets
 - `node_modules/`: Third-party dependencies

@@ -1,3 +1,4 @@
+import { YOUTUBE_SELECTORS } from '@/constants';
 import { ArticleExtractionResult } from '@/types';
 import { logger, waitForElement } from '@/utils';
 
@@ -5,13 +6,6 @@ interface TranscriptSegment {
   start: number;
   texts: string[];
 }
-
-/**
- * Matches transcript segment elements of both the legacy transcript panel
- * (ytd-transcript-segment-renderer) and the new view-model based panel
- * (transcript-segment-view-model) that YouTube is gradually rolling out.
- */
-const SEGMENT_SELECTOR = 'ytd-transcript-segment-renderer, transcript-segment-view-model';
 
 /**
  * Parse timestamp string to seconds
@@ -79,8 +73,8 @@ export function groupTranscriptSegments(segments: { start: number; text: string 
  */
 function parseSegmentElement(element: Element): { start: number; text: string } | null {
   const isLegacy = element.tagName.toLowerCase() === 'ytd-transcript-segment-renderer';
-  const timestampElement = element.querySelector(isLegacy ? '.segment-timestamp' : '.ytwTranscriptSegmentViewModelTimestamp');
-  const textElement = element.querySelector(isLegacy ? '.segment-text' : '.ytAttributedStringHost');
+  const timestampElement = element.querySelector(isLegacy ? YOUTUBE_SELECTORS.legacySegmentTimestamp : YOUTUBE_SELECTORS.segmentTimestamp);
+  const textElement = element.querySelector(isLegacy ? YOUTUBE_SELECTORS.legacySegmentText : YOUTUBE_SELECTORS.segmentText);
 
   const timestamp = timestampElement?.textContent?.trim() || '';
   const text = textElement?.textContent?.trim() || '';
@@ -101,7 +95,7 @@ function parseSegmentElement(element: Element): { start: number; text: string } 
 function extractTranscriptSegments(): { start: number; text: string }[] {
   const segments: { start: number; text: string }[] = [];
 
-  document.querySelectorAll(SEGMENT_SELECTOR).forEach(element => {
+  document.querySelectorAll(YOUTUBE_SELECTORS.segment).forEach(element => {
     const segment = parseSegmentElement(element);
     if (segment) {
       segments.push(segment);
@@ -121,7 +115,7 @@ async function waitForStableSegmentCount(maxAttempts = 15): Promise<number> {
   let previousCount = 0;
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    const count = document.querySelectorAll(SEGMENT_SELECTOR).length;
+    const count = document.querySelectorAll(YOUTUBE_SELECTORS.segment).length;
     if (count > 0 && count === previousCount) {
       return count;
     }
@@ -150,7 +144,7 @@ export async function extractYoutube(urls: string): Promise<ArticleExtractionRes
     await new Promise(resolve => setTimeout(resolve, 4000));
 
     /** Wait for the transcript button and click it */
-    const transcriptButton = await waitForElement('#description-inline-expander ytd-video-description-transcript-section-renderer button');
+    const transcriptButton = await waitForElement(YOUTUBE_SELECTORS.transcriptButton);
     if (!(transcriptButton instanceof HTMLElement)) {
       throw new Error('Transcript button not found');
     }
@@ -176,7 +170,7 @@ export async function extractYoutube(urls: string): Promise<ArticleExtractionRes
       .join('\n');
 
     /** Wait for the title */
-    const titleElement = await waitForElement('#above-the-fold #title');
+    const titleElement = await waitForElement(YOUTUBE_SELECTORS.title);
     const title = titleElement?.textContent?.trim() || null;
 
     /**
@@ -184,8 +178,8 @@ export async function extractYoutube(urls: string): Promise<ArticleExtractionRes
      * because its target-id differs between the legacy and the new panel
      * (and is sometimes absent on the new one)
      */
-    const segmentElement = document.querySelector(SEGMENT_SELECTOR);
-    const panel = segmentElement?.closest('ytd-engagement-panel-section-list-renderer');
+    const segmentElement = document.querySelector(YOUTUBE_SELECTORS.segment);
+    const panel = segmentElement?.closest(YOUTUBE_SELECTORS.transcriptPanel);
     if (panel instanceof HTMLElement) {
       panel.setAttribute('visibility', 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN');
     }

@@ -1,21 +1,9 @@
+import { X_SELECTORS } from '@/constants';
 import { ArticleExtractionResult } from '@/types';
 import { logger, normalizeContent, waitForElement } from '@/utils';
 
 /* Single post pages of X, on the current host and on the legacy twitter.com one */
 const X_STATUS_URL_PATTERN = /^https?:\/\/(?:(?:www|m|mobile)\.)?(?:x|twitter)\.com\/[^/]+\/status\/\d+/;
-
-/* Long-form posts ("articles") are rendered by a dedicated view instead of the post timeline */
-const ARTICLE_VIEW_SELECTOR = '[data-testid="twitterArticleReadView"]';
-const ARTICLE_TITLE_SELECTOR = '[data-testid="twitter-article-title"]';
-const ARTICLE_BODY_SELECTOR = '[data-testid="twitterArticleRichTextView"]';
-
-const POST_SELECTOR = 'article[data-testid="tweet"]';
-/* The post the URL points at is the only one taken out of the tab order */
-const MAIN_POST_SELECTOR = 'article[data-testid="tweet"][tabindex="-1"]';
-const POST_TEXT_SELECTOR = '[data-testid="tweetText"]';
-const USER_NAME_SELECTOR = '[data-testid="User-Name"]';
-/* A quoted post is nested inside its quoting post as a link-role container */
-const QUOTE_SELECTOR = 'div[role="link"]';
 
 /* Tags that start a new line in the extracted text */
 const BLOCK_TAGS = new Set([
@@ -121,7 +109,7 @@ const extractText = (element: Element | null): string => {
  * @returns True when the descendant belongs to a quoted post
  */
 const isInQuote = (post: Element, element: Element): boolean => {
-  const quote = element.closest(QUOTE_SELECTOR);
+  const quote = element.closest(X_SELECTORS.quote);
   return quote !== null && post.contains(quote);
 };
 
@@ -144,7 +132,7 @@ const parseUser = (userName: Element | null): XUser => {
  * @returns The display name and the handle of the author
  */
 const parsePostUser = (post: Element): XUser => {
-  const userName = [...post.querySelectorAll(USER_NAME_SELECTOR)].find(element => !isInQuote(post, element)) ?? null;
+  const userName = [...post.querySelectorAll(X_SELECTORS.userName)].find(element => !isInQuote(post, element)) ?? null;
   return parseUser(userName);
 };
 
@@ -166,17 +154,17 @@ const formatByline = ({ name, handle }: XUser, timestamp: string | null): string
  */
 const extractPost = (post: Element): string => {
   const user = parsePostUser(post);
-  const time = [...post.querySelectorAll('time[datetime]')].find(element => !isInQuote(post, element)) ?? null;
-  const textElement = [...post.querySelectorAll(POST_TEXT_SELECTOR)].find(element => !isInQuote(post, element)) ?? null;
+  const time = [...post.querySelectorAll(X_SELECTORS.time)].find(element => !isInQuote(post, element)) ?? null;
+  const textElement = [...post.querySelectorAll(X_SELECTORS.postText)].find(element => !isInQuote(post, element)) ?? null;
 
   const lines = [formatByline(user, time?.getAttribute('datetime') ?? null), extractText(textElement)];
 
   /* Keep the quoted post, indented as a quotation, because the quoting post often relies on it */
-  const quote = post.querySelector(QUOTE_SELECTOR);
+  const quote = post.querySelector(X_SELECTORS.quote);
   if (quote) {
-    const quotedUser = parseUser(quote.querySelector(USER_NAME_SELECTOR));
-    const quotedTime = quote.querySelector('time[datetime]')?.getAttribute('datetime') ?? null;
-    const quotedText = extractText(quote.querySelector(POST_TEXT_SELECTOR));
+    const quotedUser = parseUser(quote.querySelector(X_SELECTORS.userName));
+    const quotedTime = quote.querySelector(X_SELECTORS.time)?.getAttribute('datetime') ?? null;
+    const quotedText = extractText(quote.querySelector(X_SELECTORS.postText));
     const quoted = [formatByline(quotedUser, quotedTime), quotedText]
       .map(line => line.trim())
       .filter(Boolean)
@@ -198,11 +186,11 @@ const extractPost = (post: Element): string => {
  * @returns The posts of the thread, in document order
  */
 const collectThread = (document: Document): Element[] => {
-  const posts = [...document.querySelectorAll(POST_SELECTOR)];
+  const posts = [...document.querySelectorAll(X_SELECTORS.post)];
   if (posts.length === 0) return [];
 
   const mainIndex = Math.max(
-    posts.findIndex(post => post.matches(MAIN_POST_SELECTOR)),
+    posts.findIndex(post => post.matches(X_SELECTORS.mainPost)),
     0
   );
   const mainHandle = parsePostUser(posts[mainIndex]).handle;
@@ -223,7 +211,7 @@ const collectThread = (document: Document): Element[] => {
  */
 const buildPostTitle = (post: Element): string | null => {
   const { name, handle } = parsePostUser(post);
-  const textElement = [...post.querySelectorAll(POST_TEXT_SELECTOR)].find(element => !isInQuote(post, element)) ?? null;
+  const textElement = [...post.querySelectorAll(X_SELECTORS.postText)].find(element => !isInQuote(post, element)) ?? null;
   const text = extractText(textElement).replace(/\s+/g, ' ').trim();
 
   const author = [name, handle && `(${handle})`].filter(Boolean).join(' ');
@@ -238,14 +226,14 @@ const buildPostTitle = (post: Element): string | null => {
  * @returns The extraction result, or null when the page is not a long-form post
  */
 const extractArticle = (document: Document): ArticleExtractionResult | null => {
-  const view = document.querySelector(ARTICLE_VIEW_SELECTOR);
+  const view = document.querySelector(X_SELECTORS.articleView);
   if (!view) return null;
 
-  const title = view.querySelector(ARTICLE_TITLE_SELECTOR)?.textContent?.trim() || null;
-  const body = extractText(view.querySelector(ARTICLE_BODY_SELECTOR));
+  const title = view.querySelector(X_SELECTORS.articleTitle)?.textContent?.trim() || null;
+  const body = extractText(view.querySelector(X_SELECTORS.articleBody));
 
   /* The author is rendered above the read view, so it is looked up on the whole document */
-  const user = parseUser(document.querySelector(USER_NAME_SELECTOR));
+  const user = parseUser(document.querySelector(X_SELECTORS.userName));
   const byline = formatByline(user, null);
 
   const content = normalizeContent([title, byline, body].filter(Boolean).join('\n'));
@@ -274,7 +262,7 @@ export const isXStatusUrl = (url: string): boolean => X_STATUS_URL_PATTERN.test(
 export async function extractX(document: Document): Promise<ArticleExtractionResult> {
   try {
     /* The page is rendered client side, so the post may not be in the DOM yet */
-    await waitForElement(`${MAIN_POST_SELECTOR}, ${ARTICLE_VIEW_SELECTOR}`);
+    await waitForElement(`${X_SELECTORS.mainPost}, ${X_SELECTORS.articleView}`);
 
     const article = extractArticle(document);
     if (article) {
@@ -294,7 +282,7 @@ export async function extractX(document: Document): Promise<ArticleExtractionRes
       };
     }
 
-    const title = buildPostTitle(thread.find(post => post.matches(MAIN_POST_SELECTOR)) ?? thread[0]);
+    const title = buildPostTitle(thread.find(post => post.matches(X_SELECTORS.mainPost)) ?? thread[0]);
     const content = normalizeContent(thread.map(extractPost).filter(Boolean).join('\n'));
     logger.debug('🐦', '[X.ts]', '[extractX]', 'Extracted', thread.length, 'post(s) from:', document.URL);
 

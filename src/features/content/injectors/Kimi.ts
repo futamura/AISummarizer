@@ -1,3 +1,4 @@
+import { KIMI_SELECTORS } from '@/constants';
 import { InjectOptions, noopModelUnavailableReporter, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
@@ -14,14 +15,16 @@ import { getRandomInt, logger, waitForElement } from '@/utils';
  */
 async function selectKimiModel(model: string): Promise<boolean> {
   try {
-    const trigger = await waitForElement('.current-model');
+    const trigger = await waitForElement(KIMI_SELECTORS.modelPicker);
     if (!(trigger instanceof HTMLElement)) throw new Error('Kimi model picker trigger not found');
     trigger.click();
 
     /* Wait for the picker popup to open */
     await new Promise(resolve => setTimeout(resolve, getRandomInt(500, 1000)));
 
-    const target = [...document.querySelectorAll('.model-item')].find(el => el.querySelector('.model-name')?.textContent?.trim() === model);
+    const target = [...document.querySelectorAll(KIMI_SELECTORS.modelItem)].find(
+      el => el.querySelector(KIMI_SELECTORS.modelName)?.textContent?.trim() === model
+    );
     if (!(target instanceof HTMLElement)) throw new Error(`Kimi model item not found: ${model}`);
     target.click();
 
@@ -69,7 +72,7 @@ export async function injectKimi(
     }
 
     /** Wait for the editor to be found. The chat box is a Lexical contenteditable div (verified live 2026-08-08) */
-    const editor = await waitForElement('div[contenteditable="true"][data-lexical-editor="true"]');
+    const editor = await waitForElement(KIMI_SELECTORS.editor);
     if (!editor) throw new Error('Kimi container not found');
     logger.debug('📕', '[Kimi.tsx]', '[injectKimi]', 'Kimi editor found', editor);
 
@@ -87,7 +90,7 @@ export async function injectKimi(
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
 
     /** Wait for the submit button to be found. Disabled state is expressed via the disabled class (verified live 2026-08-08) */
-    const submitButton = await waitForElement('div.send-button-container:not(.disabled)');
+    const submitButton = await waitForElement(KIMI_SELECTORS.submit);
     if (!submitButton) throw new Error('Kimi submit button not found');
     logger.debug('📕', '[Kimi.tsx]', '[injectKimi]', 'Kimi submit button found', submitButton);
 
@@ -115,7 +118,7 @@ export async function injectKimi(
      */
     for (let attempt = 0; attempt < 8; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 800));
-      const residueEditor = document.querySelector('div[contenteditable="true"][data-lexical-editor="true"]');
+      const residueEditor = document.querySelector(KIMI_SELECTORS.editor);
       if (!(residueEditor instanceof HTMLElement)) continue;
       if (!isPromptResidue(residueEditor.textContent, prompt)) continue;
       const residue = residueEditor.textContent?.replace(/\s+/g, '');

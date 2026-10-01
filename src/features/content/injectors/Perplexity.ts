@@ -1,3 +1,4 @@
+import { PERPLEXITY_SELECTORS } from '@/constants';
 import { InjectOptions, noopStageReporter } from '@/types';
 import { getRandomInt, logger, waitForElement } from '@/utils';
 
@@ -17,7 +18,7 @@ export async function injectPerplexity(prompt: string, { onStage = noopStageRepo
     await new Promise(resolve => setTimeout(resolve, getRandomInt(1000, 1500)));
 
     /** Wait for the editor to be found */
-    const editor = await waitForElement('#ask-input');
+    const editor = await waitForElement(PERPLEXITY_SELECTORS.editor);
     if (!editor) throw new Error('Perplexity container not found');
     logger.debug('📕', '[Perplexity.tsx]', '[injectPerplexity]', 'Perplexity editor found', editor);
 
@@ -56,7 +57,7 @@ export async function injectPerplexity(prompt: string, { onStage = noopStageRepo
     onStage('sending');
 
     /** Wait for the submit button to be found */
-    const submitButton = await waitForElement('button[aria-label="Submit"]');
+    const submitButton = await waitForElement(PERPLEXITY_SELECTORS.submit);
     if (!submitButton) throw new Error('Perplexity submit button not found');
     logger.debug('📕', '[Perplexity.tsx]', '[injectPerplexity]', 'Perplexity submit button found', submitButton);
 
