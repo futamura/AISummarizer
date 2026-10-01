@@ -37,6 +37,20 @@ const X_ARTICLE_PATH = '/Safety/status/1801282137921871887';
 /* Every host the browser resolves to the server; any other host does not resolve */
 const SERVED_HOSTS = [PAGE_HOST, X_HOST, ...Object.keys(FIXTURE_HOSTS)];
 
+/*
+ * A captured fixture has no site script, so a click on a send button inside a <form> submits it
+ * natively and reloads the page with the composer emptied, which the live sites never do. This stands
+ * in for their submit handler
+ */
+const SUBMIT_GUARD = "<script>document.addEventListener('submit', event => event.preventDefault(), true);</script>";
+
+/**
+ * Serve a fixture with the submit guard at the start of its head
+ * @param html - The fixture HTML
+ * @returns The HTML to serve
+ */
+const withSubmitGuard = (html: string): string => html.replace(/<head[^>]*>/i, head => `${head}${SUBMIT_GUARD}`);
+
 export interface CapturedFixture {
   html: string;
   /* The URL the fixture was captured from */
@@ -132,7 +146,7 @@ export const startFixtureServer = async (): Promise<FixtureServer> => {
         html = readTestPage(url.pathname);
       } else {
         const name = overrides.get(url.hostname) ?? fixtureForUrl(url);
-        if (name) html = readFixture(name).html;
+        if (name) html = withSubmitGuard(readFixture(name).html);
       }
     }
     if (html === undefined) {
