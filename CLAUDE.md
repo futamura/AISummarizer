@@ -16,6 +16,7 @@ Package manager is pnpm (required; version pinned in `packageManager` field and 
 - `pnpm test` — run all Jest tests
 - `pnpm test src/utils/__tests__/Logger.test.ts` — run a single test file
 - `pnpm test -- -t "name"` — run tests matching a name
+- `pnpm test:e2e` — Playwright end-to-end tests (`e2e/`) of `dist/prod` and `dist/dev` in headless Chromium. Build both first (`pnpm build`, `pnpm start`): a build left from another branch is tested as is. One-time setup: `pnpm exec playwright install chromium`
 - `pnpm type-check` — `tsc --noEmit`
 - `pnpm eslint-check` / `pnpm eslint-fix`
 - `pnpm prettier-check` / `pnpm prettier-fix`
@@ -81,7 +82,7 @@ From `.cursor/rules/global.mdc` (binding for this repo):
 
 ### CI
 
-`.github/workflows/ci.yml` runs prettier / eslint / type-check / Jest on every branch push and on pull requests into `develop` / `main`. It uses the `pull_request` trigger with `permissions: contents: read` and no secrets, so fork pull requests run safely; keep it that way (never `pull_request_target`).
+`.github/workflows/ci.yml` runs prettier / eslint / type-check / Jest (`check` job) and, after building both versions, `pnpm test:e2e` (`e2e` job) on every branch push and on pull requests into `develop` / `main`. It uses the `pull_request` trigger with `permissions: contents: read` and no secrets, so fork pull requests run safely; keep it that way (never `pull_request_target`).
 
 ### Release
 
