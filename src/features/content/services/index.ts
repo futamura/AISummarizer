@@ -3,3 +3,4 @@ export * from './ArticleInjectionService';
 export * from './ExtractionProgress';
 export * from './ExtractionKind';
 export * from './InjectionProgress';
+export * from './InjectionRequest';
