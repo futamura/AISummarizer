@@ -59,7 +59,7 @@ test('answers a tab the extension opens from the local server', async ({ extensi
   expect(fixtureServer.requests).toContain('chatgpt.com/?opened-by=extension document');
 });
 
-test('keeps requests of the extension off the network', async ({ extensionPage }) => {
+test('keeps requests of the extension off the network', async ({ extensionPage, fixtureServer }) => {
   const result = await extensionPage.evaluate(async () => {
     /* The background page, where the service worker code runs on Firefox */
     const getBackgroundPage = chrome.runtime.getBackgroundPage as unknown as () => Promise<Window | null>;
@@ -71,6 +71,8 @@ test('keeps requests of the extension off the network', async ({ extensionPage }
     );
   });
   expect(result).toBe('failed');
+  /* Failed at the proxy, not for another reason that a live network would not share */
+  expect(fixtureServer.refused).toContain('example.com');
 });
 
 /* Firefox resets connections when it closes, background requests to refused hosts included; the proxy must survive that */

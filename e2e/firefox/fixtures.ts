@@ -78,10 +78,17 @@ export const poll = async (check: () => Promise<unknown>, message: string | (() 
   const deadline = Date.now() + timeout;
   let lastError: unknown;
   while (Date.now() < deadline) {
+    /* A check that hangs, such as an evaluation in a document being torn down, is cut off at the deadline */
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cutOff = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('the check did not settle before the timeout')), deadline - Date.now());
+    });
     try {
-      if (await check()) return;
+      if (await Promise.race([check(), cutOff])) return;
     } catch (error) {
       lastError = error;
+    } finally {
+      clearTimeout(timer);
     }
     await sleep(100);
   }
@@ -143,7 +150,7 @@ export const test = base.extend<FirefoxFixtures & ExtensionOptions, WorkerFixtur
       .launch({ browser: 'firefox', headless: true, acceptInsecureCerts: true, extraPrefsFirefox: firefoxPrefs(fixtureServer.proxyPort) })
       .catch((error: unknown) => {
         throw new Error(
-          `Firefox did not start; install it with pnpm exec puppeteer browsers install firefox: ${error instanceof Error ? error.message : String(error)}`
+          `Firefox did not start (if it is not installed, run pnpm exec puppeteer browsers install firefox): ${error instanceof Error ? error.message : String(error)}`
         );
       });
     try {
@@ -162,8 +169,12 @@ export const test = base.extend<FirefoxFixtures & ExtensionOptions, WorkerFixtur
         }
       }
     } finally {
-      await firefox.close();
-      fixtureServer.reset();
+      /* The next test must not see this one's requests, even when Firefox fails to close */
+      try {
+        await firefox.close();
+      } finally {
+        fixtureServer.reset();
+      }
     }
   },
 
@@ -212,12 +223,11 @@ export const test = base.extend<FirefoxFixtures & ExtensionOptions, WorkerFixtur
       const popup = await openExtensionPageIn(firefox, 'popup.html');
       await extensionPage.evaluate(id => chrome.tabs.update(id, { active: true }).then(() => undefined), tabId);
       /* Mark the current document, so that the wait below cannot pass on it before the reload replaces it */
-      await popup
-        .evaluate(() => {
-          (window as unknown as { isStale?: boolean }).isStale = true;
-          location.reload();
-        })
-        .catch(() => undefined);
+      await popup.evaluate(() => {
+        (window as unknown as { isStale?: boolean }).isStale = true;
+      });
+      /* The reload tears down the document the evaluation runs in, which may fail the evaluation */
+      await popup.evaluate(() => location.reload()).catch(() => undefined);
       await poll(
         () =>
           popup.evaluate(

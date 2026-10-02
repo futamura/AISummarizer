@@ -4,7 +4,8 @@ import { clickText, expect, EXTENSION_ORIGIN, type Page, poll, readClipboard, re
 /*
  * Firefox answers the popup's sendMessage only once the service worker's listener settles, and the popup
  * closes after that answer (FUT-147). The YouTube fixture's transcript takes 4 s or more to read, so a
- * listener that awaited the extraction would keep the popup open that long
+ * listener that awaited the extraction would keep the popup open that long. CLOSE_TIMEOUT must stay at 3 s
+ * or less, or such a listener could close the popup in time and pass
  */
 const CLOSE_TIMEOUT = 1000;
 const EXTRACTION_TIMEOUT = 20_000;
