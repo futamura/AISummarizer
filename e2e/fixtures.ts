@@ -6,15 +6,13 @@ import { fileURLToPath } from 'node:url';
 import { test as base, type BrowserContext, chromium, expect, type Page, type Worker } from '@playwright/test';
 
 import { fixtureForUrl, type FixtureServer, PAGE_ORIGIN, readFixture, startFixtureServer, withSubmitGuard } from './fixture-server';
+import { ARTICLE_SENTENCE, ARTICLE_TITLE } from './scenarios';
 
 export { expect, PAGE_ORIGIN, readFixture, withSubmitGuard };
+export { ARTICLE_SENTENCE, ARTICLE_TITLE };
 
 const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.dirname(E2E_DIR);
-
-/* The article of e2e/pages/article.html, as a prompt carries it */
-export const ARTICLE_TITLE = "The Lighthouse Keeper's Log";
-export const ARTICLE_SENTENCE = 'a page that described a ship nobody else had seen';
 
 export interface ExtensionOptions {
   /* The unpacked build to load, relative to the repository root */
