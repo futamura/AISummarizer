@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createServer as createHttpServer } from 'node:http';
 import { createServer } from 'node:https';
-import type { AddressInfo } from 'node:net';
+import { type AddressInfo, connect, type Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -60,11 +61,15 @@ export interface CapturedFixture {
 export interface FixtureServer {
   /* Value for Chromium's --host-resolver-rules: the served hosts to this server, every other host to nowhere */
   resolverRules: string;
+  /* Port of the HTTP proxy Firefox uses: it tunnels the served hosts to this server and refuses every other host */
+  proxyPort: number;
+  /* Hosts the proxy refused since the last reset, Firefox's own background requests included */
+  refused: string[];
   /* Every request received since the last reset, as "<hostname><path><query> <Sec-Fetch-Dest>" */
   requests: string[];
   /* Answer a served host with another fixture until the next reset */
   override: (host: string, name: string) => void;
-  /* Drop the overrides and the request log, between tests */
+  /* Drop the overrides, the request log and the refused hosts, between tests */
   reset: () => void;
   close: () => Promise<void>;
 }
@@ -160,8 +165,43 @@ export const startFixtureServer = async (): Promise<FixtureServer> => {
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo;
 
+  /*
+   * Firefox has no --host-resolver-rules, so it sends every request to this proxy instead: a served host
+   * is tunnelled to the server above, any other host gets 403. Plain http:// requests are refused too
+   */
+  const refused: string[] = [];
+  const tunnels = new Set<Socket>();
+  const proxy = createHttpServer((request, response) => {
+    refused.push(new URL(request.url ?? '/', 'http://unknown.invalid').hostname);
+    response.writeHead(403);
+    response.end();
+  });
+  proxy.on('connect', (request, client: Socket) => {
+    const host = String(request.url ?? '').split(':')[0];
+    if (!SERVED_HOSTS.includes(host)) {
+      refused.push(host);
+      client.end('HTTP/1.1 403 Forbidden\r\n\r\n');
+      return;
+    }
+    const upstream = connect(port, '127.0.0.1', () => {
+      client.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+      upstream.pipe(client);
+      client.pipe(upstream);
+    });
+    tunnels.add(client);
+    tunnels.add(upstream);
+    client.on('close', () => tunnels.delete(client));
+    upstream.on('close', () => tunnels.delete(upstream));
+    upstream.on('error', () => client.destroy());
+    client.on('error', () => upstream.destroy());
+  });
+  await new Promise<void>(resolve => proxy.listen(0, '127.0.0.1', resolve));
+  const { port: proxyPort } = proxy.address() as AddressInfo;
+
   return {
     resolverRules: [...SERVED_HOSTS.map(host => `MAP ${host} 127.0.0.1:${port}`), 'MAP * ~NOTFOUND'].join(', '),
+    proxyPort,
+    refused,
     requests,
     override: (host: string, name: string) => {
       if (!SERVED_HOSTS.includes(host)) throw new Error(`${host} is not served: add it to FIXTURE_HOSTS in e2e/fixture-server.ts`);
@@ -172,11 +212,14 @@ export const startFixtureServer = async (): Promise<FixtureServer> => {
     reset: () => {
       overrides.clear();
       requests.length = 0;
+      refused.length = 0;
     },
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        server.closeAllConnections();
-        server.close(error => (error ? reject(error) : resolve()));
-      }),
+    close: async () => {
+      /* A tunnel is a raw socket, which closeAllConnections does not know about */
+      for (const socket of tunnels) socket.destroy();
+      proxy.closeAllConnections();
+      server.closeAllConnections();
+      await Promise.all([proxy, server].map(listener => new Promise<void>((resolve, reject) => listener.close(error => (error ? reject(error) : resolve())))));
+    },
   };
 };
