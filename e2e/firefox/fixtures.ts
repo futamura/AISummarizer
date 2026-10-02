@@ -1,0 +1,394 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import puppeteer, { type Browser, type Page } from 'puppeteer';
+
+import { test as base, expect } from '@playwright/test';
+
+import { FIREFOX_ADDON_ID } from '../../build/manifest';
+import { fixtureForUrl, type FixtureServer, PAGE_ORIGIN, readFixture, startFixtureServer } from '../fixture-server';
+import { ARTICLE_SENTENCE, ARTICLE_TITLE } from '../scenarios';
+
+export { expect, PAGE_ORIGIN };
+export type { Page };
+
+const REPO_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/* Fixed through extensions.webextensions.uuids, so the extension's URLs are known before any page opens */
+const EXTENSION_UUID = '0e2e0e2e-0000-4000-8000-000000000001';
+export const EXTENSION_ORIGIN = `moz-extension://${EXTENSION_UUID}`;
+
+export interface ExtensionOptions {
+  /* The unpacked build to load, relative to the repository root */
+  distDir: string;
+}
+
+interface FirefoxFixtures {
+  /* Named firefox, since Playwright's own browser fixture would launch Chromium */
+  firefox: Browser;
+  /* options.html in a tab, where chrome.* reaches the extension's privileged APIs */
+  extensionPage: Page;
+  openExtensionPage: (file: string) => Promise<Page>;
+  openPage: (name: string) => Promise<Page>;
+  openFixturePage: (name: string) => Promise<Page>;
+  serveFixture: (host: string, name: string) => Promise<void>;
+  tabIdFor: (page: Page) => Promise<number>;
+  openPopupFor: (target: Page) => Promise<Page>;
+  waitForServicePage: (host: string, timeout?: number) => Promise<Page>;
+}
+
+interface WorkerFixtures {
+  fixtureServer: FixtureServer;
+}
+
+/**
+ * The prefs that keep Firefox offline and make the extension testable
+ * @param proxyPort - The port of the fixture server's refusing proxy
+ * @returns The prefs for puppeteer.launch
+ */
+const firefoxPrefs = (proxyPort: number): Record<string, unknown> => ({
+  /* Every request goes to the refusing proxy, with no exception, not even localhost */
+  'network.proxy.type': 1,
+  'network.proxy.http': '127.0.0.1',
+  'network.proxy.http_port': proxyPort,
+  'network.proxy.ssl': '127.0.0.1',
+  'network.proxy.ssl_port': proxyPort,
+  'network.proxy.no_proxies_on': '',
+  'network.proxy.allow_hijacking_localhost': true,
+  /* No DNS over HTTPS, no QUIC (a proxy does not carry it), and a lookup that escapes the proxy still resolves to localhost */
+  'network.trr.mode': 5,
+  'network.http.http3.enable': false,
+  'network.dns.native-is-localhost': true,
+  'extensions.webextensions.uuids': JSON.stringify({ [FIREFOX_ADDON_ID]: EXTENSION_UUID }),
+  /* Lets a page read the clipboard without a user gesture */
+  'dom.events.testing.asyncClipboard': true,
+});
+
+export const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Wait until a check passes. Evaluation in Firefox fails for a moment while a document is replaced
+ * ("right-hand side of 'in' should be an object, got null"), which stops Puppeteer's waitForFunction,
+ * so errors are retried until the timeout and the last one is reported
+ * @param check - Resolves truthy once the condition holds
+ * @param message - What is awaited, for the timeout error; a function is read at the time of the error
+ * @param timeout - How long to wait in ms
+ */
+export const poll = async (check: () => Promise<unknown>, message: string | (() => string), timeout = 10_000): Promise<void> => {
+  const deadline = Date.now() + timeout;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      if (await check()) return;
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(100);
+  }
+  const detail = lastError instanceof Error ? `; last error: ${lastError.message.split('\n')[0]}` : '';
+  throw new Error(`Timed out after ${timeout} ms waiting for ${typeof message === 'function' ? message() : message}${detail}`);
+};
+
+/**
+ * Open an extension page in a new tab
+ * @param firefox - The browser
+ * @param file - The page's file in the build, such as popup.html
+ * @returns The page, loaded
+ */
+const openExtensionPageIn = async (firefox: Browser, file: string): Promise<Page> => {
+  const page = await firefox.newPage();
+  const url = `${EXTENSION_ORIGIN}/${file}`;
+  /* Puppeteer never sees a moz-extension:// load finish, so goto would time out: start it and poll */
+  page.goto(url).catch(() => undefined);
+  await poll(() => page.evaluate(target => location.href === target && document.readyState === 'complete', url), `${file} to load`);
+  return page;
+};
+
+/**
+ * Open a URL in a new tab and wait for the content script
+ * @param firefox - The browser
+ * @param url - The URL to open
+ * @param hint - What to do when the URL is not answered
+ * @returns The page
+ */
+const openUrl = async (firefox: Browser, url: string, hint: string): Promise<Page> => {
+  const page = await firefox.newPage();
+  const response = await page.goto(url);
+  /* A missing page would otherwise load the 404 text, which also fails to extract */
+  if (!response?.ok()) throw new Error(`${url} answered ${response?.status()}: ${hint}`);
+  /* The content script appends its root to the body once it runs */
+  await poll(() => page.evaluate(() => document.querySelector('#free-ai-summarizer-root') !== null), `the content script on ${url}`);
+  return page;
+};
+
+export const test = base.extend<FirefoxFixtures & ExtensionOptions, WorkerFixtures>({
+  distDir: ['dist/firefox-prod', { option: true }],
+
+  fixtureServer: [
+    /* eslint-disable-next-line no-empty-pattern */
+    async ({}, use) => {
+      const server = await startFixtureServer();
+      await use(server);
+      await server.close();
+    },
+    { scope: 'worker' },
+  ],
+
+  firefox: async ({ distDir, fixtureServer }, use, testInfo) => {
+    const extensionDir = path.resolve(REPO_DIR, distDir);
+    if (!existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`Build ${distDir} first (pnpm build:firefox / pnpm start:firefox)`);
+
+    /* Puppeteer gives every launch a fresh temporary profile and removes it on close */
+    const firefox = await puppeteer
+      .launch({ browser: 'firefox', headless: true, acceptInsecureCerts: true, extraPrefsFirefox: firefoxPrefs(fixtureServer.proxyPort) })
+      .catch((error: unknown) => {
+        throw new Error(
+          `Firefox did not start; install it with pnpm exec puppeteer browsers install firefox: ${error instanceof Error ? error.message : String(error)}`
+        );
+      });
+    try {
+      await firefox.installExtension(extensionDir);
+      await use(firefox);
+
+      /* Saved as files in test-results/, as the Chrome fixtures do */
+      if (testInfo.status !== testInfo.expectedStatus) {
+        for (const [index, page] of (await firefox.pages()).entries()) {
+          const file = testInfo.outputPath(`page-${index}.png`);
+          const saved = await page.screenshot({ path: file }).then(
+            () => true,
+            () => false
+          );
+          if (saved) await testInfo.attach(`page-${index}.png`, { path: file, contentType: 'image/png' });
+        }
+      }
+    } finally {
+      await firefox.close();
+      fixtureServer.reset();
+    }
+  },
+
+  extensionPage: async ({ firefox }, use) => {
+    await use(await openExtensionPageIn(firefox, 'options.html'));
+  },
+
+  openExtensionPage: async ({ firefox }, use) => {
+    await use((file: string) => openExtensionPageIn(firefox, file));
+  },
+
+  openPage: async ({ firefox }, use) => {
+    await use((name: string) => openUrl(firefox, `${PAGE_ORIGIN}/${name}`, `add e2e/pages/${name}.html`));
+  },
+
+  openFixturePage: async ({ firefox }, use) => {
+    await use(async (name: string) => {
+      const { source } = readFixture(name);
+      if (fixtureForUrl(new URL(source)) !== name)
+        throw new Error(`${source} is not answered with ${name}: add its host to FIXTURE_HOSTS in e2e/fixture-server.ts`);
+      return openUrl(firefox, source, `check the fixture server's answer for ${name}`);
+    });
+  },
+
+  serveFixture: async ({ fixtureServer }, use) => {
+    await use(async (host: string, name: string) => fixtureServer.override(host, name));
+  },
+
+  tabIdFor: async ({ extensionPage }, use) => {
+    await use(async (page: Page) => {
+      const url = await page.evaluate(() => location.href);
+      const tabId = await extensionPage.evaluate(async target => (await chrome.tabs.query({})).find(tab => tab.url === target)?.id, url);
+      if (tabId === undefined) throw new Error(`No tab found for ${url}`);
+      return tabId;
+    });
+  },
+
+  openPopupFor: async ({ firefox, extensionPage, tabIdFor }, use) => {
+    await use(async (target: Page) => {
+      const tabId = await tabIdFor(target);
+
+      /*
+       * The popup acts on the active tab of its window, read once when it renders. The toolbar popup cannot be
+       * driven, so popup.html is opened in a tab, the target tab is made active again, and the popup is reloaded
+       */
+      const popup = await openExtensionPageIn(firefox, 'popup.html');
+      await extensionPage.evaluate(id => chrome.tabs.update(id, { active: true }).then(() => undefined), tabId);
+      /* Mark the current document, so that the wait below cannot pass on it before the reload replaces it */
+      await popup
+        .evaluate(() => {
+          (window as unknown as { isStale?: boolean }).isStale = true;
+          location.reload();
+        })
+        .catch(() => undefined);
+      await poll(
+        () =>
+          popup.evaluate(
+            () =>
+              !(window as unknown as { isStale?: boolean }).isStale &&
+              document.readyState === 'complete' &&
+              document.body.innerText.includes('Summarize this page')
+          ),
+        'the popup to render for the target tab'
+      );
+      return popup;
+    });
+  },
+
+  waitForServicePage: async ({ firefox, fixtureServer }, use) => {
+    await use(async (host: string, timeout = 10_000) => {
+      const refusedHosts = (): string => `hosts the proxy refused: ${[...new Set(fixtureServer.refused)].join(', ') || 'none'}`;
+      let found: Page | undefined;
+      let errorPage: string | undefined;
+      const find = async (): Promise<void> => {
+        for (const page of await firefox.pages()) {
+          /* page.url() stays about:blank for a tab the extension opens, so ask the page itself */
+          const { hostname, documentURI } = await page
+            .evaluate(() => ({ hostname: location.hostname, documentURI: document.documentURI }))
+            .catch(() => ({ hostname: '', documentURI: '' }));
+          if (hostname !== host) continue;
+          /* A load the proxy refused shows Firefox's error page (about:neterror) under the requested URL */
+          if (documentURI.startsWith('about:')) errorPage = documentURI.split('?')[0];
+          else found = page;
+          return;
+        }
+      };
+      await poll(
+        async () => {
+          await find();
+          return found !== undefined || errorPage !== undefined;
+        },
+        () => `a tab on ${host} opened by the extension (${refusedHosts()})`,
+        timeout
+      );
+      if (!found) throw new Error(`The tab on ${host} shows ${errorPage} (${refusedHosts()})`);
+      return found;
+    });
+  },
+});
+
+/**
+ * Click the innermost element whose text is exactly the given text, with a DOM click: Puppeteer's
+ * locator click waits about 21 s for an element in a background tab to be stable
+ * @param page - The page
+ * @param text - The element's whole text, trimmed
+ */
+export const clickText = async (page: Page, text: string): Promise<void> => {
+  const clicked = await page.evaluate(target => {
+    const element = [...document.querySelectorAll<HTMLElement>('body *')].reverse().find(node => node.textContent?.trim() === target);
+    element?.click();
+    return element !== undefined;
+  }, text);
+  if (!clicked) throw new Error(`No element with the text "${text}"`);
+};
+
+/**
+ * Whether an element whose text is exactly the given text takes up space on the page
+ * @param page - The page
+ * @param text - The element's whole text, trimmed
+ * @returns True when the element exists and its box is not empty
+ */
+export const isTextVisible = (page: Page, text: string): Promise<boolean> =>
+  page.evaluate(target => {
+    const element = [...document.querySelectorAll('body *')].reverse().find(node => node.textContent?.trim() === target);
+    const box = element?.getBoundingClientRect();
+    return box !== undefined && box.width > 0 && box.height > 0;
+  }, text);
+
+/* A node as WebDriver BiDi serializes it */
+interface SerializedNode {
+  value?: { nodeType?: number; nodeValue?: string; children?: SerializedNode[]; shadowRoot?: SerializedNode | null };
+}
+
+const TEXT_NODE = 3;
+
+/**
+ * Read the text of the content script's root, its closed shadow root included, through WebDriver BiDi.
+ * Puppeteer exposes neither the BiDi connection nor the frame's context ID publicly; this is the only place
+ * that relies on them, so a Puppeteer update that breaks it has one place to fix
+ * @param page - The page
+ * @returns The text nodes, joined with spaces
+ */
+const readRootText = async (page: Page): Promise<string> => {
+  const { connection } = page.browser() as unknown as {
+    connection: { send: (method: string, params: object) => Promise<{ result: { nodes: SerializedNode[] } }> };
+  };
+  const context = (page.mainFrame() as unknown as { _id: string })._id;
+  const { result } = await connection.send('browsingContext.locateNodes', {
+    context,
+    locator: { type: 'css', value: '#free-ai-summarizer-root' },
+    serializationOptions: { maxDomDepth: null, includeShadowTree: 'all' },
+  });
+  const texts: string[] = [];
+  const walk = (node?: SerializedNode | null): void => {
+    if (!node?.value) return;
+    if (node.value.nodeType === TEXT_NODE && node.value.nodeValue) texts.push(node.value.nodeValue);
+    node.value.children?.forEach(walk);
+    walk(node.value.shadowRoot);
+  };
+  result.nodes.forEach(walk);
+  return texts.join(' ');
+};
+
+/**
+ * Wait for a toast of the content script. Its shadow root is closed in every build, and Firefox has no
+ * CDP accessibility tree, so the text is read through WebDriver BiDi
+ * @param page - The page showing the toast
+ * @param text - Text the toast contains
+ * @param timeout - How long to wait in ms
+ */
+export const waitForToast = async (page: Page, text: string, timeout = 5000): Promise<void> => {
+  let lastText = '';
+  await poll(
+    async () => (lastText = await readRootText(page)).includes(text),
+    () => `a toast containing "${text}" (last text: "${lastText.slice(0, 200)}")`,
+    timeout
+  );
+};
+
+/**
+ * Read the clipboard from a page. Allowed without a user gesture by the pref dom.events.testing.asyncClipboard
+ * @param page - The page
+ * @returns The clipboard text
+ */
+export const readClipboard = (page: Page): Promise<string> => page.evaluate(() => navigator.clipboard.readText());
+
+/**
+ * Write to the clipboard from a page
+ * @param page - The page
+ * @param text - The text to write
+ */
+export const writeClipboard = (page: Page, text: string): Promise<void> => page.evaluate(value => navigator.clipboard.writeText(value), text);
+
+/**
+ * Read the text of an AI service's composer, the first element the selector matches, as the injector finds it
+ * @param page - The AI service page
+ * @param selector - The editor selector of the service
+ * @returns The text, or null without an editor
+ */
+export const readComposer = (page: Page, selector: string): Promise<string | null> =>
+  page.evaluate(target => {
+    const editor = document.querySelector(target);
+    if (editor instanceof HTMLTextAreaElement) return editor.value;
+    if (!(editor instanceof HTMLElement)) return null;
+    /*
+     * innerText keeps the line breaks between the editor's paragraphs, which textContent drops. The live editors
+     * render with white-space: pre-wrap, which a fixture without the site's stylesheet lacks, so a line break
+     * inside a paragraph (Gemini sets the prompt as one paragraph's text) would read as a space
+     */
+    editor.style.whiteSpace = 'pre-wrap';
+    return editor.innerText;
+  }, selector);
+
+/**
+ * Check that the article of e2e/pages/article.html was injected, line breaks included. The fixture has no
+ * site script and the fixture server cancels form submission, so the composer keeps the prompt
+ * @param page - The AI service page
+ * @param editorSelector - The editor selector of the service
+ */
+export const expectArticleInjected = async (page: Page, editorSelector: string): Promise<void> => {
+  /* Shown only when the injector finishes, which takes a few seconds of deliberate waits */
+  await waitForToast(page, 'Article has been sent!', 20_000);
+  const text = await readComposer(page, editorSelector);
+  expect(text).toContain(ARTICLE_TITLE);
+  expect(text).toContain(ARTICLE_SENTENCE);
+  /* Firefox injects with insertHTML, where line breaks were lost before: the default prompt puts the title on its own line */
+  expect(text).toMatch(/# Title\n+The Lighthouse Keeper's Log\n+# URL\n/);
+};

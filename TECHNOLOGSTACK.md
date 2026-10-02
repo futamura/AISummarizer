@@ -29,6 +29,7 @@
 - ts-jest: ^29.4.0 (TypeScript support for Jest)
 - jest-environment-jsdom: ^29.7.0 (DOM environment for injector tests)
 - @playwright/test: ^1.63.0 (drives Chromium for the local canary, scripts/canary/)
+- puppeteer: ^24.43.1 (drives Firefox over WebDriver BiDi for the Firefox E2E tests, e2e/firefox/)
 
 ### Build System
 

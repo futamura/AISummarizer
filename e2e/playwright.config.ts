@@ -19,9 +19,30 @@ export default defineConfig<ExtensionOptions>({
    * fails, no other spec runs, and none can send a test article to a live site
    */
   projects: [
-    { name: 'prod-offline', testMatch: 'routing.spec.ts', use: { distDir: 'dist/prod' } },
-    { name: 'dev-offline', testMatch: 'routing.spec.ts', use: { distDir: 'dist/dev' } },
-    { name: 'prod', testIgnore: 'routing.spec.ts', dependencies: ['prod-offline'], use: { distDir: 'dist/prod' } },
-    { name: 'dev', testIgnore: 'routing.spec.ts', dependencies: ['dev-offline'], use: { distDir: 'dist/dev' } },
+    /* Chrome: the specs in e2e/, through Playwright's Chromium */
+    { name: 'prod-offline', testMatch: 'routing.spec.ts', testIgnore: /firefox\//, use: { distDir: 'dist/prod' } },
+    { name: 'dev-offline', testMatch: 'routing.spec.ts', testIgnore: /firefox\//, use: { distDir: 'dist/dev' } },
+    { name: 'prod', testIgnore: ['routing.spec.ts', /firefox\//], dependencies: ['prod-offline'], use: { distDir: 'dist/prod' } },
+    { name: 'dev', testIgnore: ['routing.spec.ts', /firefox\//], dependencies: ['dev-offline'], use: { distDir: 'dist/dev' } },
+    /* Firefox: the specs in e2e/firefox/, through Puppeteer over WebDriver BiDi. Starting Firefox and installing the add-on takes a few seconds per test */
+    { name: 'firefox-prod-offline', testMatch: /firefox\/routing\.spec\.ts$/, timeout: 60_000, use: { distDir: 'dist/firefox-prod' } },
+    { name: 'firefox-dev-offline', testMatch: /firefox\/routing\.spec\.ts$/, timeout: 60_000, use: { distDir: 'dist/firefox-dev' } },
+    {
+      name: 'firefox-prod',
+      /* prod-build.spec.ts reads the build's files without a browser, so it checks dist/firefox-prod as is */
+      testMatch: [/firefox\/.+\.spec\.ts$/, /e2e\/prod-build\.spec\.ts$/],
+      testIgnore: /firefox\/routing\.spec\.ts$/,
+      dependencies: ['firefox-prod-offline'],
+      timeout: 60_000,
+      use: { distDir: 'dist/firefox-prod' },
+    },
+    {
+      name: 'firefox-dev',
+      testMatch: /firefox\/.+\.spec\.ts$/,
+      testIgnore: /firefox\/routing\.spec\.ts$/,
+      dependencies: ['firefox-dev-offline'],
+      timeout: 60_000,
+      use: { distDir: 'dist/firefox-dev' },
+    },
   ],
 });

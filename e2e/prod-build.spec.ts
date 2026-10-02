@@ -8,7 +8,7 @@ const REPO_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 /* Defined in src/pages/ServiceWorker.ts for development builds only */
 const HOOK_NAME = '__aiSummarizerE2E';
 
-test.skip(({ distDir }) => distDir !== 'dist/prod', 'Only the production build must leave the hook out');
+test.skip(({ distDir }) => !['dist/prod', 'dist/firefox-prod'].includes(distDir), 'Only the production builds must leave the hook out');
 
 /* Uses no browser: the context fixture is never requested, so Chromium is not launched */
 test('leaves the context menu hook out of the production build', ({ distDir }) => {
