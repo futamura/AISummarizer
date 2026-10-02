@@ -102,11 +102,31 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Get Puppeteer version
+        id: puppeteer
+        run: echo "version=$(node -p "require('puppeteer/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Firefox
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: ${{ runner.os }}-puppeteer-${{ steps.puppeteer.outputs.version }}
+
+      # The Firefox build pinned by this Puppeteer version; a no-op when the cache holds it
+      - name: Install Firefox
+        run: pnpm exec puppeteer browsers install firefox
+
       - name: Build
         run: pnpm build
 
       - name: Build (development)
         run: pnpm start
+
+      - name: Build (Firefox)
+        run: pnpm build:firefox
+
+      - name: Build (Firefox development)
+        run: pnpm start:firefox
 
       - name: E2E
         run: pnpm test:e2e
