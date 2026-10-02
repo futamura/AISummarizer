@@ -1,3 +1,5 @@
+import { connect } from 'node:net';
+
 import { CHATGPT_SELECTORS } from '../../src/constants/Selectors';
 import { expect, PAGE_ORIGIN, poll, sleep, test } from './fixtures';
 
@@ -69,4 +71,23 @@ test('keeps requests of the extension off the network', async ({ extensionPage }
     );
   });
   expect(result).toBe('failed');
+});
+
+/* Firefox resets connections when it closes, background requests to refused hosts included; the proxy must survive that */
+test('keeps the proxy running when a refused connection is reset', async ({ fixtureServer }) => {
+  const connectThrough = (host: string): Promise<{ answer: string; reset: () => void }> =>
+    new Promise((resolve, reject) => {
+      const socket = connect(fixtureServer.proxyPort, '127.0.0.1', () => socket.write(`CONNECT ${host}:443 HTTP/1.1\r\nHost: ${host}:443\r\n\r\n`));
+      socket.once('data', data => resolve({ answer: data.toString().split('\r\n')[0], reset: () => socket.resetAndDestroy() }));
+      socket.once('error', reject);
+    });
+
+  const first = await connectThrough('example.com');
+  expect(first.answer).toBe('HTTP/1.1 403 Forbidden');
+  first.reset();
+  await sleep(300);
+
+  const second = await connectThrough('example.org');
+  expect(second.answer).toBe('HTTP/1.1 403 Forbidden');
+  second.reset();
 });

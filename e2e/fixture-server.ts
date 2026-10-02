@@ -177,6 +177,14 @@ export const startFixtureServer = async (): Promise<FixtureServer> => {
     response.end();
   });
   proxy.on('connect', (request, client: Socket) => {
+    /*
+     * The HTTP server stops handling this socket's errors once it emits connect, and Firefox resets connections
+     * when it closes: without a listener, the reset would crash the test worker
+     */
+    tunnels.add(client);
+    client.on('close', () => tunnels.delete(client));
+    client.on('error', () => client.destroy());
+
     const host = String(request.url ?? '').split(':')[0];
     if (!SERVED_HOSTS.includes(host)) {
       refused.push(host);
@@ -188,9 +196,7 @@ export const startFixtureServer = async (): Promise<FixtureServer> => {
       upstream.pipe(client);
       client.pipe(upstream);
     });
-    tunnels.add(client);
     tunnels.add(upstream);
-    client.on('close', () => tunnels.delete(client));
     upstream.on('close', () => tunnels.delete(upstream));
     upstream.on('error', () => client.destroy());
     client.on('error', () => upstream.destroy());
