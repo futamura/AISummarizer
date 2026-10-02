@@ -31,6 +31,7 @@ interface FirefoxFixtures {
   openPage: (name: string) => Promise<Page>;
   openFixturePage: (name: string) => Promise<Page>;
   tabIdFor: (page: Page) => Promise<number>;
+  openPopupFor: (target: Page) => Promise<Page>;
   waitForServicePage: (host: string, timeout?: number) => Promise<Page>;
 }
 
@@ -194,6 +195,37 @@ export const test = base.extend<FirefoxFixtures & ExtensionOptions, WorkerFixtur
     });
   },
 
+  openPopupFor: async ({ firefox, extensionPage, tabIdFor }, use) => {
+    await use(async (target: Page) => {
+      const tabId = await tabIdFor(target);
+
+      /*
+       * The popup acts on the active tab of its window, read once when it renders. The toolbar popup cannot be
+       * driven, so popup.html is opened in a tab, the target tab is made active again, and the popup is reloaded
+       */
+      const popup = await openExtensionPageIn(firefox, 'popup.html');
+      await extensionPage.evaluate(id => chrome.tabs.update(id, { active: true }).then(() => undefined), tabId);
+      /* Mark the current document, so that the wait below cannot pass on it before the reload replaces it */
+      await popup
+        .evaluate(() => {
+          (window as unknown as { isStale?: boolean }).isStale = true;
+          location.reload();
+        })
+        .catch(() => undefined);
+      await poll(
+        () =>
+          popup.evaluate(
+            () =>
+              !(window as unknown as { isStale?: boolean }).isStale &&
+              document.readyState === 'complete' &&
+              document.body.innerText.includes('Summarize this page')
+          ),
+        'the popup to render for the target tab'
+      );
+      return popup;
+    });
+  },
+
   waitForServicePage: async ({ firefox, fixtureServer }, use) => {
     await use(async (host: string, timeout = 10_000) => {
       const refusedHosts = (): string => `hosts the proxy refused: ${[...new Set(fixtureServer.refused)].join(', ') || 'none'}`;
@@ -225,3 +257,96 @@ export const test = base.extend<FirefoxFixtures & ExtensionOptions, WorkerFixtur
     });
   },
 });
+
+/**
+ * Click the innermost element whose text is exactly the given text, with a DOM click: Puppeteer's
+ * locator click waits about 21 s for an element in a background tab to be stable
+ * @param page - The page
+ * @param text - The element's whole text, trimmed
+ */
+export const clickText = async (page: Page, text: string): Promise<void> => {
+  const clicked = await page.evaluate(target => {
+    const element = [...document.querySelectorAll<HTMLElement>('body *')].reverse().find(node => node.textContent?.trim() === target);
+    element?.click();
+    return element !== undefined;
+  }, text);
+  if (!clicked) throw new Error(`No element with the text "${text}"`);
+};
+
+/**
+ * Whether an element whose text is exactly the given text takes up space on the page
+ * @param page - The page
+ * @param text - The element's whole text, trimmed
+ * @returns True when the element exists and its box is not empty
+ */
+export const isTextVisible = (page: Page, text: string): Promise<boolean> =>
+  page.evaluate(target => {
+    const element = [...document.querySelectorAll('body *')].reverse().find(node => node.textContent?.trim() === target);
+    const box = element?.getBoundingClientRect();
+    return box !== undefined && box.width > 0 && box.height > 0;
+  }, text);
+
+/* A node as WebDriver BiDi serializes it */
+interface SerializedNode {
+  value?: { nodeType?: number; nodeValue?: string; children?: SerializedNode[]; shadowRoot?: SerializedNode | null };
+}
+
+const TEXT_NODE = 3;
+
+/**
+ * Read the text of the content script's root, its closed shadow root included, through WebDriver BiDi.
+ * Puppeteer exposes neither the BiDi connection nor the frame's context ID publicly; this is the only place
+ * that relies on them, so a Puppeteer update that breaks it has one place to fix
+ * @param page - The page
+ * @returns The text nodes, joined with spaces
+ */
+const readRootText = async (page: Page): Promise<string> => {
+  const { connection } = page.browser() as unknown as {
+    connection: { send: (method: string, params: object) => Promise<{ result: { nodes: SerializedNode[] } }> };
+  };
+  const context = (page.mainFrame() as unknown as { _id: string })._id;
+  const { result } = await connection.send('browsingContext.locateNodes', {
+    context,
+    locator: { type: 'css', value: '#free-ai-summarizer-root' },
+    serializationOptions: { maxDomDepth: null, includeShadowTree: 'all' },
+  });
+  const texts: string[] = [];
+  const walk = (node?: SerializedNode | null): void => {
+    if (!node?.value) return;
+    if (node.value.nodeType === TEXT_NODE && node.value.nodeValue) texts.push(node.value.nodeValue);
+    node.value.children?.forEach(walk);
+    walk(node.value.shadowRoot);
+  };
+  result.nodes.forEach(walk);
+  return texts.join(' ');
+};
+
+/**
+ * Wait for a toast of the content script. Its shadow root is closed in every build, and Firefox has no
+ * CDP accessibility tree, so the text is read through WebDriver BiDi
+ * @param page - The page showing the toast
+ * @param text - Text the toast contains
+ * @param timeout - How long to wait in ms
+ */
+export const waitForToast = async (page: Page, text: string, timeout = 5000): Promise<void> => {
+  let lastText = '';
+  await poll(
+    async () => (lastText = await readRootText(page)).includes(text),
+    () => `a toast containing "${text}" (last text: "${lastText.slice(0, 200)}")`,
+    timeout
+  );
+};
+
+/**
+ * Read the clipboard from a page. Allowed without a user gesture by the pref dom.events.testing.asyncClipboard
+ * @param page - The page
+ * @returns The clipboard text
+ */
+export const readClipboard = (page: Page): Promise<string> => page.evaluate(() => navigator.clipboard.readText());
+
+/**
+ * Write to the clipboard from a page
+ * @param page - The page
+ * @param text - The text to write
+ */
+export const writeClipboard = (page: Page, text: string): Promise<void> => page.evaluate(value => navigator.clipboard.writeText(value), text);
