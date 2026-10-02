@@ -7,6 +7,7 @@ import { test as base, expect } from '@playwright/test';
 
 import { FIREFOX_ADDON_ID } from '../../build/manifest';
 import { fixtureForUrl, type FixtureServer, PAGE_ORIGIN, readFixture, startFixtureServer } from '../fixture-server';
+import { ARTICLE_SENTENCE, ARTICLE_TITLE } from '../scenarios';
 
 export { expect, PAGE_ORIGIN };
 export type { Page };
@@ -30,6 +31,7 @@ interface FirefoxFixtures {
   openExtensionPage: (file: string) => Promise<Page>;
   openPage: (name: string) => Promise<Page>;
   openFixturePage: (name: string) => Promise<Page>;
+  serveFixture: (host: string, name: string) => Promise<void>;
   tabIdFor: (page: Page) => Promise<number>;
   openPopupFor: (target: Page) => Promise<Page>;
   waitForServicePage: (host: string, timeout?: number) => Promise<Page>;
@@ -184,6 +186,10 @@ export const test = base.extend<FirefoxFixtures & ExtensionOptions, WorkerFixtur
         throw new Error(`${source} is not answered with ${name}: add its host to FIXTURE_HOSTS in e2e/fixture-server.ts`);
       return openUrl(firefox, source, `check the fixture server's answer for ${name}`);
     });
+  },
+
+  serveFixture: async ({ fixtureServer }, use) => {
+    await use(async (host: string, name: string) => fixtureServer.override(host, name));
   },
 
   tabIdFor: async ({ extensionPage }, use) => {
@@ -350,3 +356,39 @@ export const readClipboard = (page: Page): Promise<string> => page.evaluate(() =
  * @param text - The text to write
  */
 export const writeClipboard = (page: Page, text: string): Promise<void> => page.evaluate(value => navigator.clipboard.writeText(value), text);
+
+/**
+ * Read the text of an AI service's composer, the first element the selector matches, as the injector finds it
+ * @param page - The AI service page
+ * @param selector - The editor selector of the service
+ * @returns The text, or null without an editor
+ */
+export const readComposer = (page: Page, selector: string): Promise<string | null> =>
+  page.evaluate(target => {
+    const editor = document.querySelector(target);
+    if (editor instanceof HTMLTextAreaElement) return editor.value;
+    if (!(editor instanceof HTMLElement)) return null;
+    /*
+     * innerText keeps the line breaks between the editor's paragraphs, which textContent drops. The live editors
+     * render with white-space: pre-wrap, which a fixture without the site's stylesheet lacks, so a line break
+     * inside a paragraph (Gemini sets the prompt as one paragraph's text) would read as a space
+     */
+    editor.style.whiteSpace = 'pre-wrap';
+    return editor.innerText;
+  }, selector);
+
+/**
+ * Check that the article of e2e/pages/article.html was injected, line breaks included. The fixture has no
+ * site script and the fixture server cancels form submission, so the composer keeps the prompt
+ * @param page - The AI service page
+ * @param editorSelector - The editor selector of the service
+ */
+export const expectArticleInjected = async (page: Page, editorSelector: string): Promise<void> => {
+  /* Shown only when the injector finishes, which takes a few seconds of deliberate waits */
+  await waitForToast(page, 'Article has been sent!', 20_000);
+  const text = await readComposer(page, editorSelector);
+  expect(text).toContain(ARTICLE_TITLE);
+  expect(text).toContain(ARTICLE_SENTENCE);
+  /* Firefox injects with insertHTML, where line breaks were lost before: the default prompt puts the title on its own line */
+  expect(text).toMatch(/# Title\n+The Lighthouse Keeper's Log\n+# URL\n/);
+};
