@@ -23,6 +23,7 @@ export default [
         ...globals.jest,
         chrome: 'readonly',
         __TARGET__: 'readonly',
+        __E2E_HOOKS__: 'readonly',
         window: 'readonly',
         document: 'readonly',
         navigator: 'readonly',
