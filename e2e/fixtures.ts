@@ -14,6 +14,13 @@ export { ARTICLE_SENTENCE, ARTICLE_TITLE };
 const E2E_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.dirname(E2E_DIR);
 
+/* The command that makes each build, named when the build is missing */
+const BUILD_COMMANDS: Record<string, string> = {
+  'dist/prod': 'pnpm build',
+  'dist/dev': 'pnpm start',
+  'dist/prod-e2e': 'pnpm build:e2e, or run pnpm test:visual, which builds it',
+};
+
 export interface ExtensionOptions {
   /* The unpacked build to load, relative to the repository root */
   distDir: string;
@@ -66,7 +73,8 @@ export const test = base.extend<ExtensionFixtures & ExtensionOptions, WorkerFixt
 
   context: async ({ distDir, fixtureServer }, use, testInfo) => {
     const extensionDir = path.resolve(REPO_DIR, distDir);
-    if (!existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`Build ${distDir} first (pnpm build / pnpm start)`);
+    if (!existsSync(path.join(extensionDir, 'manifest.json')))
+      throw new Error(`Build ${distDir} first (${BUILD_COMMANDS[distDir] ?? 'pnpm build / pnpm start'})`);
 
     /* A fresh profile per test, so no storage or tab carries over */
     const userDataDir = mkdtempSync(path.join(tmpdir(), 'ai-summarizer-e2e-'));

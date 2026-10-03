@@ -7,6 +7,7 @@
     "dev": "NODE_ENV=development node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=development --watch",
     "build": "NODE_ENV=production node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=production",
     "start": "NODE_ENV=development node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=development",
+    "build:e2e": "E2E_HOOKS=1 NODE_ENV=production node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=production",
     "dev:firefox": "TARGET=firefox NODE_ENV=development node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=development --watch",
     "build:firefox": "TARGET=firefox NODE_ENV=production node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=production",
     "start:firefox": "TARGET=firefox NODE_ENV=development node --loader ts-node/esm node_modules/webpack/bin/webpack.js --config webpack.config.ts --mode=development",
@@ -18,6 +19,8 @@
     "clean-install-modules": "rm -rf node_modules && pnpm install",
     "test": "jest",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
+    "test:visual": "scripts/visual.sh",
+    "test:visual:update": "scripts/visual.sh --update-snapshots",
     "canary:login": "node --loader ts-node/esm scripts/canary/login.ts",
     "canary:probe": "node --loader ts-node/esm scripts/canary/probe.ts"
   },
