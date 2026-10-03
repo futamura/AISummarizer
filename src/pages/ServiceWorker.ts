@@ -1,5 +1,6 @@
 import { STORAGE_KEYS } from '@/constants';
 import { ArticleRecord, db } from '@/db';
+import type { ToastType } from '@/features/content/services/ToastQueue';
 import { CleanupDBService, ContextMenuService, ServiceWorkerThemeService } from '@/features/serviceworker/services';
 import { MENU_ITEMS } from '@/models';
 import { openSettingsPanel } from '@/platform';
@@ -29,8 +30,13 @@ interface PendingAIService {
 const getPendingAIServiceKey = (tabId: number): string => `pending-ai-service-${tabId}`;
 
 declare global {
-  /* Test hook of development builds, defined in ServiceWorker.initialize() */
-  var __aiSummarizerE2E: { clickContextMenu: (menuItemId: string, tabId: number) => Promise<void> } | undefined;
+  /* Test hook of development builds and of dist/prod-e2e, defined in ServiceWorker.initialize() */
+  var __aiSummarizerE2E:
+    | {
+        clickContextMenu: (menuItemId: string, tabId: number) => Promise<void>;
+        showToast: (tabId: number, type: ToastType, text: string) => Promise<void>;
+      }
+    | undefined;
 }
 
 class ServiceWorker {
@@ -63,13 +69,18 @@ class ServiceWorker {
     this.cleanupService.startCleanup();
 
     /*
-     * Test hook: no test tool can click a native context menu (e2e/context-menu.spec.ts). Kept inline:
-     * production builds drop this whole block, while a method would stay in the bundle
+     * Test hooks: no test tool can click a native context menu (e2e/context-menu.spec.ts), and the visual
+     * tests need toasts that hold still (e2e/visual/). Kept inline: other production builds drop this
+     * whole block, while a method would stay in the bundle
      */
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || __E2E_HOOKS__) {
       globalThis.__aiSummarizerE2E = {
         clickContextMenu: async (menuItemId: string, tabId: number) =>
           this.handleContextMenuClicked({ menuItemId, editable: false }, await chrome.tabs.get(tabId)),
+        showToast: async (tabId: number, type: ToastType, text: string) => {
+          const tab = await chrome.tabs.get(tabId);
+          await chrome.tabs.sendMessage(tabId, { action: MessageAction.E2E_SHOW_TOAST, payload: { tabId, tabUrl: tab.url, type, text } });
+        },
       };
     }
 

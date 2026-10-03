@@ -6,6 +6,7 @@ export default {
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/'],
   globals: {
     __TARGET__: 'chrome',
+    __E2E_HOOKS__: false,
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

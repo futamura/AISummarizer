@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { toast } from '@/features/content/components/main';
+import { toast, type ToastType } from '@/features/content/components/main';
 import {
   ArticleExtractionService,
   ArticleInjectionService,
@@ -65,6 +65,14 @@ export const useContentMessage = () => {
         logger.warn('🫳💬', '[useContentMessage.tsx]', '[handleMessage]', 'Ignoring message: tabUrl is', message.payload.tabUrl);
         /** Respond to the content script */
         sendResponse({ success: false, error: new Error('url is required') });
+        return true;
+      }
+
+      /* Test hook of development builds and dist/prod-e2e (e2e/visual/); other production builds drop it */
+      if ((process.env.NODE_ENV === 'development' || __E2E_HOOKS__) && message.action === MessageAction.E2E_SHOW_TOAST) {
+        const { type, text } = message.payload;
+        toast[type as ToastType](text, { hold: true });
+        sendResponse({ success: true });
         return true;
       }
 
