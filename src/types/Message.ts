@@ -11,6 +11,8 @@ export enum MessageAction {
   READ_ARTICLE_FOR_CLIPBOARD = 'READ_ARTICLE_FOR_CLIPBOARD',
   WRITE_ARTICLE_TO_CLIPBOARD = 'WRITE_ARTICLE_TO_CLIPBOARD',
   OPEN_SETTINGS = 'OPEN_SETTINGS',
+  /* Test hook of development builds and dist/prod-e2e: show a toast that stays (e2e/visual/) */
+  E2E_SHOW_TOAST = 'E2E_SHOW_TOAST',
 }
 
 /**
