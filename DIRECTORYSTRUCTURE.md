@@ -29,6 +29,7 @@ Please follow the directory structure below for implementation:
 │   └── utils/                    # Utility functions
 ├── build/                        # Build-time scripts (manifest transforms)
 ├── scripts/                      # Developer scripts outside the build (fixture capture, local canary)
+├── docs/                         # Developer documentation (store rollback runbook, design specs and plans)
 ├── e2e/                          # End-to-end tests of the built extension: Chrome (Playwright) and Firefox (firefox/, Puppeteer)
 ├── public/                       # Static assets
 ├── dist/                         # Output directory (dev/prod: Chrome, firefox-dev/firefox-prod: Firefox)
