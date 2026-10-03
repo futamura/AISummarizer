@@ -142,6 +142,20 @@ pnpm build
 pnpm dev
 ```
 
+### Visual regression tests
+
+Screenshots of the toasts and the popup of a production build with the test hook (`dist/prod-e2e`) are compared with the baselines in `e2e/visual/__screenshots__/`. They run in the Playwright Docker image, as in CI, because fonts and rendering differ between macOS and Linux. Docker (OrbStack or Docker Desktop) must be running.
+
+```bash
+# Build dist/prod-e2e and compare with the baselines
+pnpm test:visual
+
+# Update the baselines after an intended change to the look, then review the PNGs before committing
+pnpm test:visual:update
+```
+
+Only commit baselines made by `pnpm test:visual:update`; never ones made on macOS. On a failure in CI, the `playwright-report-visual` artifact shows the diffs.
+
 ### Firefox
 
 The same codebase also builds a Firefox version for desktop and Android. Browser-specific code lives in `src/platform/`.
