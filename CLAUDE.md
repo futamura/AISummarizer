@@ -98,7 +98,8 @@ Two stages: local Fastlane, then CI triggered by the version tag.
    - Merges `develop` into `main` and pushes
 2. Pushing a `v*.*.*` tag triggers `.github/workflows/release.yml`:
    - Re-runs audit / prettier / eslint / type-check, builds, and creates a GitHub Release with the zip attached (auto-generated release notes)
-   - Uploads to Chrome Web Store via `chrome-webstore-upload-cli` with `--auto-publish` (requires `CHROME_*` repository secrets)
+   - Uploads to Chrome Web Store through API v2 with `.github/scripts/chrome-webstore.sh` (curl; upload, then publish with `DEFAULT_PUBLISH`, so the version goes live as soon as the review passes). Requires the `CHROME_CLIENT_ID` / `CHROME_CLIENT_SECRET` / `CHROME_REFRESH_TOKEN` / `CHROME_PUBLISHER_ID` / `CHROME_EXTENSION_ID` repository secrets
+   - `.github/workflows/chrome-webstore-check.yml` checks those credentials read-only (fetchStatus) without releasing: run it from the Actions tab; it also runs on pushes that change the script
    - The Store upload step is `continue-on-error` — a green workflow does not guarantee publication; check the "Upload to Chrome Web Store" step log
    - Then builds `dist/firefox-prod`, runs `web-ext lint`, and submits it to AMO (listed channel) with a source zip via `web-ext sign`. Skipped with a warning until the `AMO_JWT_ISSUER` / `AMO_JWT_SECRET` secrets are set; all Firefox steps are `continue-on-error` and never block the Chrome release. AMO rejects re-uploading an existing version
 
