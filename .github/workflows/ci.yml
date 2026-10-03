@@ -139,3 +139,51 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  # The locked Playwright version, which names the container image of the visual job
+  playwright-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the locked Playwright version
+        id: version
+        run: |
+          version="$(grep -m1 -oP "^  '@playwright/test@\K[0-9.]+" pnpm-lock.yaml)"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  # Screenshots compared with baselines made in the same image (scripts/visual.sh)
+  visual:
+    needs: playwright-version
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-noble
+      options: --ipc=host
+    env:
+      E2E_VISUAL: '1'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (E2E hooks)
+        run: pnpm build:e2e
+
+      - name: Visual regression
+        run: pnpm exec playwright test --config e2e/playwright.config.ts --project visual
+
+      # The diff images of the extension's own UI over hand-written test pages: no account data or secrets
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-visual
+          path: playwright-report/
+          retention-days: 7
