@@ -8,7 +8,7 @@ Injector and extractor tests run against sanitized snapshots of the live pages t
 
 - `<head>`, scripts, styles, media, iframes, hidden inputs, comments and SVG paths are removed
 - Outside the fixture's "keep" regions (the composer, the post, the transcript panel, …), all text is removed and only structural attributes (`id`, `class`, `role`, `data-testid`, …) remain. This drops account names, avatars and conversation history
-- Inside the keep regions, text and most attributes remain, except URLs and inline styles. Texts longer than 200 characters are cut to a 120-character excerpt
+- Inside the keep regions, text and most attributes remain, except URLs (other than the X post links a fixture keeps through `keepHref`) and inline styles. Texts longer than 200 characters are cut to a 120-character excerpt
 - Emails, UUIDs, JWTs, long token-like strings and site-specific account identifiers (such as X's `UserAvatar-Container-<handle>`) are replaced with `REDACTED`. A token keeps its leading plain words, so Gemini's `bard-mode-option-<hash>` becomes `bard-mode-option-REDACTED` and still matches the injector's prefix selector
 - Elements and attributes that other extensions add to every page (DeepL, Proton Pass, Dark Reader, …) are removed: they are not the site's markup and they reveal which extensions the capturing browser has
 
@@ -30,11 +30,22 @@ Use a browser profile that is signed in where the page requires it. Nothing is s
 
 The signed-out composers need a private window, which the Claude in Chrome tools cannot reach, so they are captured in DevTools: `chatgpt-guest-composer`, and `grok-textarea-composer` (grok.com serves either a textarea or a Tiptap editor; while signed in it has only served Tiptap, so capture `grok-tiptap-composer` signed in and reload the private window until the textarea appears).
 
+### From a saved snapshot
+
+Signed out, X serves other markup (a bare `<article>` per post, without `data-testid`), and the Claude in Chrome profile is signed in to X. The `x-signed-out-post` and `x-signed-out-article` fixtures are therefore captured from a DOM snapshot: `capture-snapshot.ts` runs `capture.js` on it in jsdom and writes the fixture, dated by the snapshot's modification time. The canary saves such snapshots when a probe fails (`runs/<time>/x-post.html` and `x-article.html` under `~/Library/Application Support/ai-summarizer-canary/`, see `scripts/canary/README.md`); one saved from a private window's DevTools (`copy(document.documentElement.outerHTML)`) also works.
+
+```sh
+node --loader ts-node/esm scripts/fixtures/capture-snapshot.ts <snapshot.html> https://x.com/XDevelopers/status/2102535041532186709 x-signed-out-post
+node --loader ts-node/esm scripts/fixtures/capture-snapshot.ts <snapshot.html> https://x.com/Safety/status/1801282137921871887 x-signed-out-article
+```
+
+These two fixtures keep the relative `/<handle>/status/<id>` links of the posts (`keepHref` in `capture.js`): the extractor tells the main post apart by the status id it links to. All other URLs are dropped as usual.
+
 To add a fixture, add an entry to `FIXTURES` in `capture.js` and its name to `FixtureName` in `src/features/content/__fixtures__/index.ts`.
 
 ## Checking for leaks
 
-`src/features/content/__tests__/Fixtures.test.ts` runs with `pnpm test` (and in CI) and fails on emails, UUIDs, JWTs, token-like strings, scripts, inline styles, URL attributes, unredacted X avatar handles, markup injected by browser extensions and texts longer than 200 characters.
+`src/features/content/__tests__/Fixtures.test.ts` runs with `pnpm test` (and in CI) and fails on emails, UUIDs, JWTs, token-like strings, scripts, inline styles, URL attributes (other than relative X post links), unredacted X avatar handles, markup injected by browser extensions and texts longer than 200 characters.
 
 Account names cannot be listed in the repository, so check them locally before committing a new or updated fixture:
 

@@ -115,6 +115,37 @@
     return posts.slice(start, end + 1);
   };
 
+  /* Signed out, X serves other markup: a bare <article> per post, without data-testid */
+  const X_SIGNED_OUT_POST = 'article:not([data-testid])';
+
+  /* A post's own link, /<handle>/status/<id>, the only href the signed-out fixtures keep: it tells the main post apart */
+  const X_STATUS_PATH = /^\/[A-Za-z0-9_]{1,15}\/status\/\d+$/;
+
+  /* The @handle of a signed-out X post's author: the first link that reads as a handle */
+  const xSignedOutHandle = post => [...post.querySelectorAll('a')].map(link => link.textContent.trim()).find(text => /^@[A-Za-z0-9_]{1,15}$/.test(text)) ?? '';
+
+  /* The signed-out counterpart of xThread: the main post is the one linking to the status id of the page */
+  const xSignedOutThread = root => {
+    const id = location.pathname.match(/\/status\/(\d+)/)?.[1];
+    const posts = [...root.querySelectorAll(X_SIGNED_OUT_POST)];
+    const main = posts.findIndex(post => [...post.querySelectorAll('a[href]')].some(link => link.getAttribute('href').endsWith(`/status/${id}`)));
+    if (main < 0) return [];
+    const handle = xSignedOutHandle(posts[main]);
+    let start = main;
+    while (start > 0 && xSignedOutHandle(posts[start - 1]) === handle) start--;
+    let end = main;
+    while (end < posts.length - 1 && xSignedOutHandle(posts[end + 1]) === handle) end++;
+    return posts.slice(start, end + 1);
+  };
+
+  const X_SIGNED_OUT = {
+    match: /^https:\/\/x\.com\/[^/]+\/status\/\d+$/,
+    source: () => location.origin + location.pathname,
+    keep: [xSignedOutThread],
+    drop: [],
+    keepHref: X_STATUS_PATH,
+  };
+
   /*
    * One entry per fixture.
    * - match: the page the fixture is captured from
@@ -124,6 +155,7 @@
    *   a function receives the document root and returns the regions
    * - drop: selectors of regions removed entirely, to keep the fixture small
    * - redact: site-specific patterns whose first group is kept and the rest replaced with REDACTED
+   * - keepHref: inside the keep regions, the hrefs matching this pattern are kept (all others are dropped)
    */
   const FIXTURES = {
     'youtube-watch': {
@@ -157,6 +189,9 @@
       drop: ['[data-testid="sidebarColumn"]', 'header[role="banner"]'],
       redact: [X_AVATAR_HANDLE],
     },
+    /* Signed out (a private window): the same pages as x-post and x-article, in the signed-out markup */
+    'x-signed-out-post': X_SIGNED_OUT,
+    'x-signed-out-article': X_SIGNED_OUT,
     'claude-composer': {
       match: /^https:\/\/claude\.ai\/new/,
       source: () => 'https://claude.ai/new',
@@ -410,7 +445,8 @@
         const inKeep = kept.has(node);
         [...node.attributes].forEach(({ name, value }) => {
           const fromExtension = EXTENSION_ATTRIBUTE_PREFIXES.some(prefix => name.startsWith(prefix));
-          const allowed = !fromExtension && (inKeep ? !DROPPED_ATTRIBUTES.has(name) && !name.startsWith('on') : STRUCTURAL_ATTRIBUTES.has(name));
+          const keptHref = inKeep && name === 'href' && config.keepHref?.test(value);
+          const allowed = !fromExtension && (keptHref || (inKeep ? !DROPPED_ATTRIBUTES.has(name) && !name.startsWith('on') : STRUCTURAL_ATTRIBUTES.has(name)));
           if (allowed) {
             node.setAttribute(name, scrub(value, config.redact));
           } else {

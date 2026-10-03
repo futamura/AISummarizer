@@ -19,7 +19,8 @@ const LEAK_PATTERNS: [string, RegExp][] = [
   ['JWTs', /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/],
   ['scripts', /<script/i],
   ['inline styles', /\sstyle="/i],
-  ['URL attributes', /\s(?:src|srcset|href|action|poster)="/i],
+  /* Except an X post's own link, /<handle>/status/<id>, which the signed-out X fixtures keep to tell the main post apart */
+  ['URL attributes', /\s(?:src|srcset|href|action|poster)="(?!\/[A-Za-z0-9_]{1,15}\/status\/\d+")/i],
   ['X avatar handles', /UserAvatar-Container-(?!REDACTED)/],
   /* Markup other extensions add to every page: not the site's DOM, and it reveals the capturer's extensions */
   ['markup from browser extensions', /<(?:deepl|protonpass|plasmo)-|\sdata-(?:darkreader|dl-)|class="translatetweet"/i],
