@@ -40,6 +40,10 @@ const BLOCK_TAGS = new Set([
 /* Tags whose text is chrome rather than content (engagement counts, icon labels, …) */
 const SKIP_TAGS = new Set(['BUTTON', 'NOSCRIPT', 'SCRIPT', 'STYLE', 'SVG', 'TEMPLATE']);
 
+/* An @handle, which X limits to 15 word characters */
+const HANDLE_PATTERN = /@[A-Za-z0-9_]{1,15}/;
+const HANDLE_ONLY_PATTERN = new RegExp(`^${HANDLE_PATTERN.source}$`);
+
 /* Maximum length of the post snippet used as the title */
 const TITLE_SNIPPET_LENGTH = 80;
 
@@ -121,7 +125,7 @@ const isInQuote = (post: Element, element: Element): boolean => {
  */
 const parseUser = (userName: Element | null): XUser => {
   const text = (userName?.textContent ?? '').replace(/\s+/g, ' ');
-  const match = text.match(/@[A-Za-z0-9_]{1,15}/);
+  const match = text.match(HANDLE_PATTERN);
   if (!match) return { name: text.trim(), handle: '' };
   return { name: text.slice(0, match.index).trim(), handle: match[0] };
 };
@@ -179,9 +183,28 @@ const extractPost = (post: Element): string => {
 };
 
 /**
- * Collect the posts that make up the thread the main post belongs to.
- * Posts around the main one are taken while they share its author, which keeps a self
- * thread whole and leaves out replies from other users and the recommendations below them.
+ * Take the posts around the main one while they share its author.
+ * This keeps a self thread whole and leaves out replies from other users and the
+ * recommendations below them.
+ * @param posts - The posts of the page, in document order
+ * @param mainIndex - The index of the main post
+ * @param handleOf - Reads the author's handle of a post
+ * @returns The posts of the thread, in document order
+ */
+const collectSelfThread = (posts: Element[], mainIndex: number, handleOf: (post: Element) => string): Element[] => {
+  const mainHandle = handleOf(posts[mainIndex]);
+  if (!mainHandle) return [posts[mainIndex]];
+
+  let start = mainIndex;
+  while (start > 0 && handleOf(posts[start - 1]) === mainHandle) start--;
+  let end = mainIndex;
+  while (end < posts.length - 1 && handleOf(posts[end + 1]) === mainHandle) end++;
+
+  return posts.slice(start, end + 1);
+};
+
+/**
+ * Collect the posts that make up the thread the main post belongs to
  * @param document - The document of the post page
  * @returns The posts of the thread, in document order
  */
@@ -193,15 +216,7 @@ const collectThread = (document: Document): Element[] => {
     posts.findIndex(post => post.matches(X_SELECTORS.mainPost)),
     0
   );
-  const mainHandle = parsePostUser(posts[mainIndex]).handle;
-  if (!mainHandle) return [posts[mainIndex]];
-
-  let start = mainIndex;
-  while (start > 0 && parsePostUser(posts[start - 1]).handle === mainHandle) start--;
-  let end = mainIndex;
-  while (end < posts.length - 1 && parsePostUser(posts[end + 1]).handle === mainHandle) end++;
-
-  return posts.slice(start, end + 1);
+  return collectSelfThread(posts, mainIndex, post => parsePostUser(post).handle);
 };
 
 /**
@@ -210,10 +225,18 @@ const collectThread = (document: Document): Element[] => {
  * @returns The title, or null when the post carries no text
  */
 const buildPostTitle = (post: Element): string | null => {
-  const { name, handle } = parsePostUser(post);
   const textElement = [...post.querySelectorAll(X_SELECTORS.postText)].find(element => !isInQuote(post, element)) ?? null;
-  const text = extractText(textElement).replace(/\s+/g, ' ').trim();
+  return formatPostTitle(parsePostUser(post), extractText(textElement));
+};
 
+/**
+ * Format the title of a post page, e.g. "Name (@handle): beginning of the post…"
+ * @param user - The author of the main post
+ * @param postText - The text of the main post
+ * @returns The title, or null when there is neither an author nor a text
+ */
+const formatPostTitle = ({ name, handle }: XUser, postText: string): string | null => {
+  const text = postText.replace(/\s+/g, ' ').trim();
   const author = [name, handle && `(${handle})`].filter(Boolean).join(' ');
   const snippet = text.length > TITLE_SNIPPET_LENGTH ? `${text.slice(0, TITLE_SNIPPET_LENGTH)}…` : text;
   const title = [author, snippet].filter(Boolean).join(': ');
@@ -246,6 +269,70 @@ const extractArticle = (document: Document): ArticleExtractionResult | null => {
 };
 
 /**
+ * Read the author of a post in the signed-out markup.
+ * The handle is the first link that reads as one; the display name is the text of the first
+ * link before it, the avatar link carrying no text.
+ * @param post - The post element
+ * @returns The display name and the handle of the author
+ */
+const parseSignedOutUser = (post: Element): XUser => {
+  const links = [...post.querySelectorAll('a')];
+  const texts = links.map(link => (link.textContent ?? '').replace(/\s+/g, ' ').trim());
+  const handleIndex = texts.findIndex(text => HANDLE_ONLY_PATTERN.test(text));
+  if (handleIndex < 0) return { name: '', handle: '' };
+  return { name: texts.slice(0, handleIndex).find(Boolean) ?? '', handle: texts[handleIndex] };
+};
+
+/**
+ * Extract a post page in the markup X serves to signed-out users, which has no data-testid
+ * and no time elements. The main post is the one linking to the status id of the page.
+ * @param document - The document of the post page
+ * @returns The extraction result, or null when the page is not in the signed-out markup
+ */
+const extractSignedOut = (document: Document): ArticleExtractionResult | null => {
+  const id = document.URL.match(/\/status\/(\d+)/)?.[1];
+  const posts = [...document.querySelectorAll(X_SELECTORS.signedOutPost)];
+  const mainIndex = posts.findIndex(post => [...post.querySelectorAll('a[href]')].some(link => (link.getAttribute('href') ?? '').endsWith(`/status/${id}`)));
+  if (!id || mainIndex < 0) return null;
+
+  const main = posts[mainIndex];
+  const articleBody = main.querySelector(X_SELECTORS.signedOutArticleBody);
+  if (articleBody) {
+    const title = main.querySelector(X_SELECTORS.signedOutArticleTitle)?.textContent?.trim() || null;
+    const byline = formatByline(parseSignedOutUser(main), null);
+    const content = normalizeContent([title, byline, extractText(articleBody)].filter(Boolean).join('\n'));
+    logger.debug('🐦', '[X.ts]', '[extractSignedOut]', 'Extracted a long-form post:', document.URL);
+    return {
+      title: title,
+      url: document.URL,
+      content: content,
+      isSuccess: title !== null && content !== null && content.length > 0,
+    };
+  }
+
+  const textOf = (post: Element): string => extractText(post.querySelector(X_SELECTORS.signedOutPostText));
+  const thread = collectSelfThread(posts, mainIndex, post => parseSignedOutUser(post).handle);
+  const title = formatPostTitle(parseSignedOutUser(main), textOf(main));
+  const content = normalizeContent(
+    thread
+      .map(post =>
+        [formatByline(parseSignedOutUser(post), null), textOf(post)]
+          .map(line => line.trim())
+          .filter(Boolean)
+          .join('\n')
+      )
+      .join('\n')
+  );
+  logger.debug('🐦', '[X.ts]', '[extractSignedOut]', 'Extracted', thread.length, 'post(s) from:', document.URL);
+  return {
+    title: title,
+    url: document.URL,
+    content: content,
+    isSuccess: title !== null && content !== null && content.length > 0,
+  };
+};
+
+/**
  * Tell whether a URL points at a single post page of X
  * @param url - The URL to test
  * @returns True when the URL points at a single post page
@@ -262,13 +349,16 @@ export const isXStatusUrl = (url: string): boolean => X_STATUS_URL_PATTERN.test(
 export async function extractX(document: Document): Promise<ArticleExtractionResult> {
   try {
     /* The page is rendered client side, so the post may not be in the DOM yet */
-    await waitForElement(`${X_SELECTORS.mainPost}, ${X_SELECTORS.articleView}`);
+    await waitForElement(`${X_SELECTORS.mainPost}, ${X_SELECTORS.articleView}, ${X_SELECTORS.signedOutPost}`);
 
     const article = extractArticle(document);
     if (article) {
       logger.debug('🐦', '[X.ts]', '[extractX]', 'Extracted a long-form post:', document.URL);
       return article;
     }
+
+    const signedOut = extractSignedOut(document);
+    if (signedOut) return signedOut;
 
     const thread = collectThread(document);
     if (thread.length === 0) {
