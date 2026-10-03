@@ -118,4 +118,9 @@ export const X_SELECTORS = {
   /* A quoted post is nested inside its quoting post as a link-role container */
   quote: 'div[role="link"]',
   time: 'time[datetime]',
+  /* Signed out, X serves other markup: a bare article per post, without data-testid or time elements */
+  signedOutPost: 'article:not([data-testid])',
+  signedOutPostText: 'div[dir="auto"]',
+  signedOutArticleTitle: 'h1',
+  signedOutArticleBody: '.x-article-body',
 } as const;

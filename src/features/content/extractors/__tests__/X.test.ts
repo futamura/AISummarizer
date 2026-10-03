@@ -40,6 +40,17 @@ const articleView = `
   </div>
 `;
 
+/* Signed out, X serves other markup: a bare <article> per post, linking to its own status */
+const signedOutPost = ({ handle, name, text, id }: { handle: string; name: string; text: string; id: string }) => `
+  <article class="flex flex-col gap-1">
+    <a href="/${handle}"><div>${name}</div></a>
+    <a href="/${handle}"><span>@${handle}</span></a>
+    <a href="/${handle}/status/${id}">Sep 23</a>
+    <div dir="auto">${text}</div>
+    <a aria-label="Reply" href="/${handle}/status/${id}"><span>3</span></a>
+  </article>
+`;
+
 describe('isXStatusUrl', () => {
   it.each([
     'https://x.com/user/status/1234567890',
@@ -159,6 +170,89 @@ describe('extractX', () => {
     );
     /* Buttons carry interface labels rather than content */
     expect(result.content).not.toContain('Show more');
+  });
+
+  describe('signed out', () => {
+    /* The main post is told apart by the status id in the URL */
+    const openStatus = (path: string) => window.history.replaceState(null, '', path);
+
+    afterEach(() => {
+      openStatus('/');
+    });
+
+    it('extracts a captured post with its self reply', async () => {
+      loadFixture('x-signed-out-post');
+      openStatus('/XDevelopers/status/2102535041532186709');
+
+      const result = await run();
+
+      expect(result.isSuccess).toBe(true);
+      expect(result.title).toBe('Developers (@XDevelopers): X Livestream API has been rebuilt from the ground up. Your entire broadcast life…');
+      expect(result.content).toBe(
+        [
+          'Developers (@XDevelopers)',
+          'X Livestream API has been rebuilt from the ground up.',
+          'Your entire broadcast lifecycle on X can now be powered by our AP…',
+          'Developers (@XDevelopers)',
+          'Check out our official docs here:',
+        ].join('\n')
+      );
+    });
+
+    it('extracts a captured long-form post with its title, author and paragraphs', async () => {
+      loadFixture('x-signed-out-article');
+      openStatus('/Safety/status/1801282137921871887');
+
+      const result = await run();
+
+      expect(result.isSuccess).toBe(true);
+      expect(result.title).toBe('X achieves TAG Brand Safety Certification');
+      expect(result.content).toMatch(/^X achieves TAG Brand Safety Certification\nSafety \(@Safety\)\nOver the past 18 months, /);
+      expect(result.content).toContain('we are now TAG Brand Safety Certified. We will work closely with @tag_today and industry leaders');
+      expect(result.content).toContain('are clear.\nFor our customers, we have deployed every single brand control');
+      /* Engagement counts and the views line are interface, not content */
+      expect(result.content).not.toMatch(/Views|227\.3K/);
+    });
+
+    it('reads the post without waiting for the signed-in markup', async () => {
+      loadFixture('x-signed-out-post');
+      openStatus('/XDevelopers/status/2102535041532186709');
+
+      let settled = false;
+      const result = extractX(document).then(value => {
+        settled = true;
+        return value;
+      });
+      /* waitForElement polls once a second: a page it does not recognize keeps it waiting past this */
+      await jest.advanceTimersByTimeAsync(1000);
+
+      expect(settled).toBe(true);
+      expect((await result).isSuccess).toBe(true);
+    });
+
+    it('keeps the posts of a self thread around the main post and leaves out the replies', async () => {
+      document.body.innerHTML = [
+        signedOutPost({ handle: 'main_author', name: 'Main Author', text: 'First post.', id: '100' }),
+        signedOutPost({ handle: 'main_author', name: 'Main Author', text: 'Second post.', id: '200' }),
+        signedOutPost({ handle: 'someone_else', name: 'Someone Else', text: 'A reply.', id: '300' }),
+      ].join('');
+      openStatus('/main_author/status/200');
+
+      const result = await run();
+
+      expect(result.title).toBe('Main Author (@main_author): Second post.');
+      expect(result.content).toBe(['Main Author (@main_author)', 'First post.', 'Main Author (@main_author)', 'Second post.'].join('\n'));
+    });
+
+    it('fails when no post links to the status of the page', async () => {
+      document.body.innerHTML = signedOutPost({ handle: 'someone_else', name: 'Someone Else', text: 'Another post.', id: '300' });
+      openStatus('/main_author/status/200');
+
+      const result = await run();
+
+      expect(result.isSuccess).toBe(false);
+      expect(result.content).toBeNull();
+    });
   });
 
   it('fails when the page carries no post', async () => {

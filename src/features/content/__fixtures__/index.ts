@@ -6,6 +6,8 @@ export type FixtureName =
   | 'youtube-watch'
   | 'x-post'
   | 'x-article'
+  | 'x-signed-out-post'
+  | 'x-signed-out-article'
   | 'claude-composer'
   | 'deepseek-composer'
   | 'chatgpt-composer'
