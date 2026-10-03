@@ -46,6 +46,17 @@ describe('ToastQueue', () => {
     expect(screen(queue)).toEqual([]);
   });
 
+  it('keeps a held toast until it is dismissed', () => {
+    const id = queue.show('success', 'Done', { hold: true });
+
+    jest.advanceTimersByTime(TOAST_ANIMATION_MS + TIMED_TOAST_MS * 10);
+    expect(screen(queue)).toEqual(['Done:visible']);
+
+    queue.dismiss(id);
+    jest.advanceTimersByTime(TOAST_ANIMATION_MS);
+    expect(screen(queue)).toEqual([]);
+  });
+
   it.each(['info', 'warning'] as const)('times out a %s toast', type => {
     queue.show(type, 'Note');
     jest.advanceTimersByTime(TOAST_ANIMATION_MS + TIMED_TOAST_MS + TOAST_ANIMATION_MS);
