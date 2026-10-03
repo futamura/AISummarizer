@@ -54,7 +54,7 @@ Use the same number on both stores: the next patch version above the highest ver
 
 ## Why releases still publish automatically
 
-`release.yml` publishes to the Chrome Web Store as soon as the review passes (`--auto-publish`) instead of staging the release. Reviewed as of October 2026:
+`release.yml` publishes to the Chrome Web Store as soon as the review passes (`publishType: DEFAULT_PUBLISH`) instead of staging the release. Reviewed as of October 2026:
 
 - Partial (percentage) rollouts are only available for items with more than 10,000 seven-day active users. This extension is far below that
 - A staged release has to be published by hand in the dashboard within 30 days of passing review, or it reverts to a draft and needs another review. Nothing can be verified between review and publishing that cannot be verified before the release tag is pushed
