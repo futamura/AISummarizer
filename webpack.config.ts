@@ -20,8 +20,14 @@ if (target !== 'chrome' && target !== 'firefox') {
 }
 const isFirefox = target === 'firefox';
 
-/* Chrome keeps dist/dev and dist/prod; Firefox builds go to dist/firefox-dev and dist/firefox-prod */
-const outputDir = `${isFirefox ? 'firefox-' : ''}${isDev ? 'dev' : 'prod'}`;
+/* E2E_HOOKS=1 keeps the test hooks in a production build, for the visual tests (e2e/visual/) */
+const withE2EHooks = process.env.E2E_HOOKS === '1';
+if (withE2EHooks && (isDev || isFirefox)) {
+  throw new Error('E2E_HOOKS=1 is for the Chrome production build: development builds always have the hooks');
+}
+
+/* Chrome keeps dist/dev and dist/prod; Firefox builds go to dist/firefox-dev and dist/firefox-prod; the hook build to dist/prod-e2e */
+const outputDir = withE2EHooks ? 'prod-e2e' : `${isFirefox ? 'firefox-' : ''}${isDev ? 'dev' : 'prod'}`;
 
 // pdf.worker.min.mjs の絶対パスを取得
 const pdfWorkerPath = path.resolve(__dirname, 'node_modules/pdfjs-dist/build/pdf.worker.min.mjs');
@@ -78,6 +84,7 @@ const config: Configuration = {
   plugins: [
     new webpack.DefinePlugin({
       __TARGET__: JSON.stringify(target),
+      __E2E_HOOKS__: JSON.stringify(withE2EHooks),
       /*
        * webpack otherwise inlines import.meta.url as the absolute path of the build directory
        * (pdfjs-dist uses it in a Node.js-only code path). A constant keeps the bundle free of

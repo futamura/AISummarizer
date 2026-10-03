@@ -6,6 +6,8 @@ export type ToastPhase = 'entering' | 'visible' | 'exiting';
 export interface ToastOptions {
   /* Toasts of one group replace each other, and each stays at least MIN_GROUP_DISPLAY_MS */
   group?: string;
+  /* Never time out; set only by the test hook of e2e/visual/, so that a screenshot cannot catch the toast leaving */
+  hold?: boolean;
 }
 
 export interface ToastItem {
@@ -13,6 +15,7 @@ export interface ToastItem {
   type: ToastType;
   message: string;
   group?: string;
+  hold?: boolean;
   phase: ToastPhase;
 }
 
@@ -54,11 +57,11 @@ export class ToastQueue {
    * Show a toast, or queue it behind the current toast of its group
    * @param type - The kind of toast
    * @param message - The text to show
-   * @param options - The group to show it in
+   * @param options - The group to show it in, and whether it is held
    * @returns The id to pass to dismiss()
    */
   show(type: ToastType, message: string, options: ToastOptions = {}): string {
-    const item: ToastItem = { id: String(++this.lastId), type, message, group: options.group, phase: 'entering' };
+    const item: ToastItem = { id: String(++this.lastId), type, message, group: options.group, hold: options.hold, phase: 'entering' };
     if (item.group === undefined) {
       this.enter(item);
       return item.id;
@@ -151,7 +154,7 @@ export class ToastQueue {
       if (item.group !== undefined && this.pending.has(item.group)) this.rescheduleGroup(item.group);
       return;
     }
-    if (TIMED_TYPES.has(item.type)) setTimeout(() => this.exit(id), TIMED_TOAST_MS);
+    if (TIMED_TYPES.has(item.type) && !item.hold) setTimeout(() => this.exit(id), TIMED_TOAST_MS);
   }
 
   private exit(id: string): void {
