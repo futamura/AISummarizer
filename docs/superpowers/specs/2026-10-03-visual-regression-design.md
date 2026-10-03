@@ -1,7 +1,7 @@
 # Visual Regression of the Toasts and the Popup Design
 
 Date: 2026-10-03
-Status: Draft
+Status: Approved (2026-10-03)
 Issue: FUT-161 (part of FUT-153)
 
 ## Purpose
@@ -14,14 +14,14 @@ Guard the look of the production build with screenshot comparison. The look of t
 |---|---|---|
 | Browser | Chrome only, through Playwright's `toHaveScreenshot` | The Firefox E2E tests run through Puppeteer, which has no screenshot comparison |
 | Build | A production-mode build with the test hook kept, `dist/prod-e2e`, made by `pnpm build:e2e` (`E2E_HOOKS=1`) | The shipped `dist/prod` has no hook, and must not get one. Driving the shipped build through real flows cannot hold the timed toasts ("Sending article…" lasts 1.5–2 s, success 3 s). Besides the hook, `dist/prod-e2e` goes through the same minification, CSS loading and closed shadow root as `dist/prod` |
-| Showing a toast | `__aiSummarizerE2E.showToast(tabId, type, message, group?)` in the service worker sends a hook-only message to the content script, which calls `toast.*` | No 500 ms extraction delay, no injector timing: each toast is shown in a known state |
+| Showing a toast | `__aiSummarizerE2E.showToast(tabId, type, text)` in the service worker sends a hook-only message to the content script, which calls `toast.*` | No 500 ms extraction delay, no injector timing: each toast is shown in a known state |
 | Timed toasts | A toast shown by the hook does not time out (`hold` option of `ToastQueue`, passed by the hook only) | success and warning leave after 3 s, which a slow CI run can reach while the screenshot is being taken |
 | Shots | One per toast type (loading, success, error, warning) and the popup, in light and dark; loading and error again on a page with a 10px root font size. 12 images | The look depends on the type, not on the text, which Jest already checks. The injection stages are represented by "Pasting article…" |
 | Theme | `colorScheme: 'light'` / `'dark'` | Both UIs follow the OS (`darkMode: 'media'`) |
 | Motion | `reducedMotion: 'reduce'` on the context and `animations: 'disabled'` on each screenshot | The toast transitions have `motion-reduce:` variants; `animations: 'disabled'` covers the rest, such as the spinner |
 | Environment | `mcr.microsoft.com/playwright:v<version>-noble` with `--platform linux/amd64`, where `<version>` is the locked `@playwright/test` | Fonts and rasterization differ between macOS and Linux, and can differ between arm64 and x64; CI runs on x64 |
 | Baselines | Created and updated in Docker only. The `visual` project refuses to run outside Linux | A baseline made on macOS would fail in CI, and must not be committed |
-| Default run | `pnpm test:e2e` leaves the visual tests out | It runs on macOS, where the Linux baselines cannot match |
+| Default run | `pnpm test:e2e` leaves the visual tests out: the config adds the `visual-offline` and `visual` projects only with `E2E_VISUAL=1`, which `scripts/visual.sh` and the CI job set | It runs on macOS, where the Linux baselines cannot match |
 | CI | New `visual` job in `ci.yml`, running in the Playwright container | The image version comes from the lockfile, so updating Playwright updates the image; the `e2e` job stays as it is |
 | Check of the check | Remove the CSS loading of the content script once by hand, see `pnpm test:visual` fail on the diff, and note it in the pull request | A permanent negative test would need a broken build in CI |
 
@@ -42,10 +42,10 @@ scripts/
 
 ## Build and hook
 
-- `webpack.config.ts`: `E2E_HOOKS=1` in production mode writes to `dist/prod-e2e` and defines `process.env.E2E_HOOKS` as `'1'`; every other build defines it as `''`, so the hook code is dropped as dead code
+- `webpack.config.ts`: `E2E_HOOKS=1` in a Chrome production build writes to `dist/prod-e2e` and defines the constant `__E2E_HOOKS__` as `true` (declared next to `__TARGET__`; `false` in every other build and in Jest), so elsewhere the hook code is dropped as dead code. `E2E_HOOKS=1` with a development or Firefox build stops with an error
 - `package.json`: `build:e2e` (`E2E_HOOKS=1 NODE_ENV=production … --mode=production`)
-- The hook condition in `src/pages/ServiceWorker.ts` widens from `NODE_ENV === 'development'` to development or `E2E_HOOKS`. `e2e/prod-build.spec.ts` keeps checking that `dist/prod` and `dist/firefox-prod` contain no hook
-- New `MessageAction.E2E_SHOW_TOAST` with payload `{ tabId, tabUrl, type, message, group? }`. `useContentMessage` handles it inside the same condition, so the production content script has no branch for it
+- The hook condition in `src/pages/ServiceWorker.ts` widens from `NODE_ENV === 'development'` to development or `__E2E_HOOKS__`. `e2e/prod-build.spec.ts` keeps checking that `dist/prod` and `dist/firefox-prod` contain no hook
+- New `MessageAction.E2E_SHOW_TOAST` with payload `{ tabId, tabUrl, type, text }` (no group: every shot shows one toast). `useContentMessage` handles it inside the same condition, so the production content script has no branch for it
 - `ToastOptions` gains `hold?: boolean`; `ToastQueue` skips the timeout of a held toast. Only the hook passes it
 
 ## Tests
@@ -54,7 +54,7 @@ Common setup in `e2e/visual/`: the existing `test` fixture with `distDir: 'dist/
 
 `toast.spec.ts`, for each of light and dark:
 
-- On `article.html`, show one toast through the hook, wait for its text in the accessibility tree (`waitForToast`), then compare the top of the viewport (800×160) with `toHaveScreenshot({ animations: 'disabled', clip })`. Types: loading "Pasting article…", success "Article has been sent!", error "Couldn't extract this article", warning (the model-unavailable message)
+- On `article.html`, show one toast through the hook, wait for its text in the accessibility tree (`waitForToast`), then compare the top of the viewport (800×160) with `toHaveScreenshot({ animations: 'disabled', clip })`. Types: loading "Pasting article…", success "Article has been sent!", error "Couldn't paste the article", warning (the model-unavailable message)
 - On `root-10px.html`: loading and error
 
 `popup.spec.ts`, for each of light and dark: open the popup for `article.html` with `openPopupFor` and compare its root element.
