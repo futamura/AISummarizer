@@ -187,6 +187,10 @@ The submitted package is built from this repository with webpack. To reproduce i
 
 Until the secrets are set, the workflow skips the AMO submission with a warning. AMO rejects re-uploads of an existing version, so re-releasing the same version only fails the Firefox steps; the Chrome release is unaffected.
 
+#### Rolling back a release
+
+To take back a bad release on the Chrome Web Store or AMO, see [docs/store-rollback.md](./docs/store-rollback.md).
+
 ## 🔒 Privacy
 
 We respect your privacy. All data is stored locally on your device. See our [Privacy Policy](./PRIVACY.md) for details.
