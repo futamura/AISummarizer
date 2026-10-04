@@ -28,7 +28,7 @@ Please follow the directory structure below for implementation:
 │   ├── types/                    # TypeScript type definitions
 │   └── utils/                    # Utility functions
 ├── build/                        # Build-time scripts (manifest transforms)
-├── scripts/                      # Developer scripts outside the build (fixture capture, local canary)
+├── scripts/                      # Developer scripts outside the build (fixture capture, local canary, Android smoke test)
 ├── docs/                         # Developer documentation (store rollback runbook, design specs and plans)
 ├── e2e/                          # End-to-end tests of the built extension: Chrome (Playwright) and Firefox (firefox/, Puppeteer)
 ├── public/                       # Static assets
@@ -95,7 +95,7 @@ Please follow the directory structure below for implementation:
 
 #### Build and Dependencies
 - `build/`: Build-time scripts used by webpack (manifest transforms for development and Firefox builds)
-- `scripts/`: Developer scripts, not part of the build (`fixtures/`: capturing page fixtures; `canary/`: the daily local check of the live pages against the selectors; see their READMEs; `visual.sh`: running the visual tests in the Playwright container)
+- `scripts/`: Developer scripts, not part of the build (`fixtures/`: capturing page fixtures; `canary/`: the daily local check of the live pages against the selectors; `android/`: the smoke test on a phone with Firefox for Android; see their READMEs; `visual.sh`: running the visual tests in the Playwright container)
 - `e2e/`: end-to-end tests that load `dist/prod` and `dist/dev` into headless Chromium and, from `firefox/`, `dist/firefox-prod` and `dist/firefox-dev` into headless Firefox (`pnpm test:e2e`, after `pnpm build`, `pnpm start`, `pnpm build:firefox` and `pnpm start:firefox`); `pages/` holds the hand-written pages they open, `scenarios.ts` the data both browsers' specs share, and `fixture-server.ts` serves those pages and the captured fixtures at their real host names over local HTTPS, with a proxy for Firefox, so no request reaches a live site; `visual/` holds the screenshot tests of `dist/prod-e2e` and their baselines, run in Docker by `pnpm test:visual`
 - `dist/`: Compiled output files (`dev` / `prod` for Chrome, `firefox-dev` / `firefox-prod` for Firefox, `prod-e2e` for the visual tests: a Chrome production build that keeps the test hooks, made by `pnpm build:e2e`)
 - `public/`: Static assets
