@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+
 import type { Page } from '@playwright/test';
 
 import type { ToastType } from '../../src/features/content/services/ToastQueue';
@@ -15,11 +17,16 @@ interface VisualFixtures {
 }
 
 export const test = base.extend<VisualFixtures>({
-  /* Runs before the browser starts: fonts and rasterization differ outside the container the baselines come from */
+  /*
+   * Runs before the browser starts: fonts and rasterization differ outside the container the baselines come from.
+   * A Linux desktop is not enough: the linux/amd64 Playwright image keeps its browsers in /ms-playwright
+   */
   linuxOnly: [
     /* eslint-disable-next-line no-empty-pattern */
     async ({}, use) => {
-      if (process.platform !== 'linux') throw new Error('The visual baselines come from the Playwright container: run pnpm test:visual');
+      if (process.platform !== 'linux' || process.arch !== 'x64' || !existsSync('/ms-playwright')) {
+        throw new Error('The visual baselines come from the linux/amd64 Playwright container: run pnpm test:visual');
+      }
       await use();
     },
     { auto: true },
