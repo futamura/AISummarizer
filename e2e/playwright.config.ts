@@ -4,7 +4,8 @@ import type { ExtensionOptions } from './fixtures';
 
 /*
  * Runs the built extension, so build it first: pnpm build (dist/prod), pnpm start (dist/dev),
- * pnpm build:firefox (dist/firefox-prod) and pnpm start:firefox (dist/firefox-dev).
+ * pnpm build:firefox (dist/firefox-prod) and pnpm start:firefox (dist/firefox-dev). The visual projects run
+ * dist/prod-e2e, which pnpm build:e2e makes and scripts/visual.sh builds before them.
  * A build left over from another branch tests that branch's code.
  */
 export default defineConfig<ExtensionOptions>({

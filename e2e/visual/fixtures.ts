@@ -61,7 +61,9 @@ export const preparePage = async (page: Page, colorScheme: ColorScheme): Promise
   /*
    * animations: 'disabled' does not reach the closed shadow root of the content script, where the loading
    * spinner turns. The Animation domain sees it: each animation is paused at its first frame as it starts.
-   * The session stays attached to keep receiving the events
+   * The session stays attached to keep receiving the events. CSS transitions are paused there too, so this
+   * relies on reducedMotion: 'reduce' above: under it, the toasts have neither their enter animation nor their
+   * transitions (motion-reduce:), and only the spinner is paused. Without it, a toast would stay transparent
    */
   const cdp = await page.context().newCDPSession(page);
   cdp.on('Animation.animationStarted', ({ animation }) => {
