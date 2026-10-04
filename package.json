@@ -22,7 +22,8 @@
     "test:visual": "scripts/visual.sh",
     "test:visual:update": "scripts/visual.sh --update-snapshots",
     "canary:login": "node --loader ts-node/esm scripts/canary/login.ts",
-    "canary:probe": "node --loader ts-node/esm scripts/canary/probe.ts"
+    "canary:probe": "node --loader ts-node/esm scripts/canary/probe.ts",
+    "android:smoke": "node --loader ts-node/esm scripts/android/smoke.ts"
   },
   "keywords": [
     "open-source",
