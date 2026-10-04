@@ -1,0 +1,8 @@
+# GitHub Pages (Jekyll) settings. The plan documents hold code with `{{ }}`,
+# which Liquid fails to parse, so they stay out of the site.
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - docs/superpowers
