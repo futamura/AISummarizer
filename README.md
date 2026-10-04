@@ -154,7 +154,11 @@ pnpm test:visual
 pnpm test:visual:update
 ```
 
-Only commit baselines made by `pnpm test:visual:update`; never ones made on macOS. On a failure in CI, the `playwright-report-visual` artifact shows the diffs.
+Only commit baselines made by `pnpm test:visual:update`; never ones made on macOS. A local failure leaves the diffs in `test-results-visual/`; in CI, the `playwright-report-visual` artifact shows them.
+
+The image is the one of the Playwright version locked in `pnpm-lock.yaml`. After upgrading Playwright, run `pnpm test:visual:update` and review the PNGs: a new image may render differently.
+
+The image runs Node.js 24, while the project, CI and releases use Node.js 20. Only the visual tests run on Node.js 24: the dependencies installed in the container, the `dist/prod-e2e` build and the test run. They do not show that a build made with Node.js 20 looks the same; the other jobs and the releases still build with Node.js 20.
 
 ### Firefox
 
