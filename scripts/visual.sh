@@ -13,7 +13,12 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-PLAYWRIGHT_VERSION="$(node -p "require('@playwright/test/package.json').version")"
+# The locked version, as the playwright-version job of ci.yml reads it: the macOS node_modules may lag behind the lockfile
+PLAYWRIGHT_VERSION="$(sed -nE "s/^  '@playwright\/test@([0-9.]+)':.*/\1/p" pnpm-lock.yaml | head -n 1)"
+if [ -z "$PLAYWRIGHT_VERSION" ]; then
+  echo "No @playwright/test version in pnpm-lock.yaml" >&2
+  exit 1
+fi
 PNPM_VERSION="$(node -p "require('./package.json').packageManager.split('@')[1].split('+')[0]")"
 
 docker run --rm --platform linux/amd64 --ipc=host \

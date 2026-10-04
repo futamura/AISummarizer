@@ -51,12 +51,27 @@ export default defineConfig<ExtensionOptions>({
      * Visual: screenshots of dist/prod-e2e compared with baselines made in the Playwright container, so they
      * exist only with E2E_VISUAL=1, which scripts/visual.sh (pnpm test:visual) and the visual CI job set.
      * On Apple Silicon the linux/amd64 container runs Chromium through Rosetta, and a fixture page takes
-     * close to the default 30 s
+     * close to the default 30 s. A run clears the output directories of its own projects only, so a directory
+     * of their own keeps pnpm test:e2e and pnpm test:visual from clearing each other's results
      */
     ...(process.env.E2E_VISUAL === '1'
       ? [
-          { name: 'visual-offline', testMatch: 'routing.spec.ts', testIgnore: /e2e\/firefox\//, timeout: 90_000, use: { distDir: 'dist/prod-e2e' } },
-          { name: 'visual', testMatch: /e2e\/visual\/.+\.spec\.ts$/, dependencies: ['visual-offline'], timeout: 90_000, use: { distDir: 'dist/prod-e2e' } },
+          {
+            name: 'visual-offline',
+            testMatch: 'routing.spec.ts',
+            testIgnore: /e2e\/firefox\//,
+            timeout: 90_000,
+            outputDir: '../test-results-visual',
+            use: { distDir: 'dist/prod-e2e' },
+          },
+          {
+            name: 'visual',
+            testMatch: /e2e\/visual\/.+\.spec\.ts$/,
+            dependencies: ['visual-offline'],
+            timeout: 90_000,
+            outputDir: '../test-results-visual',
+            use: { distDir: 'dist/prod-e2e' },
+          },
         ]
       : []),
   ],
