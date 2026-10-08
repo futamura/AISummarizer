@@ -15,10 +15,10 @@ Each page ends with one of these statuses:
 | `ok`         | Every required selector matched                                                              |
 | `missing`    | A required selector matched nothing: the DOM probably changed                                |
 | `signed-out` | The page went to its sign-in page, or shows its guest page (the page's `signedIn` marker is missing): sign in again with `pnpm canary:login` |
-| `blocked`    | The site's bot protection answered (an HTTP error or a Cloudflare challenge): says nothing about the selectors |
+| `blocked`    | The site's bot protection answered (an HTTP error or a Cloudflare challenge): says nothing about the selectors. Pass the check with `pnpm canary:login`, then quit the browser with Cmd+Q |
 | `error`      | The page did not load                                                                        |
 
-When a page is not `ok`, a macOS notification says what to do for each status, and the page's DOM and a screenshot are saved next to `result.json`. `result.json` also records, per page, whether the signed-in marker was found, which shows how long each session lasts.
+When a page is not `ok`, a macOS notification says what to do for each status, and the page's DOM and a screenshot are saved next to `result.json`. For each `blocked` page, the probe also files a Linear issue with these steps in project AISummarizer, unless one for the page is still open (`--no-notify` skips both). It uses a Linear API key of its own, allowed only to read and create issues in team Futamura, read at run time from the login Keychain item `linear-api-fut-canary`. When the key cannot be read or Linear refuses, the notification says so and the run's result is unchanged. `result.json` also records, per page, whether the signed-in marker was found, which shows how long each session lasts.
 
 ## Where the data lives
 
