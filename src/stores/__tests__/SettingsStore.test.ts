@@ -72,6 +72,44 @@ describe('SettingsStore persistence on Firefox', () => {
     expect(geckoStorage[STORAGE_KEYS.SETTINGS].state.models[AIService.QWEN]).toBe('Removed-Model');
   });
 
+  /* Settings saved before AI Studio was dropped still hold its entries, which are left in storage and never read */
+  it('reads every service from settings that still hold the dropped AI Studio', async () => {
+    await flushStorage();
+    geckoStorage[STORAGE_KEYS.SETTINGS] = {
+      state: {
+        ...geckoStorage[STORAGE_KEYS.SETTINGS]?.state,
+        prompts: { ...DEFAULT_SETTINGS.prompts, AI_STUDIO: 'AI Studio prompt', [AIService.CLAUDE]: 'Claude prompt' },
+        models: { ...DEFAULT_SETTINGS.models, AI_STUDIO: 'gemini-3.1-pro-preview', [AIService.CLAUDE]: 'claude-opus-5' },
+        serviceOnMenu: { ...DEFAULT_SETTINGS.serviceOnMenu, AI_STUDIO: false, [AIService.GROK]: false },
+      },
+    };
+
+    expect(Object.values(AIService)).not.toContain('AI_STUDIO');
+    await expect(useSettingsStore.getState().getPromptFor(AIService.CLAUDE)).resolves.toBe('Claude prompt');
+    await expect(useSettingsStore.getState().getModelFor(AIService.CLAUDE)).resolves.toBe('claude-opus-5');
+    await expect(useSettingsStore.getState().getServiceOnMenu(AIService.GROK)).resolves.toBe(false);
+    await expect(useSettingsStore.getState().getServiceOnMenu(AIService.CHATGPT)).resolves.toBe(true);
+  });
+
+  it('imports a backup that still holds the dropped AI Studio', async () => {
+    await flushStorage();
+    const backup = {
+      version: '0.5.3',
+      settings: {
+        prompt: { ...DEFAULT_SETTINGS.prompts, AI_STUDIO: 'AI Studio prompt', [AIService.CLAUDE]: 'Claude prompt' },
+        models: { ...DEFAULT_SETTINGS.models, AI_STUDIO: 'gemini-3.1-pro-preview' },
+        clipboardPrompt: DEFAULT_SETTINGS.clipboardPrompt,
+        tabBehavior: 'NEW_TAB',
+      },
+    };
+    const file = { text: async () => JSON.stringify(backup) } as unknown as File;
+
+    await expect(useSettingsStore.getState().importSettings(file)).resolves.toEqual({ success: true });
+    await flushStorage();
+
+    await expect(useSettingsStore.getState().getPromptFor(AIService.CLAUDE)).resolves.toBe('Claude prompt');
+  });
+
   /* Backups exported before the extraction settings were removed still hold them */
   it('imports a backup that still holds the removed extraction settings', async () => {
     await flushStorage();

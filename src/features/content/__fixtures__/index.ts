@@ -13,7 +13,6 @@ export type FixtureName =
   | 'chatgpt-composer'
   | 'chatgpt-guest-composer'
   | 'gemini-composer'
-  | 'aistudio-composer'
   | 'grok-textarea-composer'
   | 'grok-tiptap-composer'
   | 'perplexity-composer'

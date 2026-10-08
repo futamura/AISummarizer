@@ -12,7 +12,6 @@ describe('supportsModelParam', () => {
   it('returns true only for URL-parameter services', () => {
     expect(supportsModelParam(AIService.CHATGPT)).toBe(true);
     expect(supportsModelParam(AIService.CLAUDE)).toBe(true);
-    expect(supportsModelParam(AIService.AI_STUDIO)).toBe(true);
     expect(supportsModelParam(AIService.GEMINI)).toBe(false);
     expect(supportsModelParam(AIService.DEEPSEEK)).toBe(false);
     expect(supportsModelParam(AIService.GROK)).toBe(false);
@@ -26,7 +25,6 @@ describe('supportsModelSelection', () => {
   it('returns true for param and DOM services, false for excluded services', () => {
     expect(supportsModelSelection(AIService.CHATGPT)).toBe(true);
     expect(supportsModelSelection(AIService.CLAUDE)).toBe(true);
-    expect(supportsModelSelection(AIService.AI_STUDIO)).toBe(true);
     expect(supportsModelSelection(AIService.GEMINI)).toBe(true);
     expect(supportsModelSelection(AIService.KIMI)).toBe(true);
     expect(supportsModelSelection(AIService.QWEN)).toBe(true);
@@ -58,10 +56,6 @@ describe('getModelOptionsFor', () => {
     expect(getModelOptionsFor(AIService.KIMI).map(o => o.value)).toEqual(['Instant', 'K3']);
     expect(getModelOptionsFor(AIService.QWEN).map(o => o.value)).toEqual(['Qwen3.7-Plus', 'Qwen3.8-Max', 'Qwen3.8-Omni-Flash']);
   });
-
-  it('offers only the AI Studio models a free plan can run', () => {
-    expect(getModelOptionsFor(AIService.AI_STUDIO).map(o => o.value)).toEqual(['gemini-3.8-flash', 'gemini-3.1-pro-preview']);
-  });
 });
 
 describe('resolveModelFor', () => {
@@ -86,14 +80,6 @@ describe('resolveModelFor', () => {
     expect(resolveModelFor(AIService.CLAUDE, 'claude-custom')).toBe('claude-custom');
   });
 
-  it('treats the paid-only gemini-3-flash-preview as the AI Studio default', () => {
-    expect(resolveModelFor(AIService.AI_STUDIO, 'gemini-3-flash-preview')).toBe('');
-  });
-
-  it('keeps a custom model id for AI Studio', () => {
-    expect(resolveModelFor(AIService.AI_STUDIO, 'gemini-custom')).toBe('gemini-custom');
-  });
-
   it('keeps the default', () => {
     expect(resolveModelFor(AIService.QWEN, '')).toBe('');
   });
@@ -106,9 +92,6 @@ describe('getSummarizeUrl', () => {
 
   it('appends model parameter for param-supported services', () => {
     expect(getSummarizeUrl(AIService.CLAUDE, '42', 'claude-opus-5')).toBe('https://claude.ai/new?aismid=42&model=claude-opus-5');
-    expect(getSummarizeUrl(AIService.AI_STUDIO, '42', 'gemini-3.1-pro-preview')).toBe(
-      'https://aistudio.google.com/prompts/new_chat?aismid=42&model=gemini-3.1-pro-preview'
-    );
     expect(getSummarizeUrl(AIService.CHATGPT, '42', 'gpt-5.2')).toBe('https://chatgpt.com/?aismid=42&model=gpt-5.2');
   });
 
@@ -119,11 +102,6 @@ describe('getSummarizeUrl', () => {
 
   it('ignores empty-string model', () => {
     expect(getSummarizeUrl(AIService.CLAUDE, '42', '')).toBe('https://claude.ai/new?aismid=42');
-  });
-
-  it('passes the free Flash alias for the AI Studio default', () => {
-    expect(getSummarizeUrl(AIService.AI_STUDIO, '42')).toBe('https://aistudio.google.com/prompts/new_chat?aismid=42&model=gemini-flash-latest');
-    expect(getSummarizeUrl(AIService.AI_STUDIO, '42', '')).toBe('https://aistudio.google.com/prompts/new_chat?aismid=42&model=gemini-flash-latest');
   });
 
   it('URL-encodes the model value', () => {

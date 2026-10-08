@@ -22,7 +22,7 @@ The first line records the fixture name, the source URL and the capture date:
 
 Use a browser profile that is signed in where the page requires it. Nothing is sent: composers are filled with a placeholder so their send buttons render, then cleared.
 
-1. Open the page listed for the fixture in `FIXTURES` in `capture.js`. For `youtube-watch`, the transcript panel is opened automatically. For `x-post`, scroll down once so the replies load. The Gemini, AI Studio, Kimi and Qwen fixtures open the model (or thinking level) menu themselves, so that its options are captured
+1. Open the page listed for the fixture in `FIXTURES` in `capture.js`. For `youtube-watch`, the transcript panel is opened automatically. For `x-post`, scroll down once so the replies load. The Gemini, Kimi and Qwen fixtures open the model menu themselves, so that its options are captured
 2. Paste the whole of `capture.js` into the DevTools console (or run it through the Claude in Chrome javascript tool)
 3. Run `await captureFixture('<name>')`. It returns how many elements each keep region matched and the size; a keep region with no match throws
 4. Copy the result: in DevTools, `copy(lastFixture)`. When the page is driven remotely, run `armFixtureCopy()` and click an empty spot of the page, then check that `lastFixtureCopy` is `'copied'` (the first click after a navigation is sometimes not delivered; click again)
