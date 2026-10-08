@@ -29,7 +29,6 @@ export const isInvalidUrl = async (url?: string): Promise<boolean> => {
 const AI_SERVICE_HOSTNAMES = new Set([
   'chatgpt.com',
   'gemini.google.com',
-  'aistudio.google.com',
   'claude.ai',
   'claude.com',
   'grok.com',

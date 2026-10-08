@@ -105,8 +105,7 @@ export const useContentMessage = () => {
             const service = getAIServiceForUrl(message.payload.tabUrl);
             /*
              * Compare only the aismid parameter instead of the full URL: the tab URL may
-             * carry a model parameter, and AI Studio rewrites model aliases in the URL,
-             * so strict URL equality can no longer be used.
+             * carry a model parameter, so strict URL equality can no longer be used.
              */
             const tabAismid = new URL(message.payload.tabUrl).searchParams.get(AI_SERVICE_QUERY_KEY);
             if (tabAismid !== String(message.payload.article.id)) {

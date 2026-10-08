@@ -43,7 +43,6 @@ describe('regex utils', () => {
     it('returns true for the other service hosts', () => {
       expect(isAIServiceUrl('https://chatgpt.com/?aismid=42')).toBe(true);
       expect(isAIServiceUrl('https://gemini.google.com/app')).toBe(true);
-      expect(isAIServiceUrl('https://aistudio.google.com/prompts/new_chat')).toBe(true);
       expect(isAIServiceUrl('https://claude.ai/new')).toBe(true);
       expect(isAIServiceUrl('https://grok.com/')).toBe(true);
       expect(isAIServiceUrl('https://www.perplexity.ai/')).toBe(true);
