@@ -2,7 +2,6 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  AISTUDIO_SELECTORS,
   CHATGPT_SELECTORS,
   CLAUDE_SELECTORS,
   DEEPSEEK_SELECTORS,
@@ -93,14 +92,6 @@ export const PROBE_PAGES: ProbePage[] = [
     required: { editor: GEMINI_SELECTORS.editor, modelPicker: GEMINI_SELECTORS.modelPicker },
     loginUrl: /accounts\.google\.com/,
     signedIn: 'a[href*="accounts.google.com/SignOutOptions"]',
-  },
-  {
-    name: 'aistudio',
-    url: 'https://aistudio.google.com/prompts/new_chat',
-    required: { editor: AISTUDIO_SELECTORS.editor, submit: AISTUDIO_SELECTORS.submit },
-    optional: { thinkingLevel: AISTUDIO_SELECTORS.thinkingLevel, urlContextToggle: AISTUDIO_SELECTORS.urlContextToggle },
-    loginUrl: /accounts\.google\.com/,
-    signedIn: '#account-switcher-button',
   },
   {
     name: 'grok',

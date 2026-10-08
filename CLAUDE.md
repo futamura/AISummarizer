@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Free AI Summarizer — a browser extension (Manifest V3) that summarizes web articles, YouTube transcripts, and PDFs by opening an AI service (ChatGPT, Gemini, Google AI Studio, Claude, Grok, Perplexity, Deepseek, Kimi, Qwen) in a tab and injecting the extracted article text into its chat UI. No API keys, no backend — all data stays local. The same codebase builds the Chrome version (Chrome Web Store) and the Firefox version for both desktop and Android, distributed on addons.mozilla.org (AMO). PDF summarization is Chrome-only: Firefox opens PDFs in its built-in viewer, where content scripts cannot be injected.
+Free AI Summarizer — a browser extension (Manifest V3) that summarizes web articles, YouTube transcripts, and PDFs by opening an AI service (ChatGPT, Gemini, Claude, Grok, Perplexity, Deepseek, Kimi, Qwen) in a tab and injecting the extracted article text into its chat UI. No API keys, no backend — all data stays local. The same codebase builds the Chrome version (Chrome Web Store) and the Firefox version for both desktop and Android, distributed on addons.mozilla.org (AMO). PDF summarization is Chrome-only: Firefox opens PDFs in its built-in viewer, where content scripts cannot be injected.
 
 ## Commands
 

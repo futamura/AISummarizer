@@ -26,11 +26,6 @@ export const MENU_ITEMS = {
       contexts: ['page' as const],
     },
     {
-      id: 'aistudio',
-      title: 'AI Studio',
-      contexts: ['page' as const],
-    },
-    {
       id: 'grok',
       title: 'Grok',
       contexts: ['page' as const],

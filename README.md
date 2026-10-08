@@ -30,7 +30,6 @@ A free and open-source browser extension for Chrome and Firefox (desktop and And
 
 - ChatGPT
 - Gemini
-- Google AI Studio
 - Claude
 - Grok
 - Perplexity

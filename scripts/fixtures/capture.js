@@ -238,19 +238,6 @@
       keep: ['fieldset:has(rich-textarea)', '.cdk-overlay-pane:has([data-test-id^="bard-mode-option"])'],
       drop: [],
     },
-    'aistudio-composer': {
-      match: /^https:\/\/aistudio\.google\.com\/prompts\/new_chat/,
-      source: () => 'https://aistudio.google.com/prompts/new_chat',
-      prepare: async () => {
-        await setTextarea('ms-prompt-box textarea', FILL_TEXT);
-        await waitFor('div[data-test-id="browseAsAToolTooltip"] button[role="switch"]');
-        await openMenu('ms-thinking-level-setting mat-select', 'mat-option');
-      },
-      cleanup: () => setTextarea('ms-prompt-box textarea', ''),
-      /* The prompt box, the run settings the injector touches, and the open thinking level menu */
-      keep: ['ms-prompt-box', 'ms-thinking-level-setting', 'ms-browse-as-a-tool', '.cdk-overlay-pane:has(mat-option)'],
-      drop: [],
-    },
     'grok-textarea-composer': {
       match: /^https:\/\/grok\.com\/(\?|$)/,
       source: () => 'https://grok.com/',

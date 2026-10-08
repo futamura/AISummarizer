@@ -38,7 +38,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
   prompts: {
     [AIService.CHATGPT]: DEFAULT_PROMPT,
     [AIService.GEMINI]: DEFAULT_PROMPT,
-    [AIService.AI_STUDIO]: DEFAULT_PROMPT,
     [AIService.CLAUDE]: DEFAULT_PROMPT,
     [AIService.GROK]: DEFAULT_PROMPT,
     [AIService.PERPLEXITY]: DEFAULT_PROMPT,
@@ -49,7 +48,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
   models: {
     [AIService.CHATGPT]: '',
     [AIService.GEMINI]: '',
-    [AIService.AI_STUDIO]: '',
     [AIService.CLAUDE]: '',
     [AIService.GROK]: '',
     [AIService.PERPLEXITY]: '',
@@ -60,7 +58,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
   serviceOnMenu: {
     [AIService.CHATGPT]: true,
     [AIService.GEMINI]: true,
-    [AIService.AI_STUDIO]: true,
     [AIService.CLAUDE]: true,
     [AIService.GROK]: true,
     [AIService.PERPLEXITY]: true,
