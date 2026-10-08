@@ -29,6 +29,13 @@ body {
   font-size: 0.75rem;
 }
 
+/* Firefox for Android shows the popup as a full-screen page, where the desktop sizes look tiny; scale every rem-based size by 4/3 so text becomes 16px */
+@media (pointer: coarse) {
+  html.popup {
+    font-size: 133.333%;
+  }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

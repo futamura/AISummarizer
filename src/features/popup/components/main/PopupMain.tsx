@@ -40,7 +40,7 @@ export const PopupMain: React.FC = () => {
   return (
     (shouldShowFullMenu && (
       <main className="flex flex-col bg-white dark:bg-zinc-900">
-        <div className="container mx-auto flex flex-col items-start gap-1 px-2 pt-2">
+        <div className="container mx-auto flex flex-col items-start gap-1 px-2 py-2">
           <ServiceListMenu>Summarize this page</ServiceListMenu>
           {Object.entries(AIService)
             .filter(([_, service]) => serviceOnMenu[service])
@@ -108,7 +108,7 @@ export const PopupMain: React.FC = () => {
       </main>
     )) || (
       <main className="flex flex-col bg-white dark:bg-zinc-900">
-        <div className="container mx-auto flex flex-col items-start gap-1 px-2 pt-2">
+        <div className="container mx-auto flex flex-col items-start gap-1 px-2 py-2">
           <ServiceListMenu>Not available on this page</ServiceListMenu>
           <Divider />
           <ServiceListMenu
