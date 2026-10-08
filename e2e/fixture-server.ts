@@ -22,7 +22,6 @@ const FIXTURE_HOSTS: Record<string, string> = {
   'www.youtube.com': 'youtube-watch',
   'chatgpt.com': 'chatgpt-composer',
   'gemini.google.com': 'gemini-composer',
-  'aistudio.google.com': 'aistudio-composer',
   'claude.ai': 'claude-composer',
   'grok.com': 'grok-tiptap-composer',
   'www.perplexity.ai': 'perplexity-composer',

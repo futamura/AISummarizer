@@ -4,7 +4,6 @@ export enum AIService {
   CHATGPT = 'CHATGPT',
   CLAUDE = 'CLAUDE',
   GEMINI = 'GEMINI',
-  AI_STUDIO = 'AI_STUDIO',
   GROK = 'GROK',
   PERPLEXITY = 'PERPLEXITY',
   DEEPSEEK = 'DEEPSEEK',
@@ -25,10 +24,6 @@ const AI_SERVICE_MODEL_OPTIONS: { [key in AIService]: AIServiceModelOption[] } =
     { label: 'Flash-Lite', value: 'Flash-Lite' },
     { label: 'Flash', value: 'Flash' },
     { label: 'Pro', value: 'Pro' },
-  ],
-  [AIService.AI_STUDIO]: [
-    { label: 'Gemini 3.8 Flash', value: 'gemini-3.8-flash' },
-    { label: 'Gemini 3.1 Pro Preview', value: 'gemini-3.1-pro-preview' },
   ],
   [AIService.CLAUDE]: [
     { label: 'Fable 5', value: 'claude-fable-5' },
@@ -51,18 +46,14 @@ const AI_SERVICE_MODEL_OPTIONS: { [key in AIService]: AIServiceModelOption[] } =
   ],
 };
 
-const MODEL_PARAM_SERVICES: AIService[] = [AIService.CHATGPT, AIService.CLAUDE, AIService.AI_STUDIO];
+const MODEL_PARAM_SERVICES: AIService[] = [AIService.CHATGPT, AIService.CLAUDE];
 const MODEL_DOM_SERVICES: AIService[] = [AIService.GEMINI, AIService.KIMI, AIService.QWEN];
 
 /* Model passed for the Default choice where the service's own default needs a paid plan */
-const DEFAULT_MODEL_PARAMS: { [key in AIService]?: string } = {
-  [AIService.AI_STUDIO]: 'gemini-flash-latest',
-};
+const DEFAULT_MODEL_PARAMS: { [key in AIService]?: string } = {};
 
 /* Stored URL-parameter models that a free plan can no longer run, read as the default */
-const RETIRED_MODEL_PARAMS: { [key in AIService]?: string[] } = {
-  [AIService.AI_STUDIO]: ['gemini-3-flash-preview'],
-};
+const RETIRED_MODEL_PARAMS: { [key in AIService]?: string[] } = {};
 
 export const getModelOptionsFor = (service: AIService): AIServiceModelOption[] => AI_SERVICE_MODEL_OPTIONS[service];
 
@@ -94,8 +85,6 @@ export const getSummarizeUrl = (service: AIService, summarizeId: string, model?:
       return `https://chatgpt.com/?${AI_SERVICE_QUERY_KEY}=${summarizeId}${modelParam}`;
     case AIService.GEMINI:
       return `https://gemini.google.com/app?${AI_SERVICE_QUERY_KEY}=${summarizeId}`;
-    case AIService.AI_STUDIO:
-      return `https://aistudio.google.com/prompts/new_chat?${AI_SERVICE_QUERY_KEY}=${summarizeId}${modelParam}`;
     case AIService.CLAUDE:
       return `https://claude.ai/new?${AI_SERVICE_QUERY_KEY}=${summarizeId}${modelParam}`;
     case AIService.GROK:
@@ -116,8 +105,6 @@ export const getAIServiceForUrl = (url: string): AIService => {
     return AIService.CHATGPT;
   } else if (/^https?:\/\/(?:www\.)?(gemini\.google\.com)/.test(url)) {
     return AIService.GEMINI;
-  } else if (/^https?:\/\/(?:www\.)?(aistudio\.google\.com)/.test(url)) {
-    return AIService.AI_STUDIO;
   } else if (/^https?:\/\/(?:www\.)?((claude\.com)|(claude\.ai))/.test(url)) {
     return AIService.CLAUDE;
   } else if (/^https?:\/\/(?:www\.)?(grok\.com)/.test(url)) {
@@ -141,8 +128,6 @@ export const getAIServiceFromString = (id: string): AIService => {
       return AIService.CHATGPT;
     case 'gemini':
       return AIService.GEMINI;
-    case 'aistudio':
-      return AIService.AI_STUDIO;
     case 'claude':
       return AIService.CLAUDE;
     case 'grok':
@@ -166,8 +151,6 @@ export const getAIServiceLabel = (service: AIService): string => {
       return 'ChatGPT';
     case AIService.GEMINI:
       return 'Gemini';
-    case AIService.AI_STUDIO:
-      return 'AI Studio';
     case AIService.CLAUDE:
       return 'Claude';
     case AIService.GROK:

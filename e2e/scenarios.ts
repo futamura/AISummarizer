@@ -1,5 +1,4 @@
 import {
-  AISTUDIO_SELECTORS,
   CHATGPT_SELECTORS,
   CLAUDE_SELECTORS,
   DEEPSEEK_SELECTORS,
@@ -17,7 +16,7 @@ export const ARTICLE_TITLE = "The Lighthouse Keeper's Log";
 export const ARTICLE_SENTENCE = 'a page that described a ship nobody else had seen';
 
 /* Every AI service is on the menu by default */
-export const SERVICE_LABELS = ['ChatGPT', 'Gemini', 'AI Studio', 'Claude', 'Grok', 'Perplexity', 'DeepSeek', 'Kimi', 'Qwen'];
+export const SERVICE_LABELS = ['ChatGPT', 'Gemini', 'Claude', 'Grok', 'Perplexity', 'DeepSeek', 'Kimi', 'Qwen'];
 
 export interface Composer {
   /* Shown in the test title */
@@ -36,7 +35,6 @@ export const COMPOSERS: Composer[] = [
   { name: 'ChatGPT', label: 'ChatGPT', host: 'chatgpt.com', editor: CHATGPT_SELECTORS.editor },
   { name: 'ChatGPT signed out', label: 'ChatGPT', host: 'chatgpt.com', editor: CHATGPT_SELECTORS.editor, fixture: 'chatgpt-guest-composer' },
   { name: 'Gemini', label: 'Gemini', host: 'gemini.google.com', editor: GEMINI_SELECTORS.editor },
-  { name: 'AI Studio', label: 'AI Studio', host: 'aistudio.google.com', editor: AISTUDIO_SELECTORS.editor },
   { name: 'Claude', label: 'Claude', host: 'claude.ai', editor: CLAUDE_SELECTORS.editor },
   { name: 'Grok', label: 'Grok', host: 'grok.com', editor: GROK_SELECTORS.editor },
   { name: 'Grok signed out', label: 'Grok', host: 'grok.com', editor: GROK_SELECTORS.editor, fixture: 'grok-textarea-composer' },

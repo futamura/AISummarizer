@@ -504,11 +504,6 @@ describe('ServiceWorker context menu', () => {
     expect(openedServices()).toEqual([getAIServiceFromString(menuItemId)]);
   });
 
-  it('opens AI Studio with the free Flash model for the Default choice', async () => {
-    await clickMenuItem('aistudio');
-    expect(chromeMock.tabs.create).toHaveBeenCalledWith({ url: expect.stringContaining('&model=gemini-flash-latest') });
-  });
-
   it('writes the article to the clipboard from the copy menu item', async () => {
     await clickMenuItem(MENU_ITEMS.COPY.id);
     expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(ARTICLE_TAB.id, expect.objectContaining({ action: 'WRITE_ARTICLE_TO_CLIPBOARD' }));

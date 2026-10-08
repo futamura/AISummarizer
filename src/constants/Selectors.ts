@@ -34,19 +34,6 @@ export const GEMINI_SELECTORS = {
   modelOption: '[data-test-id^="bard-mode-option"]',
 } as const;
 
-export const AISTUDIO_SELECTORS = {
-  /* The ms-autosize-textarea wrapper was replaced by ms-prompt-box */
-  editor: 'ms-prompt-box textarea',
-  /* button.run-button was replaced by ms-run-button */
-  submit: 'ms-run-button button',
-  /* A "Thinking level" mat-select whose options are ordered lowest first; present only for some models */
-  thinkingLevel: 'ms-thinking-level-setting mat-select',
-  thinkingLevelOption: 'mat-option',
-  overlayBackdrop: '.cdk-overlay-backdrop',
-  /* The auto-numbered mat-mdc-slide-toggle ids shift, so the toggle is located via its stable data-test-id wrapper */
-  urlContextToggle: 'div[data-test-id="browseAsAToolTooltip"] button[role="switch"]',
-} as const;
-
 export const GROK_SELECTORS = {
   /*
    * Grok serves either a textarea in the composer form or a Tiptap (ProseMirror) contenteditable;
