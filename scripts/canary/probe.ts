@@ -6,6 +6,7 @@ import type { Page } from '@playwright/test';
 
 import { launchProfile } from './browser';
 import { PROBE_PAGES, type ProbePage, RUNS_DIR } from './config';
+import { fileBlockedIssues, type FileOutcome } from './linear';
 
 /* How long a page gets for its required selectors to appear */
 const REQUIRED_TIMEOUT_MS = 30000;
@@ -38,6 +39,7 @@ interface PageResult {
 interface Options {
   headless: boolean;
   only: string[] | null;
+  /* Whether to tell a person: the macOS notification and the Linear issues for blocked pages */
   notify: boolean;
 }
 
@@ -161,7 +163,7 @@ const notify = (message: string): Promise<void> =>
 const ADVICE: Record<Exclude<PageStatus, 'ok'>, string> = {
   missing: 'Selectors missing, the DOM may have changed',
   'signed-out': 'Signed out, run pnpm canary:login',
-  blocked: 'Blocked by bot protection',
+  blocked: 'Blocked by Cloudflare: run pnpm canary:login, pass the check, quit with Cmd+Q',
   error: 'Did not load',
 };
 
@@ -177,17 +179,21 @@ const describeFailures = (failed: PageResult[]): string =>
     .map(([status, names]) => `${ADVICE[status]}: ${names.join(', ')}`)
     .join('\n');
 
+const describeFiling = (outcome: FileOutcome): string => {
+  if (outcome.status === 'failed') return `Linear: could not file an issue for ${outcome.page}: ${outcome.error}`;
+  if (outcome.status === 'filed') return `Linear: filed ${outcome.identifier} for ${outcome.page}`;
+  return `Linear: ${outcome.identifier} is still open for ${outcome.page}`;
+};
+
 const main = async (): Promise<void> => {
   const options = parseOptions(process.argv.slice(2));
   const pages = options.only ? PROBE_PAGES.filter(config => options.only?.includes(config.name)) : PROBE_PAGES;
   const startedAt = new Date();
-  const runDir = join(
-    RUNS_DIR,
-    startedAt
-      .toISOString()
-      .replace(/\.\d+Z$/, 'Z')
-      .replace(/:/g, '-')
-  );
+  const runId = startedAt
+    .toISOString()
+    .replace(/\.\d+Z$/, 'Z')
+    .replace(/:/g, '-');
+  const runDir = join(RUNS_DIR, runId);
   await mkdir(runDir, { recursive: true, mode: 0o700 });
 
   const context = await launchProfile(options.headless);
@@ -223,7 +229,13 @@ const main = async (): Promise<void> => {
   console.log(`Results: ${runDir}`);
 
   if (failed.length > 0) {
-    if (options.notify) await notify(describeFailures(failed));
+    if (options.notify) {
+      const blocked = failed.filter(result => result.status === 'blocked').map(result => result.name);
+      const filed = await fileBlockedIssues(blocked, runId);
+      filed.forEach(outcome => console.log(describeFiling(outcome)));
+      const unfiled = filed.filter(outcome => outcome.status === 'failed').map(outcome => outcome.page);
+      await notify([describeFailures(failed), ...(unfiled.length > 0 ? [`Could not file a Linear issue: ${unfiled.join(', ')}`] : [])].join('\n'));
+    }
     process.exitCode = 1;
   }
 };
