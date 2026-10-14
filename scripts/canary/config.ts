@@ -77,7 +77,7 @@ export const PROBE_PAGES: ProbePage[] = [
     url: 'https://chatgpt.com/',
     required: { editor: CHATGPT_SELECTORS.editor },
     loginUrl: /\/auth\/login/,
-    signedIn: '[data-testid="accounts-profile-button"]',
+    signedIn: 'button[aria-label="Open profile menu"]',
   },
   {
     name: 'claude',
@@ -97,7 +97,8 @@ export const PROBE_PAGES: ProbePage[] = [
     name: 'grok',
     url: 'https://grok.com/',
     required: { editor: GROK_SELECTORS.editor },
-    signedIn: 'img[alt="pfp"]',
+    /* The label ends with the account name: "Account menu, <name>" */
+    signedIn: 'button[aria-label^="Account menu,"]',
   },
   {
     name: 'perplexity',
