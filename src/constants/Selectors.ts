@@ -7,16 +7,21 @@
 
 export const CHATGPT_SELECTORS = {
   /*
-   * The logged-in composer is a ProseMirror contenteditable div (#prompt-textarea); the logged-out
-   * guest composer is a plain React-controlled textarea (verified live 2026-08-13)
+   * The signed-in composer is a ProseMirror contenteditable div in the composer form; it lost its
+   * #prompt-textarea id in the Chat / Work redesign (verified live 2026-10-14), which is still matched
+   * in case the old composer is served. The signed-out guest composer is a plain React-controlled
+   * textarea (verified live 2026-08-13, unchanged 2026-10-14)
    */
-  editor: '#prompt-textarea, form textarea[name="prompt"]',
+  editor: '#prompt-textarea, form div.ProseMirror[contenteditable="true"], form textarea[name="prompt"]',
   /*
-   * The logged-in composer exposes #composer-submit-button / data-testid="send-button";
-   * the guest composer has neither and is only reachable via its aria-label, which stays
-   * English regardless of browser locale (verified live 2026-08-13)
+   * The redesigned signed-in composer's send button has neither an id nor a data-testid, only an
+   * aria-label that may be localized, so it is found as the submit button of the composer form, which
+   * carries data-chatgpt-composer (verified live 2026-10-14). The guest page has other forms with
+   * submit buttons, so its send button is found by its aria-label, which stays English regardless of
+   * browser locale (verified live 2026-08-13)
    */
-  submit: '#composer-submit-button, button[data-testid="send-button"], form button[aria-label="Send message"]',
+  submit:
+    '#composer-submit-button, button[data-testid="send-button"], form[data-chatgpt-composer] button[type="submit"], form button[aria-label="Send message"]',
 } as const;
 
 export const CLAUDE_SELECTORS = {

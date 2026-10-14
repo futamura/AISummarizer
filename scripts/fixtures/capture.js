@@ -212,9 +212,9 @@
     'chatgpt-composer': {
       match: /^https:\/\/chatgpt\.com\/(\?|$)/,
       source: () => 'https://chatgpt.com/',
-      prepare: () => typeIntoEditor('#prompt-textarea'),
-      cleanup: () => clearEditor('#prompt-textarea'),
-      keep: ['form:has(#prompt-textarea)'],
+      prepare: () => typeIntoEditor('form div.ProseMirror[contenteditable="true"]'),
+      cleanup: () => clearEditor('form div.ProseMirror[contenteditable="true"]'),
+      keep: ['form:has(div.ProseMirror[contenteditable="true"])'],
       drop: ['nav'],
     },
     /* Signed out (a private window): a plain textarea composer instead of ProseMirror */
