@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { CHATGPT_SELECTORS } from '@/constants';
 import { loadFixture } from '@/features/content/__fixtures__';
 import { injectChatGPT, MAX_PROMPT_CHARS, truncateForChatGPT } from '@/features/content/injectors/ChatGPT';
 
@@ -35,13 +36,14 @@ describe('injectChatGPT', () => {
 
   /*
    * The signed-in composer of chatgpt.com, captured with text typed in so that the send button
-   * exists; it carries aria-disabled until the app sees the text
+   * exists; it carries aria-disabled until the app sees the text. Since the Chat / Work redesign
+   * neither the editor nor the send button has an id or a data-testid
    */
   const mountSignedIn = (ariaDisabled: 'true' | 'false') => {
     loadFixture('chatgpt-composer');
-    const submit = document.querySelector('#composer-submit-button')!;
+    const submit = document.querySelector(CHATGPT_SELECTORS.submit)!;
     submit.setAttribute('aria-disabled', ariaDisabled);
-    const editor = document.querySelector('#prompt-textarea')!;
+    const editor = document.querySelector(CHATGPT_SELECTORS.editor)!;
     const onEnter = jest.fn();
     editor.addEventListener('keydown', event => {
       if ((event as KeyboardEvent).key === 'Enter') onEnter();
@@ -119,6 +121,13 @@ describe('injectChatGPT', () => {
     await result;
 
     expect(execCommand).toHaveBeenCalledWith('insertText', false, truncateForChatGPT(long));
+  });
+
+  it('finds the editor and the send button of the redesigned composer', () => {
+    loadFixture('chatgpt-composer');
+
+    expect(document.querySelector(CHATGPT_SELECTORS.editor)).toBeInstanceOf(HTMLDivElement);
+    expect(document.querySelector(CHATGPT_SELECTORS.submit)?.getAttribute('aria-label')).toBe('Send');
   });
 
   it('keeps using the native value setter for the guest textarea composer', async () => {

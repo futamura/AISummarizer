@@ -60,9 +60,8 @@ export async function injectChatGPT(promptText: string, { onStage = noopStageRep
 
     /*
      * Wait for the editor to be found. The logged-in composer is a ProseMirror
-     * contenteditable div (#prompt-textarea); the logged-out guest composer is a
-     * plain React-controlled textarea (name="prompt", seen in incognito windows;
-     * verified live 2026-08-13).
+     * contenteditable div; the logged-out guest composer is a plain React-controlled
+     * textarea (name="prompt", seen in incognito windows; verified live 2026-10-14).
      */
     const editor = await waitForElement(CHATGPT_SELECTORS.editor);
     if (!editor) throw new Error('ChatGPT container not found');
