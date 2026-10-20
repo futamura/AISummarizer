@@ -92,7 +92,7 @@ Two stages: local Fastlane, then CI triggered by the version tag.
 1. `bundle exec fastlane release` (must run on `develop`; see `fastlane/Fastfile`):
    - Interactive version bump (patch / minor / major) — updates both `package.json` and `manifest.json`
    - `bundle exec fastlane release bump:<never|patch|minor|major> yes:true` runs it without prompts (version selection, the confirmations before commit and tag, and the merge to `main`); it stops instead of switching when not on `develop`
-   - Runs prettier / eslint / type-check / Jest (`unit_test` lane) / `pnpm audit --audit-level high`; any failure stops the lane before the commit and tag
+   - Runs prettier / eslint / type-check / Jest (`unit_test` lane) / `pnpm audit` (no level, like the release workflow); any failure stops the lane before the commit and tag
    - Production build, then zips `dist/prod` into `free-ai-summarizer-<version>.zip`
    - Also builds and zips the Firefox version (`free-ai-summarizer-firefox-<version>.zip`) so Firefox-only build failures surface before tagging
    - Rebuilds `dist/dev` and `dist/firefox-dev` once (`build_dev` lane, no watch) so the unpacked dev builds show the new version
