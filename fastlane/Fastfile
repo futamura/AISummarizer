@@ -79,7 +79,8 @@ end
 desc "Check security"
 lane :security_check do
   ensure_develop_branch
-  sh("pnpm audit --audit-level high")
+  # No level, like the release workflow, so a moderate advisory stops the lane before the tag
+  sh("pnpm audit")
 end
 
 desc "Run type check"
