@@ -10,12 +10,16 @@
 #     https://docs.fastlane.tools/plugins/available-plugins
 #
 
+BUMP_TYPES = %w[never patch minor major].freeze
+
 # Helper method to ensure we're on develop branch
-def ensure_develop_branch
+# Without a prompt (yes: true), stop instead of switching branches
+def ensure_develop_branch(yes: false)
   current_branch = sh("git branch --show-current", log: false).strip
 
   if current_branch != "develop"
     UI.important("Current branch is '#{current_branch}', but 'develop' is required.")
+    UI.user_error!("Switch to the develop branch before running without prompts.") if yes
 
     unless UI.confirm("Do you want to switch to the develop branch?")
       UI.user_error!("Operation cancelled. Please switch to develop branch manually.")
@@ -91,7 +95,7 @@ lane :unit_test do
 end
 
 desc "Bump version number"
-lane :bump_version do
+lane :bump_version do |options|
   ensure_develop_branch
 
   # Read package.json to get current version
@@ -104,23 +108,29 @@ lane :bump_version do
   minor_version = "#{major}.#{minor.to_i + 1}.0"
   major_version = "#{major.to_i + 1}.0.0"
 
-  # Show version selection dialog
-  version_type = UI.select(
-    "How would you like to update the version?",
-    [
-      "No version change",
-      "Patch version (#{current_version} -> #{patch_version})",
-      "Minor version (#{current_version} -> #{minor_version})",
-      "Major version (#{current_version} -> #{major_version})",
-    ]
-  )
+  if options[:type]
+    # Version type given on the command line (never / patch / minor / major)
+    version_type = options[:type].to_s
+    UI.user_error!("Unknown version type '#{version_type}'. Use never, patch, minor or major.") unless BUMP_TYPES.include?(version_type)
+  else
+    # Show version selection dialog
+    version_type = UI.select(
+      "How would you like to update the version?",
+      [
+        "No version change",
+        "Patch version (#{current_version} -> #{patch_version})",
+        "Minor version (#{current_version} -> #{minor_version})",
+        "Major version (#{current_version} -> #{major_version})",
+      ]
+    )
 
-  # Map selection to version type
-  version_type = case version_type
-    when "No version change" then "never"
-    when "Patch version (#{current_version} -> #{patch_version})" then "patch"
-    when "Minor version (#{current_version} -> #{minor_version})" then "minor"
-    when "Major version (#{current_version} -> #{major_version})" then "major"
+    # Map selection to version type
+    version_type = case version_type
+      when "No version change" then "never"
+      when "Patch version (#{current_version} -> #{patch_version})" then "patch"
+      when "Minor version (#{current_version} -> #{minor_version})" then "minor"
+      when "Major version (#{current_version} -> #{major_version})" then "major"
+    end
   end
 
   # If version is not changed, exit
@@ -234,10 +244,10 @@ lane :create_source_package do
 end
 
 desc "Merge develop branch to main"
-lane :merge_to_main do
+lane :merge_to_main do |options|
   UI.important("Merging develop branch to main...")
 
-  unless UI.confirm("Do you want to merge develop branch to main?")
+  unless options[:yes] || UI.confirm("Do you want to merge develop branch to main?")
     UI.important("Merge to main cancelled by user")
     next
   end
@@ -264,11 +274,19 @@ lane :merge_to_main do
 end
 
 desc "Create release"
-lane :release do
-  ensure_develop_branch
+# Options for running without prompts, e.g. `fastlane release bump:patch yes:true`:
+#   bump: never / patch / minor / major, instead of the version selection dialog
+#   yes:  true to skip the confirmations before commit, tag and the merge to main
+lane :release do |options|
+  yes = options[:yes].to_s == "true"
+  bump = options[:bump]&.to_s
+  UI.user_error!("Unknown version type '#{bump}'. Use never, patch, minor or major.") if bump && !BUMP_TYPES.include?(bump)
+  UI.user_error!("Pass bump: together with yes:true.") if yes && bump.nil?
+
+  ensure_develop_branch(yes: yes)
 
   # Update version if not "never"
-  bump_version()
+  bump_version(type: bump)
 
   # Check format
   format_check
@@ -302,12 +320,12 @@ lane :release do
   version = JSON.parse(File.read("../package.json"))["version"]
 
   # Confirm before committing
-  unless UI.confirm("Do you want to commit and tag version #{version}?")
+  unless yes || UI.confirm("Do you want to commit and tag version #{version}?")
     UI.important("Release cancelled by user")
     next
   end
 
-  unless UI.confirm("Are you sure you want to release version #{version}?")
+  unless yes || UI.confirm("Are you sure you want to release version #{version}?")
     UI.important("Release cancelled by user")
     next
   end
@@ -333,7 +351,7 @@ lane :release do
   sh("git push && git push --tags")
 
   # Merge develop to main
-  merge_to_main
+  merge_to_main(yes: yes)
 
   UI.success("Release completed successfully!")
 end
