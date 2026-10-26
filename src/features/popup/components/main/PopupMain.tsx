@@ -4,6 +4,7 @@ import { IoClipboardOutline, IoSettingsOutline } from 'react-icons/io5';
 
 import { Divider, ServiceIcon } from '@/components';
 import { ServiceListMenu } from '@/features/popup/components/main';
+import { useMenuKeyNavigation } from '@/features/popup/hooks';
 import { openSettingsPanel } from '@/platform';
 import { useGlobalContext } from '@/stores';
 import { AIService, getAIServiceLabel, MessageAction } from '@/types';
@@ -16,6 +17,7 @@ import { isInvalidUrl, logger } from '@/utils';
 export const PopupMain: React.FC = () => {
   const [shouldShowFullMenu, setShouldShowFullMenu] = useState(false);
   const { serviceOnMenu } = useGlobalContext();
+  useMenuKeyNavigation();
 
   useEffect(() => {
     const init = async () => {
