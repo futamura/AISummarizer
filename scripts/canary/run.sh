@@ -20,6 +20,9 @@ trap notify_failure ERR
 cd "$REPO_DIR"
 git pull --ff-only --quiet
 "$MISE" exec -- "$PNPM" install --frozen-lockfile --prefer-offline --reporter=silent
+# Does nothing when the browser is there. It brings it back when a cache cleaner has removed
+# ~/Library/Caches/ms-playwright, and fetches the new build after an update of Playwright
+"$MISE" exec -- "$PNPM" exec playwright install chromium
 
 trap - ERR
 exec "$MISE" exec -- node --loader ts-node/esm scripts/canary/probe.ts "$@"
