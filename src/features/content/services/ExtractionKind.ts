@@ -1,7 +1,8 @@
+import { isVimeoVideoUrl } from '@/features/content/extractors/Vimeo';
 import { isXStatusUrl } from '@/features/content/extractors/X';
 import { getDesktopYoutubeUrl } from '@/utils';
 
-export type ExtractionKind = 'youtube' | 'pdf' | 'x' | 'webpage';
+export type ExtractionKind = 'youtube' | 'vimeo' | 'pdf' | 'x' | 'webpage';
 
 const YOUTUBE_VIDEO_PATTERN = /^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|shorts\/)?([a-zA-Z0-9_-]{11})/;
 
@@ -12,6 +13,7 @@ const YOUTUBE_VIDEO_PATTERN = /^https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\
  */
 export const getExtractionKind = (url: string): ExtractionKind => {
   if (getDesktopYoutubeUrl(url) || YOUTUBE_VIDEO_PATTERN.test(url)) return 'youtube';
+  if (isVimeoVideoUrl(url)) return 'vimeo';
   if (url.endsWith('.pdf')) return 'pdf';
   if (isXStatusUrl(url)) return 'x';
   return 'webpage';
@@ -20,6 +22,7 @@ export const getExtractionKind = (url: string): ExtractionKind => {
 export const EXTRACTION_MESSAGES: Record<ExtractionKind, { progress: string; failure: string }> = {
   webpage: { progress: 'Extracting article…', failure: "Couldn't extract this article" },
   youtube: { progress: 'Extracting transcript…', failure: "Couldn't get this transcript" },
+  vimeo: { progress: 'Extracting transcript…', failure: "Couldn't get this transcript" },
   pdf: { progress: 'Extracting PDF…', failure: "Couldn't read this PDF" },
   x: { progress: 'Extracting post…', failure: "Couldn't extract this post" },
 };

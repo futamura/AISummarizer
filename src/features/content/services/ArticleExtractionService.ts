@@ -1,4 +1,4 @@
-import { extractPDF, extractReadability, extractX, extractYoutube } from '@/features/content/extractors';
+import { extractPDF, extractReadability, extractVimeo, extractX, extractYoutube } from '@/features/content/extractors';
 import { getExtractionKind } from '@/features/content/services/ExtractionKind';
 import { ArticleExtractionResult } from '@/types';
 import { getDesktopYoutubeUrl, isInvalidUrl, logger } from '@/utils';
@@ -55,6 +55,14 @@ export class ArticleExtractionService {
           error: error instanceof Error ? error : new Error('Failed to extract article'),
         };
       }
+    }
+
+    /**
+     * Vimeo
+     */
+    if (kind === 'vimeo') {
+      logger.debug('🧑‍🍳📖', '[ArticleExtractionService.tsx]', '[execute]', 'Extracting vimeo video');
+      return await extractVimeo(url, document);
     }
 
     /**

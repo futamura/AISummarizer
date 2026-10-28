@@ -8,6 +8,9 @@ describe('getExtractionKind', () => {
     ['https://youtu.be/dQw4w9WgXcQ', 'youtube'],
     /* Copy reaches the mobile layout; summarize reloads the desktop layout first */
     ['https://m.youtube.com/watch?v=dQw4w9WgXcQ', 'youtube'],
+    ['https://vimeo.com/76979871', 'vimeo'],
+    ['https://vimeo.com/channels/staffpicks/1226731365', 'vimeo'],
+    ['https://vimeo.com/channels/staffpicks', 'webpage'],
     ['https://example.com/paper.pdf', 'pdf'],
     ['https://x.com/jack/status/20', 'x'],
     ['https://twitter.com/jack/status/20', 'x'],
@@ -23,6 +26,7 @@ describe('EXTRACTION_MESSAGES', () => {
     expect(EXTRACTION_MESSAGES).toEqual({
       webpage: { progress: 'Extracting article…', failure: "Couldn't extract this article" },
       youtube: { progress: 'Extracting transcript…', failure: "Couldn't get this transcript" },
+      vimeo: { progress: 'Extracting transcript…', failure: "Couldn't get this transcript" },
       pdf: { progress: 'Extracting PDF…', failure: "Couldn't read this PDF" },
       x: { progress: 'Extracting post…', failure: "Couldn't extract this post" },
     });

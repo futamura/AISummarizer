@@ -24,6 +24,7 @@ A free and open-source browser extension for Chrome and Firefox (desktop and And
 
 - Web Content - News articles, blog posts, and general web pages
 - YouTube - Video transcripts
+- Vimeo - Video captions, including auto-generated ones
 - PDF Documents - PDF files (Chrome only)
 
 ### Supported AI services
