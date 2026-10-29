@@ -175,7 +175,7 @@ describe('extractVimeo', () => {
 
     const result = await extractVimeo('https://vimeo.com/1209896622', document);
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://player.vimeo.com/video/1209896622');
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://player.vimeo.com/video/1209896622', { credentials: 'include' });
     expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://captions.vimeo.com/captions/en-x-autogen.vtt');
     expect(result).toEqual({
       isSuccess: true,
@@ -193,7 +193,7 @@ describe('extractVimeo', () => {
 
     const result = await extractVimeo('https://vimeo.com/1226731365/0123456789', document);
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://player.vimeo.com/video/1226731365?h=0123456789');
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://player.vimeo.com/video/1226731365?h=0123456789', { credentials: 'include' });
     expect(result.content).toContain('(https://vimeo.com/1226731365/0123456789#t=1s)');
   });
 
@@ -204,8 +204,8 @@ describe('extractVimeo', () => {
     await extractVimeo('https://vimeo.com/channels/staffpicks/1226731365', document);
     await extractVimeo('https://vimeo.com/1209896622', document);
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://player.vimeo.com/video/1226731365?h=abcdef0123');
-    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://player.vimeo.com/video/1209896622');
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://player.vimeo.com/video/1226731365?h=abcdef0123', { credentials: 'include' });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://player.vimeo.com/video/1209896622', { credentials: 'include' });
   });
 
   it('resolves a relative track URL against the player page', async () => {
