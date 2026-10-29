@@ -188,7 +188,11 @@ export async function extractVimeo(url: string, document: Document): Promise<Art
 
     const hash = video.hash ?? getPlayerHash(document, video.id);
     const playerUrl = `https://player.vimeo.com/video/${video.id}${hash ? `?h=${hash}` : ''}`;
-    const playerResponse = await fetch(playerUrl);
+    /*
+     * The player is on another origin, so its cookies are sent only on request. Unlocking a
+     * password-protected video sets a cookie, without which the player returns the password form
+     */
+    const playerResponse = await fetch(playerUrl, { credentials: 'include' });
     if (!playerResponse.ok) {
       throw new Error(`The player page returned ${playerResponse.status}`);
     }
