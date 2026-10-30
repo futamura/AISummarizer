@@ -263,9 +263,9 @@
     'perplexity-composer': {
       match: /^https:\/\/www\.perplexity\.ai\/(\?|$)/,
       source: () => 'https://www.perplexity.ai/',
-      prepare: () => typeIntoEditor('#ask-input'),
-      cleanup: () => clearLexical('#ask-input'),
-      keep: [composerOf('#ask-input', 'button[aria-label="Submit"]')],
+      prepare: () => typeIntoEditor('div[contenteditable="true"][data-lexical-editor="true"]'),
+      cleanup: () => clearLexical('div[contenteditable="true"][data-lexical-editor="true"]'),
+      keep: [composerOf('div[contenteditable="true"][data-lexical-editor="true"]', 'button[aria-label="Submit"]')],
       drop: [],
     },
     'kimi-composer': {

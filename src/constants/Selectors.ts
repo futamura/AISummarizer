@@ -49,8 +49,8 @@ export const GROK_SELECTORS = {
 } as const;
 
 export const PERPLEXITY_SELECTORS = {
-  /* A Lexical contenteditable */
-  editor: '#ask-input',
+  /* The sole Lexical contenteditable; signed in, Perplexity no longer gives it the #ask-input id */
+  editor: 'div[contenteditable="true"][data-lexical-editor="true"]',
   submit: 'button[aria-label="Submit"]',
 } as const;
 

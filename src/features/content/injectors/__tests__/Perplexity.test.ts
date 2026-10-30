@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import { PERPLEXITY_SELECTORS } from '@/constants';
 import { loadFixture } from '@/features/content/__fixtures__';
 import { injectPerplexity } from '@/features/content/injectors/Perplexity';
 
@@ -54,7 +55,7 @@ describe('injectPerplexity', () => {
     return result;
   };
 
-  const editor = () => document.querySelector<HTMLElement>('#ask-input')!;
+  const editor = () => document.querySelector<HTMLElement>(PERPLEXITY_SELECTORS.editor)!;
 
   const watchSubmitClicks = () => {
     const onClick = jest.fn();
