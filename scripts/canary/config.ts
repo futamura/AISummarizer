@@ -97,8 +97,8 @@ export const PROBE_PAGES: ProbePage[] = [
     name: 'grok',
     url: 'https://grok.com/',
     required: { editor: GROK_SELECTORS.editor },
-    /* The label ends with the account name: "Account menu, <name>" */
-    signedIn: 'button[aria-label^="Account menu,"]',
+    /* The account menu button; its aria-label names the account and has changed wording before */
+    signedIn: 'button[data-account-trigger]',
   },
   {
     name: 'perplexity',
