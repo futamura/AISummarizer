@@ -49,7 +49,7 @@
 
 ### Type Definitions
 
-- @types/node: ^20.19.6
+- @types/node: ^24.19.2
 - @types/react: ^18.3.23
 - @types/react-dom: ^18.2.19
 - @types/chrome: ^0.0.326
